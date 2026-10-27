@@ -1,0 +1,10 @@
+*.out
+__pycache__/
+.venv/
+*.pyc
+.env
+*.pmtiles
+samples/sample_*.geojson
+!samples/sample_*_mini.geojson
+cloudflared.exe
+tools/
