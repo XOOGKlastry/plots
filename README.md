@@ -2,14 +2,36 @@
 
 Frontend na **GitHub Pages** + kafle MVT z PostGIS na **OptimusPrime** przez **Cloudflare Tunnel (HTTPS)**.
 
+
+## Uruchomienie (tray / zasobnik)
+
+Na OptimusPrime:
+
+```bat
+cd %USERPROFILE%\dzialki\plots
+start.bat
+```
+
+Pojawi się ikona **siatki działek** w zasobniku systemowym (obok zegara). Menu (PPM):
+
+| Pozycja | Działanie |
+|---------|-----------|
+| Otwórz mapę (lokalnie) | `http://127.0.0.1:5001/` |
+| Otwórz mapę (GitHub Pages) | https://xoogklastry.github.io/plots/ |
+| Pokaż / kopiuj URL tunelu | powiadomienie + schowek |
+| Restartuj tunel | nowy `*.trycloudflare.com` + update `docs/config.js` |
+| Wyjdź | zatrzymuje API `:5001` i `cloudflared` |
+
+Po restarcie tunelu wypchnij zaktualizowany `docs/config.js` na GitHub, żeby Pages widziało nowy URL (albo użyj bezpośrednio URL tunelu).
+
 ## Dla współpracowników (biuro)
 
 1. Otwórz mapę: **https://xoogklastry.github.io/plots/**
 2. Przybliż mapę (zoom ≥ 13), kliknij działkę, szukaj adresu lub `id_dzialki`.
 3. **Warunek:** komputer OptimusPrime musi być włączony, a na nim musi działać `start.bat` (API + tunel).
 
-Aktualny adres kafli (HTTPS): `https://strikes-celtic-suggesting-cambridge.trycloudflare.com`  
-(mapa działa też bezpośrednio pod tym adresem: `https://strikes-celtic-suggesting-cambridge.trycloudflare.com/`)
+Aktualny adres kafli (HTTPS): `https://rouge-bridal-blend-journals.trycloudflare.com`  
+(mapa działa też bezpośrednio pod tym adresem: `https://rouge-bridal-blend-journals.trycloudflare.com/`)
 
 Jeśli kafle nie ładują się — Dawid musi uruchomić ponownie `start.bat` na OptimusPrime (URL trycloud może się zmienić; wtedy trzeba zaktualizować `docs/config.js` i wypchnąć na GitHub, albo użyć `?tiles=NOWY_URL`).
 
