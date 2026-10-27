@@ -8,8 +8,8 @@ Frontend na **GitHub Pages** + kafle MVT z PostGIS na **OptimusPrime** przez **C
 2. Przybliż mapę (zoom ≥ 13), kliknij działkę, szukaj adresu lub `id_dzialki`.
 3. **Warunek:** komputer OptimusPrime musi być włączony, a na nim musi działać `start.bat` (API + tunel).
 
-Aktualny adres kafli (HTTPS): `https://mounted-work-around-bull.trycloudflare.com`  
-(mapa działa też bezpośrednio pod tym adresem: `https://mounted-work-around-bull.trycloudflare.com/`)
+Aktualny adres kafli (HTTPS): `https://comparative-spice-dad-craps.trycloudflare.com`  
+(mapa działa też bezpośrednio pod tym adresem: `https://comparative-spice-dad-craps.trycloudflare.com/`)
 
 Jeśli kafle nie ładują się — Dawid musi uruchomić ponownie `start.bat` na OptimusPrime (URL trycloud może się zmienić; wtedy trzeba zaktualizować `docs/config.js` i wypchnąć na GitHub, albo użyć `?tiles=NOWY_URL`).
 
