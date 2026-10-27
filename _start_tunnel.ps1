@@ -16,7 +16,6 @@ foreach ($f in @($LogPath, $errPath)) {
   if (Test-Path $f) { Remove-Item $f -Force -ErrorAction SilentlyContinue }
 }
 
-# URL appears on STDERR (INF Visit it at https://....trycloudflare.com)
 $p = Start-Process -FilePath $Cloudflared `
   -ArgumentList @('tunnel','--url',"http://127.0.0.1:$Port",'--no-autoupdate') `
   -RedirectStandardOutput $LogPath `
@@ -36,6 +35,7 @@ while ((Get-Date) -lt $deadline) {
     try {
       $text = Get-Content -Raw -ErrorAction Stop $f
     } catch { continue }
+    if ([string]::IsNullOrEmpty($text)) { continue }
     $m = [regex]::Matches($text, $pattern)
     if ($m.Count -gt 0) {
       $tun = $m[$m.Count - 1].Value
@@ -49,9 +49,8 @@ while ((Get-Date) -lt $deadline) {
   }
 }
 
-# merge logs for humans
 try {
-  $combined = ""
+  $combined = ''
   if (Test-Path $LogPath) { $combined += (Get-Content -Raw $LogPath) }
   if (Test-Path $errPath) { $combined += (Get-Content -Raw $errPath) }
   [IO.File]::WriteAllText($LogPath, $combined)
@@ -65,22 +64,27 @@ if (-not $tun) {
 }
 
 [IO.File]::WriteAllText($UrlFile, $tun)
-Write-Host ""
-Write-Host "============================================"
+Write-Host ''
+Write-Host '============================================'
 Write-Host " TUNEL HTTPS: $tun"
 Write-Host " Lokalnie:    http://127.0.0.1:$Port/"
-Write-Host " Pages:       https://xoogklastry.github.io/plots/"
-Write-Host "============================================"
-Write-Host ""
-Write-Host "Uwaga: trycloud URL ZMIENIA SIE po kazdym restarcie."
-Write-Host "Zaktualizowano docs\config.js — wypchnij do GitHub, zeby Pages widzialo nowy URL."
+Write-Host ' Pages:       https://xoogklastry.github.io/plots/'
+Write-Host '============================================'
+Write-Host ''
+Write-Host 'Uwaga: trycloud URL ZMIENIA SIE po kazdym restarcie.'
+Write-Host 'Zaktualizowano docs\config.js - wypchnij do GitHub, zeby Pages widzialo nowy URL.'
 Write-Host "Albo wspolpracownicy: $tun/  (mapa z tego samego originu)"
-Write-Host ""
+Write-Host ''
 
 if (Test-Path $ConfigJs) {
   $c = Get-Content -Raw -Encoding UTF8 $ConfigJs
-  $n = [regex]::Replace($c, 'TILES_URL:\s*"[^"]*"', ('TILES_URL: "' + $tun + '"'))
-  [IO.File]::WriteAllText($ConfigJs, $n, (New-Object System.Text.UTF8Encoding $false))
+  # Pattern built without embedding quotes in PS source (avoids parse errors)
+  $dq = [char]34
+  $pat = 'TILES_URL:\s*' + $dq + '[^' + $dq + ']*' + $dq
+  $rep = 'TILES_URL: ' + $dq + $tun + $dq
+  $n = [regex]::Replace($c, $pat, $rep)
+  $utf8 = New-Object System.Text.UTF8Encoding $false
+  [IO.File]::WriteAllText($ConfigJs, $n, $utf8)
   Write-Host "config.js TILES_URL = $tun"
 }
 
