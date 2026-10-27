@@ -1,5 +1,6 @@
 window.PLOTS_CONFIG = {
-  // Domyślnie lokalny serwer MVT na OptimusPrime. Nadpisz: ?tiles=http://HOST:PORT
-  TILES_URL: "http://127.0.0.1:5001",
+  // Publiczny HTTPS (Cloudflare Tunnel z OptimusPrime). Nadpisz: ?tiles=https://...
+  // Lokalnie bez tunelu: ?tiles=http://127.0.0.1:5001
+  TILES_URL: "https://mounted-work-around-bull.trycloudflare.com",
   MIN_ZOOM: 13
 };
