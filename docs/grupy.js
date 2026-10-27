@@ -1,4 +1,4 @@
-﻿window.GRUPY_REJ = {
+window.GRUPY_REJ = {
   "1": "Skarb Państwa (bez użytkowników wieczystych)",
   "2": "Skarb Państwa (ze zbiegiem użytkowników wieczystych)",
   "3": "Jednoosobowe spółki Skarbu Państwa, przedsiębiorstwa państwowe i państwowe osoby prawne",
