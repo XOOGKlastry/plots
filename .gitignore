@@ -4,7 +4,5 @@ __pycache__/
 *.pyc
 .env
 *.pmtiles
-samples/sample_*.geojson
-!samples/sample_*_mini.geojson
-cloudflared.exe
 tools/
+cloudflare*

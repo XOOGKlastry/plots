@@ -1,30 +1,33 @@
-﻿# -*- coding: utf-8 -*-
-"""Publiczny serwer MVT/API dla mapy działek (CORS). Dane: gisss.egib.dzialki. Start: python public_api.py"""
+# -*- coding: utf-8 -*-
+"""Publiczny serwer MVT/API dla mapy dzialek (CORS). Dane: gisss.egib.dzialki.
+Start: start.bat  albo  python server/public_api.py
+"""
 import json, os, threading, contextlib, re
 import psycopg
 from flask import Flask, Response, request, abort
 
 DSN = os.environ.get("PLOTS_DSN", "postgresql://postgres@localhost/gisss")
-MINZ = 13
-_SEM = threading.BoundedSemaphore(4)
+MINZ = int(os.environ.get("PLOTS_MINZ", "13"))
+PORT = int(os.environ.get("PLOTS_PORT", "5001"))
+_SEM = threading.BoundedSemaphore(int(os.environ.get("PLOTS_CONCURRENCY", "6")))
 
 GRUPY = {
-    "1": "Skarb Państwa (bez użytkowników wieczystych)",
-    "2": "Skarb Państwa (ze zbiegiem użytkowników wieczystych)",
-    "3": "Jednoosobowe spółki Skarbu Państwa, przedsiębiorstwa państwowe i państwowe osoby prawne",
-    "4": "Gminy i związki międzygminne lub metropolitalne (bez użytkowników wieczystych)",
-    "5": "Gminy i związki międzygminne lub metropolitalne (ze zbiegiem użytkowników wieczystych)",
-    "6": "Jednoosobowe spółki jednostek samorządu terytorialnego oraz inne osoby prawne samorządu",
+    "1": "Skarb Pa\u0144stwa (bez u\u017cytkownik\u00f3w wieczystych)",
+    "2": "Skarb Pa\u0144stwa (ze zbiegiem u\u017cytkownik\u00f3w wieczystych)",
+    "3": "Jednoosobowe sp\u00f3\u0142ki Skarbu Pa\u0144stwa, przedsi\u0119biorstwa pa\u0144stwowe i pa\u0144stwowe osoby prawne",
+    "4": "Gminy i zwi\u0105zki mi\u0119dzygminne lub metropolitalne (bez u\u017cytkownik\u00f3w wieczystych)",
+    "5": "Gminy i zwi\u0105zki mi\u0119dzygminne lub metropolitalne (ze zbiegiem u\u017cytkownik\u00f3w wieczystych)",
+    "6": "Jednoosobowe sp\u00f3\u0142ki jednostek samorz\u0105du terytorialnego oraz inne osoby prawne samorz\u0105du",
     "7": "Osoby fizyczne",
-    "8": "Spółdzielnie",
-    "9": "Kościoły i związki wyznaniowe",
-    "10": "Wspólnoty gruntowe",
-    "11": "Powiaty i związki powiatów (bez użytkowników wieczystych)",
-    "12": "Powiaty i związki powiatów (ze zbiegiem użytkowników wieczystych)",
-    "13": "Województwa (bez użytkowników wieczystych)",
-    "14": "Województwa (ze zbiegiem użytkowników wieczystych)",
-    "15": "Spółki prawa handlowego",
-    "16": "Inne podmioty niewymienione w grupach 1–15",
+    "8": "Sp\u00f3\u0142dzielnie",
+    "9": "Ko\u015bcio\u0142y i zwi\u0105zki wyznaniowe",
+    "10": "Wsp\u00f3lnoty gruntowe",
+    "11": "Powiaty i zwi\u0105zki powiat\u00f3w (bez u\u017cytkownik\u00f3w wieczystych)",
+    "12": "Powiaty i zwi\u0105zki powiat\u00f3w (ze zbiegiem u\u017cytkownik\u00f3w wieczystych)",
+    "13": "Wojew\u00f3dztwa (bez u\u017cytkownik\u00f3w wieczystych)",
+    "14": "Wojew\u00f3dztwa (ze zbiegiem u\u017cytkownik\u00f3w wieczystych)",
+    "15": "Sp\u00f3\u0142ki prawa handlowego",
+    "16": "Inne podmioty niewymienione w grupach 1\u201315",
 }
 
 TILE_SQL = """
@@ -48,20 +51,17 @@ class Pool:
             yield c
 POOL = Pool()
 
-def cors(resp):
+@app.after_request
+def after(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return resp
 
-@app.after_request
-def after(resp):
-    return cors(resp)
-
 @app.route("/tiles/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
 def tile(z, x, y):
     if request.method == "OPTIONS":
-        return cors(Response(status=204))
+        return Response(status=204)
     if z < MINZ or z > 22:
         return Response(b"", mimetype="application/x-protobuf")
     with POOL.connection() as c:
@@ -72,14 +72,14 @@ def tile(z, x, y):
 def enrich(d):
     g = d.get("grupa_rej") or ""
     nums = re.findall(r"[0-9]{1,2}", g)
-    labels = [f"Grupa {n}: {GRUPY[n]}" for n in nums if n in GRUPY]
-    d["grupa_opis"] = "; ".join(labels) if labels else (None if not g else f"Grupa {g} (opis niedostępny)")
+    labels = ["Grupa %s: %s" % (n, GRUPY[n]) for n in nums if n in GRUPY]
+    d["grupa_opis"] = "; ".join(labels) if labels else (None if not g else "Grupa %s" % g)
     d["grupy"] = [{"nr": n, "opis": GRUPY[n]} for n in nums if n in GRUPY]
     return d
 
 @app.get("/api/grupy")
 def grupy():
-    return Response(json.dumps({"zrodlo": "rozporządzenie EGiB §14", "grupy": GRUPY}, ensure_ascii=False),
+    return Response(json.dumps({"zrodlo": "rozporzadzenie EGiB §14", "grupy": GRUPY}, ensure_ascii=False),
                     mimetype="application/json; charset=utf-8")
 
 @app.get("/api/dzialka")
@@ -118,7 +118,8 @@ def at_point():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "minzoom": MINZ}
+    return {"ok": True, "minzoom": MINZ, "port": PORT}
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PLOTS_PORT", "5001")), threaded=True)
+    print("PLOTS API http://127.0.0.1:%s  (DSN=%s)" % (PORT, DSN.split("@")[-1]))
+    app.run(host="0.0.0.0", port=PORT, threaded=True)

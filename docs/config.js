@@ -1,5 +1,5 @@
-﻿window.PLOTS_CONFIG = {
-  // URL API/kafli (tunel Cloudflare lub własny host). Bez końcowego /.
-  TILES_URL: "https://tags-routines-wiring-retrieval.trycloudflare.com",
+window.PLOTS_CONFIG = {
+  // Domyślnie lokalny serwer MVT na OptimusPrime. Nadpisz: ?tiles=http://HOST:PORT
+  TILES_URL: "http://127.0.0.1:5001",
   MIN_ZOOM: 13
 };
