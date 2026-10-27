@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Publiczny serwer MVT/API dla mapy dzialek (CORS). Dane: gisss.egib.dzialki.
-Start: start.bat  albo  python server/public_api.py
+"""Publiczny serwer MVT/API + frontend docs/. Dane: gisss.egib.dzialki.
+Start: start.bat
+Mapa: http://127.0.0.1:5001/
 """
 import json, os, threading, contextlib, re
+from pathlib import Path
 import psycopg
 from flask import Flask, Response, request, abort
 
@@ -10,8 +12,7 @@ DSN = os.environ.get("PLOTS_DSN", "postgresql://postgres@localhost/gisss")
 MINZ = int(os.environ.get("PLOTS_MINZ", "13"))
 PORT = int(os.environ.get("PLOTS_PORT", "5001"))
 _SEM = threading.BoundedSemaphore(int(os.environ.get("PLOTS_CONCURRENCY", "6")))
-
-GRUPY = {
+GRUPY = json.loads("""{
     "1": "Skarb Pa\u0144stwa (bez u\u017cytkownik\u00f3w wieczystych)",
     "2": "Skarb Pa\u0144stwa (ze zbiegiem u\u017cytkownik\u00f3w wieczystych)",
     "3": "Jednoosobowe sp\u00f3\u0142ki Skarbu Pa\u0144stwa, przedsi\u0119biorstwa pa\u0144stwowe i pa\u0144stwowe osoby prawne",
@@ -27,8 +28,8 @@ GRUPY = {
     "13": "Wojew\u00f3dztwa (bez u\u017cytkownik\u00f3w wieczystych)",
     "14": "Wojew\u00f3dztwa (ze zbiegiem u\u017cytkownik\u00f3w wieczystych)",
     "15": "Sp\u00f3\u0142ki prawa handlowego",
-    "16": "Inne podmioty niewymienione w grupach 1\u201315",
-}
+    "16": "Inne podmioty niewymienione w grupach 1\u201315"
+}""")
 
 TILE_SQL = """
 WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e)
@@ -43,6 +44,7 @@ SELECT ST_AsMVT(q, 'dzialki', 4096, 'g') FROM (
 """
 
 app = Flask(__name__)
+_DOCS = Path(__file__).resolve().parent.parent / "docs"
 
 class Pool:
     @contextlib.contextmanager
@@ -120,6 +122,25 @@ def at_point():
 def health():
     return {"ok": True, "minzoom": MINZ, "port": PORT}
 
+@app.get("/")
+def index():
+    p = _DOCS / "index.html"
+    if not p.is_file():
+        return {"ok": True, "port": PORT, "hint": "Brak docs/"}
+    return Response(p.read_bytes(), mimetype="text/html; charset=utf-8")
+
+@app.get("/config.js")
+@app.get("/grupy.js")
+@app.get("/app.js")
+@app.get("/index.html")
+def frontend_asset():
+    name = request.path.rsplit("/", 1)[-1]
+    p = _DOCS / name
+    if not p.is_file():
+        abort(404)
+    mime = "text/html; charset=utf-8" if name.endswith(".html") else "application/javascript; charset=utf-8"
+    return Response(p.read_bytes(), mimetype=mime)
+
 if __name__ == "__main__":
-    print("PLOTS API http://127.0.0.1:%s  (DSN=%s)" % (PORT, DSN.split("@")[-1]))
+    print("PLOTS mapa+API  http://127.0.0.1:%s/  (PostGIS %s)" % (PORT, DSN.split("@")[-1]))
     app.run(host="0.0.0.0", port=PORT, threaded=True)
