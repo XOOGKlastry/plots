@@ -242,6 +242,7 @@
   };
   const fmtDate = (d) => { if (!d) return "—"; const m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]}` : esc(d); };
   function parcelCard(p) {
+    const area = window.ParcelModel.area(p);
     const gs = groupsOf(p);
     const chips = gs.length
       ? gs.map((g) => { const c = COL[g] || "#888"; return `<div class="chip" style="--c:${c}">${IC.users}<span><b>Grupa ${esc(g)}</b> · ${esc(GR[g] || "")}</span></div>`; }).join("")
@@ -254,7 +255,7 @@
       <div class="grid4">
         ${cell(IC.map, "Obręb", `${esc(p.obreb || "—")}${p.nazwa_obrebu ? " · " + esc(String(p.nazwa_obrebu).replace(/-\d+$/, "")) : ""}`)}
         ${cell(IC.leaf, "Użytki", esc(p.klasouzytki || "—"))}
-        ${cell(IC.area, "Powierzchnia", fmtHa(p.pole_ewid))}
+        ${cell(IC.area, "Powierzchnia · " + area.source.toLowerCase(), esc(window.ParcelModel.format(area.m2, "m²")) + `<span class="area-secondary">${esc(window.ParcelModel.format(area.ha, "ha"))}</span>`)}
         ${cell(IC.clock, "Aktualność", fmtDate(p.data_zrodla))}
       </div>
       <button class="more" type="button" data-more>${IC.doc}<span>Pełne informacje</span>${IC.chev}</button>
@@ -461,13 +462,6 @@
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
   dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
-  $("#shareView").onclick = async () => {
-    const c = map.getCenter(), url = new URL(location.href); url.search = "";
-    url.searchParams.set("lon", c.lng.toFixed(6)); url.searchParams.set("lat", c.lat.toFixed(6)); url.searchParams.set("z", map.getZoom().toFixed(2));
-    if (selectedParcelId && curTab === "info") url.searchParams.set("id", selectedParcelId);
-    if (curTab === "gmina" && window.PLOTS_GMINY.current()) url.searchParams.set("gmina", window.PLOTS_GMINY.current());
-    try { await navigator.clipboard.writeText(url.href); toast("Link do widoku skopiowany"); } catch (err) { toast("Nie udało się skopiować linku. Sprawdź uprawnienia schowka."); }
-  };
   window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers,
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },

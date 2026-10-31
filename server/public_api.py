@@ -36,6 +36,7 @@ WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e)
 SELECT ST_AsMVT(q, 'dzialki', 4096, 'g') FROM (
   SELECT d.id_dzialki, d.numer_dzialki, d.obreb, d.nazwa_obrebu, d.pole_ewid,
          d.grupa_rej, d.klasouzytki, d.data_zrodla,
+         ST_Area(d.geom)::float8 AS powierzchnia_geom_m2,
          CASE WHEN d.grupa_rej ~ '^[0-9]{1,2}' THEN (regexp_match(d.grupa_rej, '^[0-9]{1,2}'))[1] ELSE 'brak' END AS g1,
          ST_AsMVTGeom(ST_Transform(d.geom,3857), b.e, 4096, 64, true) g
   FROM egib.dzialki d, b
@@ -72,6 +73,10 @@ def tile(z, x, y):
                     headers={"Cache-Control": "public, max-age=300"})
 
 def enrich(d):
+    area = d.get("powierzchnia_geom_m2")
+    if area is not None:
+        d["powierzchnia_geom_ha"] = area / 10000
+        d["powierzchnia_zrodlo"] = "Geometria EGiB, EPSG:2180"
     g = d.get("grupa_rej") or ""
     nums = re.findall(r"[0-9]{1,2}", g)
     labels = ["Grupa %s: %s" % (n, GRUPY[n]) for n in nums if n in GRUPY]
@@ -91,13 +96,15 @@ def dzialka():
         abort(400)
     with POOL.connection() as c:
         r = c.execute("""SELECT id_dzialki, numer_dzialki, obreb, nazwa_obrebu, pole_ewid, grupa_rej, klasouzytki, data_zrodla,
-            ST_XMin(e), ST_YMin(e), ST_XMax(e), ST_YMax(e)
+            ST_XMin(e), ST_YMin(e), ST_XMax(e), ST_YMax(e),
+            ST_Area(geom)::float8
             FROM egib.dzialki, LATERAL (SELECT ST_Transform(geom,4326)::box2d e) x
             WHERE id_dzialki=%s""", (i,)).fetchone()
     if not r:
         abort(404)
     k = ["id_dzialki","numer_dzialki","obreb","nazwa_obrebu","pole_ewid","grupa_rej","klasouzytki","data_zrodla"]
     d = dict(zip(k, r[:8])); d["bbox"] = [[r[8], r[9]], [r[10], r[11]]]
+    d["powierzchnia_geom_m2"] = r[12]
     return Response(json.dumps(enrich(d), default=str, ensure_ascii=False), mimetype="application/json; charset=utf-8")
 
 @app.get("/api/at")
@@ -108,7 +115,8 @@ def at_point():
         abort(400)
     with POOL.connection() as c:
         r = c.execute("""SELECT id_dzialki, numer_dzialki, obreb, nazwa_obrebu, pole_ewid, grupa_rej, klasouzytki, data_zrodla,
-            ST_XMin(e), ST_YMin(e), ST_XMax(e), ST_YMax(e)
+            ST_XMin(e), ST_YMin(e), ST_XMax(e), ST_YMax(e),
+            ST_Area(geom)::float8
             FROM egib.dzialki, LATERAL (SELECT ST_Transform(geom,4326)::box2d e) x
             WHERE ST_Intersects(geom, ST_Transform(ST_SetSRID(ST_MakePoint(%s,%s),4326),2180))
             ORDER BY ST_Area(geom) ASC LIMIT 1""", (lon, lat)).fetchone()
@@ -116,6 +124,7 @@ def at_point():
         abort(404)
     k = ["id_dzialki","numer_dzialki","obreb","nazwa_obrebu","pole_ewid","grupa_rej","klasouzytki","data_zrodla"]
     d = dict(zip(k, r[:8])); d["bbox"] = [[r[8], r[9]], [r[10], r[11]]]
+    d["powierzchnia_geom_m2"] = r[12]
     return Response(json.dumps(enrich(d), default=str, ensure_ascii=False), mimetype="application/json; charset=utf-8")
 
 
@@ -317,7 +326,7 @@ def map_style_asset() -> Response:
 
 # Closed asset list: new mobile/data modules are served without exposing arbitrary paths.
 _EXTRA_ASSETS = {
-    "planning.js", "surroundings-model.js", "surroundings.js", "gus-client.js", "mobile.js", "sw.js",
+    "planning.js", "surroundings-model.js", "surroundings.js", "gus-client.js", "mobile.js", "sw.js", "parcel-model.js",
     "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable.png",
     "data/map-services.json", "data/surroundings.json", "data/gus-catalog.json", "data/bdl-units.json", "data/gus-population.json",
 }

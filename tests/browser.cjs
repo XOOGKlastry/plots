@@ -6,7 +6,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
 const base = process.env.TEST_URL || 'http://127.0.0.1:8091';
 const output = process.env.TEST_OUTPUT || path.join(__dirname, '../../browser-results');
 fs.mkdirSync(output, { recursive: true });
-const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obreb: '0001', nazwa_obrebu: 'Ustka', pole_ewid: 0.1234, grupa_rej: '4', klasouzytki: 'B', data_zrodla: '2026-10-20', bbox: [[16.86,54.58],[16.861,54.581]] };
+const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obreb: '0001', nazwa_obrebu: 'Ustka', pole_ewid: null, powierzchnia_geom_m2: 1234.5, grupa_rej: '4', klasouzytki: 'B', data_zrodla: '2026-10-20', bbox: [[16.86,54.58],[16.861,54.581]] };
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_CHANNEL ? {channel:process.env.BROWSER_CHANNEL} : {}), args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 950 }, permissions: ['clipboard-read','clipboard-write'] });
@@ -51,12 +51,11 @@ const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obre
   // Parcel deep link, hectare units, source date, and municipality context.
   await page.goto(base+'/?id='+encodeURIComponent(parcel.id_dzialki),{waitUntil:'domcontentloaded'});
   await page.locator('#card h2').filter({hasText:'123/4'}).waitFor();
-  assert.match(await page.locator('#card').innerText(),/0,1234 ha/);
+  assert.match(await page.locator('#card').innerText(),/0,1235 ha/);
   await page.locator('#tab-gmina').click();
   assert.match(await page.locator('#gminaCard').innerText(),/Ustka/);
-  await page.locator('#shareView').click();
-  const copied = await page.evaluate(()=>navigator.clipboard.readText());
-  assert.match(copied,/gmina=2212011/);
+  assert.match(await page.locator('#card').innerText(),/1\s?234,5 m²/);
+  assert.equal(await page.locator('#shareView').count(),0);
   // Responsive layouts, real MapLibre resizing, mobile card and modal visibility.
   for(const theme of ['light','dark']) {
     await page.emulateMedia({colorScheme:theme});
@@ -74,6 +73,6 @@ const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obre
     }
   }
   assert.deepEqual(errors,[]);
-  console.log('Browser checks passed: search, TERYT, metadata, parcel regression, layers, persistence, shared links, 4 widths × 2 themes.');
+  console.log('Browser checks passed: search, TERYT, metadata, parcel regression, layers, persistence, geometry area, 4 widths × 2 themes.');
   await browser.close();
 })().catch(error=>{console.error(error);process.exit(1);});
