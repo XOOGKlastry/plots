@@ -281,14 +281,38 @@ def index():
 @app.get("/config.js")
 @app.get("/grupy.js")
 @app.get("/app.js")
+@app.get("/gminy.js")
+@app.get("/gminy-model.js")
+@app.get("/style.css")
+@app.get("/design.css")
 @app.get("/index.html")
 def frontend_asset():
     name = request.path.rsplit("/", 1)[-1]
     p = _DOCS / name
     if not p.is_file():
         abort(404)
-    mime = "text/html; charset=utf-8" if name.endswith(".html") else "application/javascript; charset=utf-8"
-    return Response(p.read_bytes(), mimetype=mime)
+    mime = "text/html; charset=utf-8" if name.endswith(".html") else "text/css; charset=utf-8" if name.endswith(".css") else "application/javascript; charset=utf-8"
+    return Response(p.read_bytes(), content_type=mime)
+
+
+@app.get("/data/gminy.json")
+def municipality_data() -> Response:
+    """Serve the pinned municipality snapshot without opening a database connection."""
+    path = _DOCS / "data" / "gminy.json"
+    if not path.is_file():
+        abort(404)
+    return Response(path.read_bytes(), content_type="application/json; charset=utf-8",
+                    headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/styles/map-light.json")
+@app.get("/styles/map-dark.json")
+def map_style_asset() -> Response:
+    """Serve only the two reviewed map styles, never arbitrary filesystem paths."""
+    path = _DOCS / "styles" / request.path.rsplit("/", 1)[-1]
+    if not path.is_file():
+        abort(404)
+    return Response(path.read_bytes(), content_type="application/json; charset=utf-8")
 
 if __name__ == "__main__":
     print("PLOTS mapa+API  http://127.0.0.1:%s/  (PostGIS %s)" % (PORT, DSN.split("@")[-1]))

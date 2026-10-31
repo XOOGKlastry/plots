@@ -1,73 +1,37 @@
 <!DOCTYPE html>
-<html lang="pl">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)"/>
-<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)"/>
-<title>Działki EGiB · grupy rejestrowe</title>
-<link rel="preconnect" href="https://fonts.bunny.net"/>
-<link href="https://fonts.bunny.net/css?family=manrope:400,500,600,700|jetbrains-mono:400,500&display=swap" rel="stylesheet"/>
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
-<link href="style.css" rel="stylesheet"/>
-</head>
-<body>
-<div id="map" aria-label="Mapa"></div>
-
-<form id="search" role="search" autocomplete="off">
-  <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-  <input id="q" type="search" enterkeyhint="search" placeholder="Adres lub ID działki" aria-label="Szukaj adresu lub ID działki"/>
-  <button type="button" id="qClear" class="icbtn" aria-label="Wyczyść" hidden><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-  <ul id="sugg" role="listbox" hidden></ul>
-</form>
-
-<aside id="panel" aria-label="Panel">
-  <div id="handle" aria-hidden="true"><span></span></div>
-  <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="info" aria-selected="true">Działka</button>
-    <button role="tab" data-tab="layers">Warstwy</button>
-    <button role="tab" data-tab="legend">Legenda</button>
-  </nav>
-  <div class="tabbody">
-    <section data-pane="info" class="pane on">
-      <div id="card" class="empty">
-        <div class="emptymsg">
-          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 8h14v14H8zM26 8h14v14H26zM8 26h14v14H8zM26 26h14v14H26z"/></svg>
-          <p>Przybliż mapę i stuknij działkę albo punkt adresowy.</p>
-          <p class="muted">Kolor działki = grupa rejestrowa (EGiB §14).</p>
-        </div>
-      </div>
-    </section>
-    <section data-pane="layers" class="pane">
-      <h4>Podkład</h4>
-      <div id="basemaps" class="bmgrid"></div>
-      <h4>Nakładki</h4>
-      <label class="sw"><input type="checkbox" id="lyrDz" checked/><span></span>Działki <em>z ≥ 13</em></label>
-      <label class="sw"><input type="checkbox" id="lyrAdr" checked/><span></span>Punkty adresowe <em>z ≥ 16</em></label>
-      <label class="sw"><input type="checkbox" id="lyrHill"/><span></span>Cieniowanie rzeźby</label>
-      <label class="range">Krycie działek <input type="range" id="opac" min="0" max="100" value="45"/></label>
-    </section>
-    <section data-pane="legend" class="pane"><div id="legend"></div></section>
-  </div>
-  <footer id="status" class="muted"></footer>
-</aside>
-
-<button id="collapse" class="fab" aria-label="Zwiń panel" title="Zwiń panel"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-<div class="fabs">
-  <button id="locate" class="fab" aria-label="Moja lokalizacja"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/></svg></button>
-</div>
-<button id="layersFab" class="fab mob" aria-label="Warstwy"><svg class="ic" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/></svg></button>
-<nav id="tabbar" aria-label="Nawigacja">
-  <button data-tab="info"><svg class="ic" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Działka</button>
-  <button data-tab="layers"><svg class="ic" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/></svg>Warstwy</button>
-  <button data-tab="legend"><svg class="ic" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Legenda</button>
-  <button data-tab="search"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Szukaj</button>
-</nav>
-<div id="toast" role="status" aria-live="polite"></div>
-
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="config.js"></script>
-<script src="grupy.js"></script>
-<script src="app.js"></script>
-</body>
-</html>
+<html lang="pl"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)"/><meta name="theme-color" content="#202126" media="(prefers-color-scheme: dark)"/>
+<title>Mapa działek i gmin</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/><link href="style.css" rel="stylesheet"/><link href="design.css" rel="stylesheet"/>
+</head><body>
+<svg class="icon-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 18l9 5 9-5"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol>
+<symbol id="i-town" viewBox="0 0 24 24"><path d="M4 21V8l8-5 8 5v13H4zM9 21v-6h6v6M8 9h.01M16 9h.01M8 12h.01M16 12h.01"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="m10 14 4-4M8 16l-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0M16 8l1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0"/></symbol>
+</defs></svg>
+<div id="map" aria-label="Interaktywna mapa działek i gmin"></div>
+<form id="search" role="search" autocomplete="off"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input id="q" type="search" enterkeyhint="search" placeholder="Miejsce, adres lub działka" aria-label="Szukaj adresu, ID działki, nazwy gminy lub TERYT" aria-controls="sugg" aria-autocomplete="list" aria-expanded="false"/><button type="button" id="qClear" class="icbtn" aria-label="Wyczyść wyszukiwanie" hidden><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button><ul id="sugg" role="listbox" aria-label="Wyniki wyszukiwania" hidden></ul></form>
+<aside id="panel" aria-label="Wybrany obiekt">
+<button id="handle" type="button" aria-label="Rozwiń lub zwiń kartę"><span></span></button>
+<nav class="tabs" role="tablist" aria-label="Rodzaj obiektu"><button id="tab-info" role="tab" data-tab="info" aria-controls="pane-info" aria-selected="true">Działka</button><button id="tab-gmina" role="tab" data-tab="gmina" aria-controls="pane-gmina" aria-selected="false">Gmina</button></nav>
+<div class="tabbody"><section id="pane-info" data-pane="info" class="pane on" role="tabpanel" aria-labelledby="tab-info"><div id="card" class="empty"><div class="emptymsg"><div class="place-icon"><svg class="ic" aria-hidden="true"><use href="#i-grid"/></svg></div><h1>Twoje miejsce<br>na mapie.</h1><p>Wyszukaj adres lub wskaż działkę, aby poznać szczegóły.</p><p class="muted small">Granice działek zobaczysz po przybliżeniu mapy.</p></div></div></section><section id="pane-gmina" data-pane="gmina" class="pane" role="tabpanel" aria-labelledby="tab-gmina" hidden><div id="gminaCard"><p class="muted small">Wczytywanie danych gmin…</p></div></section></div>
+<div class="quick-actions"><button type="button" data-open-layers><span><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg></span>Warstwy</button><button type="button" data-open-legend><span><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg></span>Legenda</button><button type="button" id="shareView"><span><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg></span>Link do widoku</button></div><footer id="status" class="muted" aria-live="polite"></footer></aside>
+<button id="collapse" class="fab" aria-label="Zwiń panel" aria-expanded="true"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg></button>
+<button id="layersFab" class="fab layer-fab" aria-label="Warstwy mapy" aria-controls="layerPanel" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg><span>Warstwy</span><b id="layerCount">2</b></button>
+<div class="fabs"><button id="locate" class="fab" aria-label="Moja lokalizacja"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg></button></div>
+<aside id="layerPanel" class="floating-panel" aria-label="Warstwy mapy" hidden><header class="section-head"><h2>Widok mapy</h2><button class="icbtn" type="button" data-close-layers aria-label="Zamknij warstwy"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button></header>
+<div id="basemaps" class="bmgrid" aria-label="Podkład mapy"></div>
+<label class="filter-input"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input id="layerFilter" type="search" placeholder="Znajdź warstwę" aria-label="Znajdź warstwę"/></label>
+<div class="layer-group"><h3>Działki i adresy</h3><div class="layer-entry" data-keywords="działki egib ewidencja grunty"><label class="sw"><input type="checkbox" id="lyrDz" checked/><span></span><div>Działki ewidencyjne<small id="dzZoomHint">Przybliż mapę, aby zobaczyć granice</small></div></label></div><div class="layer-entry" data-keywords="adresy prg punkty"><label class="sw"><input type="checkbox" id="lyrAdr" checked/><span></span><div>Punkty adresowe<small id="adrZoomHint">Widoczne przy większym przybliżeniu</small></div></label></div><label class="range">Krycie działek <output id="opacValue">45%</output><input type="range" id="opac" min="0" max="100" value="45"/></label></div>
+<div class="layer-group"><h3>Teren</h3><div class="layer-entry" data-keywords="teren cieniowanie rzeźba wysokość"><label class="sw"><input type="checkbox" id="lyrHill"/><span></span><div>Cieniowanie rzeźby</div></label></div></div><p id="noLayers" class="muted small" hidden>Brak pasujących warstw.</p><details id="legendDetails"><summary>Legenda grup rejestrowych</summary><div id="legend"></div></details><p class="muted source-note">Działki: EGiB · adresy: PRG. Data źródła jest podana w karcie obiektu.</p></aside>
+<dialog id="gminaDialog" aria-labelledby="gminaDialogTitle"><div class="data-shell"><aside class="data-sidebar"><button type="button" id="closeGmina" class="back-button"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg>Wróć do mapy</button><nav id="dataCategories" aria-label="Kategorie danych gminy"></nav><a href="https://xoogklastry.github.io/jakdaleko/" target="_blank" rel="noopener noreferrer">Otwórz Jakdaleko <svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></a></aside><main id="gminaDetails" class="data-content"></main></div></dialog>
+<nav id="tabbar" hidden aria-label="Nawigacja"></nav><div id="toast" role="status" aria-live="polite"></div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script><script src="config.js"></script><script src="grupy.js"></script><script src="gminy-model.js"></script><script src="app.js"></script><script src="gminy.js"></script>
+</body></html>
