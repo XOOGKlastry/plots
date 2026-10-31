@@ -1,240 +1,362 @@
 /* global maplibregl, PLOTS_CONFIG, GRUPY_REJ, GRUPY_COLORS */
 (function () {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
   const params = new URLSearchParams(location.search);
   const CFG = window.PLOTS_CONFIG || {};
   const BASE = (params.get("tiles") || CFG.TILES_URL || "http://127.0.0.1:5001").replace(/\/$/, "");
   const MINZ = +(params.get("minzoom") || CFG.MIN_ZOOM || 13);
+  const ADR_MINZ = +(CFG.ADR_MIN_ZOOM || 16);
   const GR = window.GRUPY_REJ || {};
   const COL = window.GRUPY_COLORS || {};
+  const isMobile = () => matchMedia("(max-width:760px)").matches;
+  const dark = matchMedia("(prefers-color-scheme: dark)");
+  const store = {
+    get: (k, d) => { try { const v = localStorage.getItem("plots." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: (k, v) => { try { localStorage.setItem("plots." + k, JSON.stringify(v)); } catch (e) {} }
+  };
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  const leg = document.getElementById("legend");
-  Object.keys(GR).forEach((k) => {
-    const row = document.createElement("div");
-    row.className = "row";
-    row.innerHTML = `<i style="background:${COL[k] || "#999"}"></i><span><b>${k}</b> ${GR[k]}</span>`;
-    leg.appendChild(row);
-  });
-  const rowB = document.createElement("div");
-  rowB.className = "row";
-  rowB.innerHTML = `<i style="background:${COL.brak || "#ccc"}"></i><span>brak / nieustalone</span>`;
-  leg.appendChild(rowB);
+  /* ---------- Basemaps (verified EPSG:3857 endpoints) ---------- */
+  const GP = "https://mapy.geoportal.gov.pl/wss/service";
+  const wms = (u, lyr, fmt) => `${u}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${lyr}&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=${fmt}`;
+  const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
+  const BASEMAPS = [
+    { id: "esri-img", name: "Esri satelita", url: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri, Maxar, Earthstar" },
+    { id: "gp-orto", name: "Ortofoto Geoportal", url: `${GP}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`, max: 19, attr: "© GUGiK geoportal.gov.pl" },
+    { id: "gp-hr", name: "Ortofoto HD Geoportal", url: wms(`${GP}/PZGIK/ORTO/WMS/HighResolution`, "Raster", "image/jpeg"), max: 21, thumb: [17, 73180, 43164], attr: "© GUGiK geoportal.gov.pl" },
+    { id: "gp-topo", name: "Topo Geoportal", url: wms(`${GP}/img/guest/TOPO/MapServer/WMSServer`, "Raster", "image/png"), max: 19, attr: "© GUGiK geoportal.gov.pl" },
+    { id: "esri-topo", name: "Esri topo", url: `${ESRI}/World_Topo_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
+    { id: "esri-street", name: "Esri ulice", url: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
+    { id: "osm", name: "OpenStreetMap", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", max: 19, attr: "© OpenStreetMap" },
+    { id: "gray-light", name: "Jasna (Esri)", url: `${ESRI}/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`, max: 16, attr: "© Esri" },
+    { id: "gray-dark", name: "Ciemna (Esri)", url: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, max: 16, attr: "© Esri" }
+  ];
+  const HILL = `${ESRI}/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}`;
+  function tileUrl(t, z, x, y) {
+    const R = 20037508.342789244, s = (2 * R) / Math.pow(2, z);
+    const bb = [-R + x * s, R - (y + 1) * s, -R + (x + 1) * s, R - y * s].join(",");
+    return t.replace("{z}", z).replace("{x}", x).replace("{y}", y).replace("{bbox-epsg-3857}", bb);
+  }
+  let bmId = store.get("basemap", dark.matches ? "gray-dark" : "gray-light");
+  if (!BASEMAPS.some((b) => b.id === bmId)) bmId = "gray-light";
 
+  /* ---------- Map ---------- */
+  const view = store.get("view", { center: [19.2, 52.1], zoom: 6 });
   const map = new maplibregl.Map({
     container: "map",
-    style: {
-      version: 8,
-      sources: {
-        osm: {
-          type: "raster",
-          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-          tileSize: 256,
-          attribution: "© OpenStreetMap"
-        }
-      },
-      glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-      layers: [{ id: "osm", type: "raster", source: "osm" }]
-    },
-    center: [19.2, 52.1],
-    zoom: 6,
-    maxZoom: 19
+    style: { version: 8, sources: {}, layers: [], glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf" },
+    center: view.center, zoom: view.zoom, maxZoom: 21, attributionControl: { compact: true }, dragRotate: false
   });
-  map.addControl(new maplibregl.NavigationControl(), "top-right");
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
 
-  const matchExpr = ["match", ["get", "g1"]];
-  Object.keys(COL).forEach((k) => {
-    if (k !== "brak") matchExpr.push(k, COL[k]);
+  function setBasemap(id, save) {
+    const b = BASEMAPS.find((x) => x.id === id) || BASEMAPS[0];
+    bmId = b.id; if (save !== false) store.set("basemap", b.id);
+    const before = map.getLayer("hill") ? "hill" : (map.getLayer("dz-fill") ? "dz-fill" : undefined);
+    if (map.getLayer("base")) map.removeLayer("base");
+    if (map.getSource("base")) map.removeSource("base");
+    map.addSource("base", { type: "raster", tiles: [b.url], tileSize: 256, maxzoom: b.max, attribution: b.attr });
+    map.addLayer({ id: "base", type: "raster", source: "base", paint: { "raster-fade-duration": 200 } }, before);
+    document.querySelectorAll(".bm").forEach((el) => el.setAttribute("aria-pressed", el.dataset.id === b.id));
+    // lighter outlines on imagery / dark maps
+    if (map.getLayer("dz-line")) map.setPaintProperty("dz-line", "line-color", /img|orto|hr|dark/.test(b.id) ? "#ffffff" : "#1b1e24");
+  }
+  const bmBox = $("#basemaps");
+  BASEMAPS.forEach((b) => {
+    const el = document.createElement("button");
+    el.className = "bm"; el.dataset.id = b.id; el.type = "button"; el.setAttribute("aria-pressed", "false");
+    el.innerHTML = `<div class="th"><img loading="lazy" alt="" src="${esc(tileUrl(b.url, ...(b.thumb || [16, 36602, 21642])))}"/></div><span>${esc(b.name)}</span>`;
+    el.onclick = () => setBasemap(b.id);
+    bmBox.appendChild(el);
   });
+
+  /* ---------- Legend ---------- */
+  const leg = $("#legend");
+  Object.keys(GR).forEach((k) => {
+    leg.insertAdjacentHTML("beforeend", `<div class="row"><i style="background:${COL[k] || "#999"}"></i><div><b>${k}</b>${esc(GR[k])}</div></div>`);
+  });
+  leg.insertAdjacentHTML("beforeend", `<div class="row"><i style="background:${COL.brak || "#ccc"}"></i><div><b>–</b>brak / nieustalone</div></div>`);
+
+  const matchExpr = ["match", ["to-string", ["get", "g1"]]];
+  Object.keys(COL).forEach((k) => { if (k !== "brak") matchExpr.push(k, COL[k]); });
   matchExpr.push(COL.brak || "#bdc3c7");
 
-  function opisGrupy(g) {
-    if (!g) return "brak danych";
-    const nums = String(g).match(/[0-9]{1,2}/g) || [];
-    const parts = nums.filter((n) => GR[n]).map((n) => `Grupa ${n}: ${GR[n]}`);
-    return parts.length ? parts.join("; ") : `Grupa ${g}`;
+  /* ---------- Panel / tabs / bottom sheet ---------- */
+  const panel = $("#panel");
+  function tab(name) {
+    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
+    document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === name));
+  }
+  document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { tab(b.dataset.tab); if (isMobile() && panel.dataset.snap !== "full") snap("half"); }));
+  function snap(s) {
+    panel.dataset.snap = s;
+    document.body.classList.toggle("sheet-up", s !== "peek");
+  }
+  snap("peek");
+  $("#collapse").onclick = () => { document.body.classList.toggle("collapsed"); setTimeout(() => map.resize(), 360); };
+
+  // drag handling for sheet
+  (function () {
+    let y0 = 0, t0 = 0, start = 0, dragging = false, scrollEl = panel.querySelector(".tabbody");
+    const H = () => panel.getBoundingClientRect().height;
+    const snapY = () => {
+      const h = H(), peek = 132;
+      return { peek: h - peek, half: h * 0.48, full: 0 };
+    };
+    panel.addEventListener("touchstart", (e) => {
+      if (!isMobile()) return;
+      const onBody = scrollEl.contains(e.target);
+      if (onBody && panel.dataset.snap === "full" && scrollEl.scrollTop > 0) return;
+      y0 = e.touches[0].clientY; t0 = Date.now();
+      start = snapY()[panel.dataset.snap]; dragging = true;
+    }, { passive: true });
+    panel.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+      const dy = e.touches[0].clientY - y0;
+      if (Math.abs(dy) < 6) return;
+      if (scrollEl.contains(e.target) && panel.dataset.snap === "full" && dy < 0) { dragging = false; return; }
+      panel.classList.add("drag");
+      const y = Math.max(0, Math.min(snapY().peek, start + dy));
+      panel.style.transform = `translateY(${y}px)`;
+      e.cancelable && e.preventDefault();
+    }, { passive: false });
+    panel.addEventListener("touchend", (e) => {
+      if (!dragging) return; dragging = false;
+      if (!panel.classList.contains("drag")) return;
+      panel.classList.remove("drag");
+      const dy = e.changedTouches[0].clientY - y0, v = dy / Math.max(1, Date.now() - t0);
+      const cur = start + dy, S = snapY();
+      let s;
+      if (v < -0.5) s = panel.dataset.snap === "peek" ? "half" : "full";
+      else if (v > 0.5) s = panel.dataset.snap === "full" ? "half" : "peek";
+      else s = Object.keys(S).reduce((a, k) => (Math.abs(S[k] - cur) < Math.abs(S[a] - cur) ? k : a), "peek");
+      panel.style.transform = "";
+      snap(s);
+    });
+    $("#handle").addEventListener("click", () => snap(panel.dataset.snap === "peek" ? "half" : "peek"));
+  })();
+
+  /* ---------- Toast / status ---------- */
+  let toastT;
+  function toast(msg, ms) {
+    const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), ms || 2600);
+  }
+  const status = $("#status");
+  function updStatus() {
+    const z = map.getZoom();
+    status.textContent = `z ${z.toFixed(1)} · ${map.getCenter().lat.toFixed(5)}, ${map.getCenter().lng.toFixed(5)}` + (z < MINZ ? ` · przybliż do z ${MINZ}, by zobaczyć działki` : "");
   }
 
-  function popupHtml(p) {
-    const pole = p.pole_ewid != null ? Number(p.pole_ewid).toLocaleString("pl-PL") + " m²" : "—";
-    return `<b>${p.id_dzialki || "—"}</b>
-      Numer: ${p.numer_dzialki || "—"}<br/>
-      Obręb: ${p.obreb || "—"} ${p.nazwa_obrebu ? "(" + p.nazwa_obrebu + ")" : ""}<br/>
-      Pole ewid.: ${pole}<br/>
-      <b style="margin-top:6px">${opisGrupy(p.grupa_rej || p.grupa_opis)}</b>
-      <div style="margin-top:4px;color:#555">Użytki: ${p.klasouzytki || "—"}</div>`;
+  /* ---------- Cards ---------- */
+  function groupsOf(p) {
+    if (Array.isArray(p.grupy) && p.grupy.length) return p.grupy.map((g) => String(g.nr));
+    const nums = String(p.grupa_rej || p.g1 || "").match(/[0-9]{1,2}/g) || [];
+    return nums.filter((n) => GR[n]);
   }
-
-  map.on("load", () => {
-    document.getElementById("hint").textContent =
-      `API: ${BASE} — przybliż mapę (z≥${MINZ}), kliknij działkę. Kolor = grupa rejestrowa (EGiB §14).`;
-    map.addSource("dzialki", {
-      type: "vector",
-      tiles: [BASE + "/tiles/{z}/{x}/{y}.pbf"],
-      minzoom: MINZ,
-      maxzoom: 16
-    });
-    map.addLayer({
-      id: "dz-fill",
-      type: "fill",
-      source: "dzialki",
-      "source-layer": "dzialki",
-      paint: { "fill-color": matchExpr, "fill-opacity": 0.45 }
-    });
-    map.addLayer({
-      id: "dz-line",
-      type: "line",
-      source: "dzialki",
-      "source-layer": "dzialki",
-      paint: { "line-color": "#222", "line-width": 0.8, "line-opacity": 0.7 }
-    });
-
-    // --- Punkty adresowe ---
-    const ADR_MINZ = +(CFG.ADR_MIN_ZOOM || 16);
-    map.addSource("adresy", {
-      type: "vector",
-      tiles: [BASE + "/tiles/adresy/{z}/{x}/{y}.pbf"],
-      minzoom: ADR_MINZ,
-      maxzoom: 18
-    });
-    map.addLayer({
-      id: "adr-pt", type: "circle", source: "adresy", "source-layer": "adresy", minzoom: ADR_MINZ,
-      paint: {
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3.5, 19, 7],
-        "circle-color": "#d81b60",
-        "circle-stroke-color": "#fff",
-        "circle-stroke-width": 1.5,
-        "circle-opacity": 0.95
-      }
-    });
-    map.addLayer({
-      id: "adr-lbl", type: "symbol", source: "adresy", "source-layer": "adresy", minzoom: 17,
-      layout: {
-        "text-field": ["coalesce", ["get", "numer"], ""],
-        "text-font": ["Open Sans Semibold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 17, 11, 19, 14],
-        "text-offset": [0, -1.1],
-        "text-anchor": "bottom",
-        "text-allow-overlap": false
-      },
-      paint: { "text-color": "#880e4f", "text-halo-color": "#fff", "text-halo-width": 1.8, "text-halo-blur": 0.3 }
-    });
-    map.on("click", "adr-pt", (e) => {
-      const f = e.features && e.features[0];
-      if (!f) return;
-      e.originalEvent.cancelBubble = true;
-      e.preventDefault && e.preventDefault();
-      new maplibregl.Popup({ maxWidth: "360px" }).setLngLat(e.lngLat).setHTML(adrPopup(f.properties)).addTo(map);
-    });
-    map.on("mouseenter", "adr-pt", () => { map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", "adr-pt", () => { map.getCanvas().style.cursor = ""; });
-
-    function setVis(ids, on) { ids.forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", on ? "visible" : "none")); }
-    const cbD = document.getElementById("lyrDz"), cbA = document.getElementById("lyrAdr");
-    if (cbD) cbD.onchange = () => setVis(["dz-fill", "dz-line"], cbD.checked);
-    if (cbA) cbA.onchange = () => setVis(["adr-pt", "adr-lbl"], cbA.checked);
-
-    map.on("click", "dz-fill", (e) => {
-      if (e.defaultPrevented) return;
-      const hit = map.queryRenderedFeatures(e.point, { layers: ["adr-pt"] });
-      if (hit.length) return;
-      const f = e.features && e.features[0];
-      if (!f) return;
-      new maplibregl.Popup({ maxWidth: "360px" })
-        .setLngLat(e.lngLat)
-        .setHTML(popupHtml(f.properties))
-        .addTo(map);
-    });
-    map.on("mouseenter", "dz-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", "dz-fill", () => { map.getCanvas().style.cursor = ""; });
-  });
-
-  function esc(v) { return String(v == null ? "" : v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  const fmtHa = (v) => (v == null || v === "" ? "—" : `${Number(v).toLocaleString("pl-PL", { maximumFractionDigits: 4 })} ha`);
+  const copyBtn = (txt) => `<button class="copy" type="button" data-copy="${esc(txt)}"><svg class="ic" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Kopiuj</button>`;
+  function parcelCard(p) {
+    const gs = groupsOf(p);
+    const c0 = COL[gs[0]] || COL.brak || "#bbb";
+    const grp = gs.length
+      ? gs.map((g) => `<div class="grp"><i style="background:${COL[g] || "#999"}"></i><div><span class="kicker">Grupa ${esc(g)}</span><strong>${esc(GR[g] || "")}</strong></div></div>`).join("")
+      : `<div class="grp"><i style="background:${COL.brak || "#bbb"}"></i><div><span class="kicker">Grupa rejestrowa</span><strong>brak danych</strong></div></div>`;
+    return `<div class="kicker"><i style="background:${c0}"></i>Działka ewidencyjna</div>
+      <div class="idrow"><code>${esc(p.id_dzialki || "—")}</code>${p.id_dzialki ? copyBtn(p.id_dzialki) : ""}</div>
+      ${grp}
+      <dl class="kv">
+        <dt>Numer</dt><dd class="num">${esc(p.numer_dzialki || "—")}</dd>
+        <dt>Obręb</dt><dd><span class="num">${esc(p.obreb || "—")}</span>${p.nazwa_obrebu ? " · " + esc(p.nazwa_obrebu) : ""}</dd>
+        <dt>Pole ewid.</dt><dd class="num">${fmtHa(p.pole_ewid)}</dd>
+        <dt>Użytki</dt><dd class="num">${esc(p.klasouzytki || "—")}</dd>
+        ${p.data_zrodla ? `<dt>Stan danych</dt><dd class="num">${esc(String(p.data_zrodla).slice(0, 10))}</dd>` : ""}
+      </dl>`;
+  }
   function adrText(p) {
     const a = [p.ulica, p.numer].filter(Boolean).join(" ");
     const b = [p.kod, p.miejscowosc].filter(Boolean).join(" ");
     return [a, b].filter(Boolean).join(", ") || p.adres || "(adres)";
   }
-  function adrPopup(p) {
-    const skip = new Set(["ulica", "numer", "kod", "miejscowosc", "lon", "lat", "adres"]);
+  function adrCard(p) {
+    const skip = new Set(["ulica", "numer", "kod", "miejscowosc", "lon", "lat", "adres", "gmina"]);
     const rest = Object.keys(p).filter((k) => !skip.has(k) && p[k] !== null && p[k] !== "")
-      .map((k) => `<tr><td style="color:#777;padding-right:6px">${esc(k)}</td><td>${esc(p[k])}</td></tr>`).join("");
-    return `<b>${esc(adrText(p))}</b>${p.gmina ? "Gmina: " + esc(p.gmina) + "<br/>" : ""}
-      <table style="font-size:11px;margin-top:4px">${rest}</table>`;
+      .map((k) => `<dt>${esc(k)}</dt><dd class="num">${esc(p[k])}</dd>`).join("");
+    return `<div class="kicker"><i style="background:#d81b60;border-radius:50%"></i>Punkt adresowy</div>
+      <div class="idrow"><code style="font-family:var(--ui);font-weight:700;font-size:17px;word-break:normal">${esc(adrText(p))}</code>${copyBtn(adrText(p))}</div>
+      <dl class="kv">${p.gmina ? `<dt>Gmina</dt><dd>${esc(p.gmina)}</dd>` : ""}</dl>
+      ${rest ? `<details><summary>Atrybuty PRG</summary><dl class="kv">${rest}</dl></details>` : ""}
+      <div id="adrParcel"></div>`;
   }
-  async function searchOwnAddr(q) {
-    try {
-      const r = await fetch(`${BASE}/api/adres?q=${encodeURIComponent(q)}`);
-      if (!r.ok) return null;
-      const j = await r.json();
-      return (j.wyniki && j.wyniki.length) ? j.wyniki[0] : null;
-    } catch (e) { return null; }
+  const card = $("#card");
+  function showCard(html) {
+    card.classList.remove("empty"); card.innerHTML = html; tab("info");
+    if (isMobile()) snap("half");
+    else document.body.classList.remove("collapsed");
   }
+  card.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-copy]"); if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.copy); }
+    catch (err) { const ta = document.createElement("textarea"); ta.value = b.dataset.copy; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+    b.classList.add("ok"); b.lastChild.textContent = "Skopiowano"; setTimeout(() => { b.classList.remove("ok"); b.lastChild.textContent = "Kopiuj"; }, 1600);
+  });
 
-  async function fetchAt(lon, lat) {
-    const r = await fetch(`${BASE}/api/at?lon=${lon}&lat=${lat}`);
-    if (!r.ok) throw new Error("Brak działki w tym punkcie (czy działa lokalne API?)");
+  function highlight(id) {
+    if (map.getLayer("dz-sel")) map.setFilter("dz-sel", ["==", ["get", "id_dzialki"], id || "__none__"]);
+  }
+  function selectParcel(p) { highlight(p.id_dzialki); showCard(parcelCard(p)); }
+
+  /* ---------- API ---------- */
+  async function api(path) {
+    const r = await fetch(BASE + path);
+    if (!r.ok) throw new Error(r.status === 404 ? "Nie znaleziono" : "Błąd API " + r.status);
     return r.json();
   }
-  async function fetchId(id) {
-    const r = await fetch(`${BASE}/api/dzialka?id=${encodeURIComponent(id)}`);
-    if (!r.ok) throw new Error("Nie znaleziono działki");
-    return r.json();
+  const fetchAt = (lon, lat) => api(`/api/at?lon=${lon}&lat=${lat}`);
+  let selMarker = null;
+  function mark(lnglat) {
+    if (!selMarker) { const el = document.createElement("div"); el.style.cssText = "width:18px;height:18px;border-radius:50%;background:#d81b60;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"; selMarker = new maplibregl.Marker({ element: el }); }
+    selMarker.setLngLat(lnglat).addTo(map);
   }
-  function showParcel(d) {
-    if (d.bbox) map.fitBounds(d.bbox, { padding: 60, maxZoom: 17 });
-    const c = d.bbox
-      ? [(d.bbox[0][0] + d.bbox[1][0]) / 2, (d.bbox[0][1] + d.bbox[1][1]) / 2]
-      : map.getCenter().toArray();
-    new maplibregl.Popup({ maxWidth: "360px" })
-      .setLngLat(c)
-      .setHTML(popupHtml(d))
-      .addTo(map);
+  function padding() { return isMobile() ? { top: 90, bottom: window.innerHeight * 0.52 + 20, left: 30, right: 30 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 420, right: 70 }; }
+
+  async function showAddress(p) {
+    const lon = +p.lon, lat = +p.lat;
+    mark([lon, lat]);
+    showCard(adrCard(p));
+    map.flyTo({ center: [lon, lat], zoom: 18, padding: padding(), speed: 1.6 });
+    try {
+      const d = await fetchAt(lon, lat);
+      highlight(d.id_dzialki);
+      const box = $("#adrParcel");
+      if (box) box.innerHTML = `<h4 style="margin-top:22px">Działka pod adresem</h4>` + parcelCard(d);
+    } catch (e) {}
+  }
+  function showParcelFull(d) {
+    if (d.bbox) map.fitBounds(d.bbox, { padding: padding(), maxZoom: 18 });
+    selectParcel(d);
   }
 
-  document.getElementById("btnAddr").onclick = async () => {
-    const q = document.getElementById("addr").value.trim();
-    if (!q) return;
-    document.getElementById("hint").textContent = "Szukam adresu…";
+  /* ---------- Search ---------- */
+  const q = $("#q"), sugg = $("#sugg"), qClear = $("#qClear");
+  const isId = (s) => /^\d{6}_\d\.\d{4}\./.test(s) || (/_/.test(s) && /\./.test(s) && !/\s/.test(s));
+  let items = [], active = -1, seq = 0, deb;
+  function renderSugg() {
+    sugg.hidden = !items.length;
+    sugg.innerHTML = items.map((it, i) => `<li role="option" data-i="${i}" aria-selected="${i === active}">${esc(it.title)}<small>${esc(it.sub || "")}</small></li>`).join("");
+  }
+  async function suggest(s) {
+    const my = ++seq;
+    if (s.length < 3 || isId(s)) { items = []; renderSugg(); return; }
     try {
-      const own = await searchOwnAddr(q);
-      if (own && own.lon != null) {
-        const lon = +own.lon, lat = +own.lat;
-        map.flyTo({ center: [lon, lat], zoom: 18 });
-        new maplibregl.Popup({ maxWidth: "360px" }).setLngLat([lon, lat]).setHTML(adrPopup(own)).addTo(map);
-        document.getElementById("hint").textContent = "Punkt adresowy (PRG): " + adrText(own);
-        try { await fetchAt(lon, lat); } catch (e) {}
+      const j = await api(`/api/adres?q=${encodeURIComponent(s)}`);
+      if (my !== seq) return;
+      items = (j.wyniki || []).slice(0, 6).map((w) => ({ kind: "adr", data: w, title: [w.ulica || w.miejscowosc, w.numer].filter(Boolean).join(" "), sub: [w.kod, w.miejscowosc, w.gmina && w.gmina !== w.miejscowosc ? "gm. " + w.gmina : ""].filter(Boolean).join(" · ") }));
+      active = -1; renderSugg();
+    } catch (e) { items = []; renderSugg(); }
+  }
+  q.addEventListener("input", () => { qClear.hidden = !q.value; clearTimeout(deb); deb = setTimeout(() => suggest(q.value.trim()), 250); });
+  q.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { if (!items.length) return; e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length; renderSugg(); }
+    if (e.key === "Escape") { items = []; renderSugg(); }
+  });
+  sugg.addEventListener("mousedown", (e) => e.preventDefault());
+  sugg.addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) pick(items[+li.dataset.i]); });
+  q.addEventListener("blur", () => setTimeout(() => { items = []; renderSugg(); }, 150));
+  qClear.onclick = () => { q.value = ""; qClear.hidden = true; items = []; renderSugg(); q.focus(); };
+  function pick(it) {
+    items = []; renderSugg(); q.blur();
+    if (it.kind === "adr") { q.value = adrText(it.data); showAddress(it.data); }
+  }
+  $("#search").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const s = q.value.trim(); if (!s) return;
+    if (active >= 0 && items[active]) return pick(items[active]);
+    items = []; renderSugg(); q.blur();
+    try {
+      if (isId(s)) { showParcelFull(await api(`/api/dzialka?id=${encodeURIComponent(s)}`)); return; }
+      const j = await api(`/api/adres?q=${encodeURIComponent(s)}`).catch(() => ({}));
+      if (j.wyniki && j.wyniki.length) { showAddress(j.wyniki[0]); return; }
+      const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=" + encodeURIComponent(s));
+      const arr = await r.json();
+      if (!arr.length) throw new Error("Nie znaleziono: " + s);
+      const lon = +arr[0].lon, lat = +arr[0].lat;
+      mark([lon, lat]);
+      map.flyTo({ center: [lon, lat], zoom: 17, padding: padding() });
+      toast(arr[0].display_name.split(",").slice(0, 3).join(","));
+      try { selectParcel(await fetchAt(lon, lat)); } catch (er) {}
+    } catch (err) { toast(err.message || String(err)); }
+  });
+
+  /* ---------- Geolocation ---------- */
+  $("#locate").onclick = () => {
+    if (!navigator.geolocation) return toast("Geolokalizacja niedostępna");
+    toast("Ustalam położenie…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { const c = [pos.coords.longitude, pos.coords.latitude]; mark(c); map.flyTo({ center: c, zoom: 17, padding: padding() }); },
+      () => toast("Brak zgody na lokalizację"), { enableHighAccuracy: true, timeout: 10000 });
+  };
+
+  /* ---------- Layers ---------- */
+  map.on("load", () => {
+    map.addSource("hill", { type: "raster", tiles: [HILL], tileSize: 256, maxzoom: 16, attribution: "© Esri" });
+    map.addLayer({ id: "hill", type: "raster", source: "hill", layout: { visibility: store.get("hill", false) ? "visible" : "none" }, paint: { "raster-opacity": 0.35 } });
+    map.addSource("dzialki", { type: "vector", tiles: [BASE + "/tiles/{z}/{x}/{y}.pbf"], minzoom: MINZ, maxzoom: 16 });
+    const op = store.get("opac", 45) / 100;
+    map.addLayer({ id: "dz-fill", type: "fill", source: "dzialki", "source-layer": "dzialki", paint: { "fill-color": matchExpr, "fill-opacity": op } });
+    map.addLayer({ id: "dz-line", type: "line", source: "dzialki", "source-layer": "dzialki", paint: { "line-color": "#1b1e24", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 0.3, 18, 1.2], "line-opacity": 0.75 } });
+    map.addLayer({ id: "dz-sel", type: "line", source: "dzialki", "source-layer": "dzialki", filter: ["==", ["get", "id_dzialki"], "__none__"], paint: { "line-color": "#2f6bff", "line-width": 3.5 } });
+    map.addSource("adresy", { type: "vector", tiles: [BASE + "/tiles/adresy/{z}/{x}/{y}.pbf"], minzoom: ADR_MINZ, maxzoom: 18 });
+    map.addLayer({ id: "adr-pt", type: "circle", source: "adresy", "source-layer": "adresy", minzoom: ADR_MINZ, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3, 19, 6.5], "circle-color": "#d81b60", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
+    map.addLayer({ id: "adr-lbl", type: "symbol", source: "adresy", "source-layer": "adresy", minzoom: 17,
+      layout: { "text-field": ["coalesce", ["get", "numer"], ""], "text-font": ["Open Sans Semibold"], "text-size": ["interpolate", ["linear"], ["zoom"], 17, 11, 19, 14], "text-offset": [0, -1.1], "text-anchor": "bottom" },
+      paint: { "text-color": "#880e4f", "text-halo-color": "#fff", "text-halo-width": 1.8 } });
+    setBasemap(bmId, false);
+
+    const setVis = (ids, on) => ids.forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", on ? "visible" : "none"));
+    const bind = (el, key, ids, def) => { el.checked = store.get(key, def); setVis(ids, el.checked); el.onchange = () => { store.set(key, el.checked); setVis(ids, el.checked); }; };
+    bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
+    bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl"], true);
+    bind($("#lyrHill"), "hill", ["hill"], false);
+    const o = $("#opac"); o.value = store.get("opac", 45);
+    o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", o.value / 100); store.set("opac", +o.value); };
+
+    // tap: address point has priority, with a touch-friendly hit box
+    map.on("click", (e) => {
+      const r = isMobile() ? 14 : 6;
+      const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
+      const a = map.getLayer("adr-pt") ? map.queryRenderedFeatures(box, { layers: ["adr-pt"] }) : [];
+      if (a.length) {
+        const p = Object.assign({}, a[0].properties, { lon: a[0].geometry.coordinates[0], lat: a[0].geometry.coordinates[1] });
+        mark([p.lon, p.lat]); showCard(adrCard(p));
+        fetchAt(p.lon, p.lat).then((d) => { highlight(d.id_dzialki); const b = $("#adrParcel"); if (b) b.innerHTML = `<h4 style="margin-top:22px">Działka pod adresem</h4>` + parcelCard(d); }).catch(() => {});
         return;
       }
-      const url =
-        "https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=" +
-        encodeURIComponent(q);
-      const r = await fetch(url, { headers: { Accept: "application/json" } });
-      const arr = await r.json();
-      if (!arr.length) throw new Error("Adres nie znaleziony");
-      const lon = +arr[0].lon, lat = +arr[0].lat;
-      map.flyTo({ center: [lon, lat], zoom: 17 });
-      const d = await fetchAt(lon, lat);
-      showParcel(d);
-      document.getElementById("hint").textContent = arr[0].display_name;
-    } catch (err) {
-      document.getElementById("hint").textContent = String(err.message || err);
+      const f = map.queryRenderedFeatures(e.point, { layers: ["dz-fill"] });
+      if (f.length) {
+        if (selMarker) selMarker.remove();
+        selectParcel(f[0].properties);
+        fetchAt(e.lngLat.lng, e.lngLat.lat).then((d) => { if (d.id_dzialki === f[0].properties.id_dzialki) card.innerHTML = parcelCard(d); }).catch(() => {});
+      } else if (map.getZoom() < MINZ) {
+        toast(`Przybliż mapę (z ≥ ${MINZ}), aby zobaczyć działki`);
+      }
+    });
+    if (matchMedia("(hover:hover)").matches) {
+      map.on("mousemove", (e) => {
+        const h = map.queryRenderedFeatures(e.point, { layers: ["adr-pt", "dz-fill"].filter((l) => map.getLayer(l)) });
+        map.getCanvas().style.cursor = h.length ? "pointer" : "";
+      });
     }
-  };
-  document.getElementById("btnId").onclick = async () => {
-    const id = document.getElementById("pid").value.trim();
-    if (!id) return;
-    document.getElementById("hint").textContent = "Szukam ID…";
-    try {
-      const d = await fetchId(id);
-      showParcel(d);
-      document.getElementById("hint").textContent = d.id_dzialki;
-    } catch (err) {
-      document.getElementById("hint").textContent = String(err.message || err);
-    }
-  };
-  document.getElementById("addr").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") document.getElementById("btnAddr").click();
+    updStatus();
   });
-  document.getElementById("pid").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") document.getElementById("btnId").click();
-  });
+  map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
+  map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Serwer kafelków niedostępny – uruchom start.bat na OptimusPrime", 5000); } });
+  dark.addEventListener("change", (e) => { if (!localStorage.getItem("plots.basemap")) setBasemap(e.matches ? "gray-dark" : "gray-light", false); });
+
+  // deep link: ?id=... or ?q=...
+  if (params.get("id")) map.once("load", () => { q.value = params.get("id"); $("#search").requestSubmit(); });
+  else if (params.get("q")) map.once("load", () => { q.value = params.get("q"); $("#search").requestSubmit(); });
 })();
