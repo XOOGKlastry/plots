@@ -128,11 +128,11 @@ ADR_MINZ = int(os.environ.get("PLOTS_ADR_MINZ", "16"))
 _ADR = {"meta": None, "err": None}
 _ADR_LOCK = threading.Lock()
 _ADR_CANDS = {
-    "numer": ["numer", "numerporzadkowy", "numer_porzadkowy", "nr", "numer_adr", "pa_numer", "numerdomu", "numer_domu"],
-    "ulica": ["ulica", "nazwaulicy", "nazwa_ulicy", "ul_nazwa", "ulica_nazwa", "nazwaglownaczesc", "ul"],
-    "miejscowosc": ["miejscowosc", "nazwamiejscowosci", "nazwa_miejscowosci", "msc", "miejscowosc_nazwa", "simc_nazwa"],
-    "kod": ["kodpocztowy", "kod_pocztowy", "kod", "pna"],
-    "gmina": ["gmina", "nazwagminy", "gmina_nazwa"],
+    "numer": ["numerporz", "numer", "numerporzadkowy", "numer_porzadkowy", "nr", "numer_adr", "pa_numer", "numerdomu", "numer_domu"],
+    "ulica": ["nazwaulc", "ulica", "nazwaulicy", "nazwa_ulicy", "ul_nazwa", "ulica_nazwa", "nazwaglownaczesc", "ul"],
+    "miejscowosc": ["nazwamsc", "miejscowosc", "nazwamiejscowosci", "nazwa_miejscowosci", "msc", "miejscowosc_nazwa", "simc_nazwa"],
+    "kod": ["kodpoczt", "kodpocztowy", "kod_pocztowy", "kod", "pna"],
+    "gmina": ["nazwagmi", "gmina", "nazwagminy", "gmina_nazwa"],
 }
 
 def _norm(s):
@@ -240,7 +240,9 @@ def api_adres():
                         mimetype="application/json; charset=utf-8")
     hay = _sql.SQL("concat_ws(' ', {})").format(_sql.SQL(", ").join(_sql.Identifier(f) for f in fields))
     toks = [t for t in re.split(r"[\s,]+", q) if t][:6]
-    conds = _sql.SQL(" AND ").join(_sql.SQL("{h} ILIKE {p}").format(h=hay, p=_sql.Literal("%" + t + "%")) for t in toks)
+    conds = _sql.SQL(" AND ").join(
+        _sql.SQL("(") + _sql.SQL(" OR ").join(_sql.SQL("lower({f}) LIKE {p}").format(f=_sql.Identifier(f), p=_sql.Literal("%" + t.lower() + "%")) for f in fields) + _sql.SQL(")")
+        for t in toks)
     numcol = m.get("numer")
     order = _sql.SQL("length({h})").format(h=hay)
     g4326 = _adr_geom(meta, 4326)
