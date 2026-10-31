@@ -112,10 +112,11 @@
   const tbar = $("#tabbar");
   let curTab = "info";
   function openLayers(legend) {
+    document.body.classList.add("layers-open");
     $("#layerPanel").hidden = false; $("#layersFab").setAttribute("aria-expanded", "true");
     if (legend) { $("#legendDetails").open = true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
   }
-  function closeLayers() { $("#layerPanel").hidden = true; $("#layersFab").setAttribute("aria-expanded", "false"); }
+  function closeLayers() { document.body.classList.remove("layers-open"); $("#layerPanel").hidden = true; $("#layersFab").setAttribute("aria-expanded", "false"); }
   function tab(name) {
     if (name === "layers" || name === "legend") { openLayers(name === "legend"); return; }
     curTab = name;
@@ -157,6 +158,7 @@
   function visibleSheet() { if (!isMobile()) return 0; const y = snapY()[panel.dataset.snap] || 0; return Math.max(0, sheetH() - y); }
   function snap(s) {
     panel.dataset.snap = s;
+    document.body.classList.toggle("map-tight", isMobile() && window.innerHeight-visibleSheet()<300);
     if (isMobile()) panel.style.transform = `translateY(${snapY()[s]}px)`; else panel.style.transform = "";
     document.body.dataset.snap = s;
     $("#collapse").setAttribute("aria-expanded", String(isMobile() ? s !== "hidden" : !document.body.classList.contains("collapsed")));
@@ -274,10 +276,12 @@
       <div class="idrow"><code style="font-family:var(--ui);font-weight:700;font-size:17px;word-break:normal">${esc(adrText(p))}</code>${copyBtn(adrText(p))}</div>
       <dl class="kv">${p.gmina ? `<dt>Gmina</dt><dd>${esc(p.gmina)}</dd>` : ""}</dl>
       ${rest ? `<details><summary>Atrybuty PRG</summary><dl class="kv">${rest}</dl></details>` : ""}
-      <div id="adrParcel"></div>`;
+      <div id="addressAccess"></div><div id="adrParcel"></div>`;
   }
   const card = $("#card");
   function showCard(html) {
+    closeLayers();
+    document.dispatchEvent(new Event("plots:selection"));
     card.classList.remove("empty"); card.innerHTML = html; tab("info");
     if (isMobile()) snap("half");
     else document.body.classList.remove("collapsed");
@@ -316,7 +320,8 @@
     const lon = +p.lon, lat = +p.lat;
     mark([lon, lat]);
     showCard(adrCard(p));
-    map.flyTo({ center: [lon, lat], zoom: 18, padding: padding(), speed: 1.6 });
+    document.dispatchEvent(new CustomEvent("plots:address", {detail:p}));
+    map.flyTo({ center: [lon, lat], zoom: 18, padding: padding(), retainPadding:false, speed: 1.6 });
     try {
       const d = await fetchAt(lon, lat);
       if (requestId !== addressRequest) return;
@@ -430,7 +435,6 @@
     // tap: address point has priority, with a touch-friendly hit box
     map.on("click", (e) => {
       if (window.PLOTS_PLANNING?.inspecting()) return;
-      if (window.PLOTS_SURROUNDINGS?.handleClick(e)) return;
       const r = isMobile() ? 14 : 6;
       const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
       const a = map.getLayer("adr-pt") ? map.queryRenderedFeatures(box, { layers: ["adr-pt"] }) : [];
@@ -439,6 +443,7 @@
         showAddress(p);
         return;
       }
+      if (window.PLOTS_SURROUNDINGS?.handleClick(e)) return;
       const f = map.queryRenderedFeatures(e.point, { layers: ["dz-fill"] });
       if (f.length) {
         addressRequest++;
@@ -446,8 +451,8 @@
         selectParcel(f[0].properties);
         fetchAt(e.lngLat.lng, e.lngLat.lat).then((d) => { if (d.id_dzialki === selectedParcelId) card.innerHTML = parcelCard(d); }).catch(() => {});
       } else {
-        if (isMobile() && panel.dataset.snap !== "hidden") snap(card.classList.contains("empty") ? "hidden" : "peek");
-        if (map.getZoom() < MINZ) toast(`Przybliż mapę (z ≥ ${MINZ}), aby zobaczyć działki`);
+        addressRequest++; selectedParcelId=null; highlight(null); if(selMarker)selMarker.remove();
+        window.PLOTS_PLANNING?.inspectPoint(e);
       }
     });
     if (matchMedia("(hover:hover)").matches) {
@@ -462,7 +467,7 @@
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
   dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers,
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab,
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
     showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };

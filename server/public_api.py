@@ -326,7 +326,7 @@ def map_style_asset() -> Response:
 
 # Closed asset list: new mobile/data modules are served without exposing arbitrary paths.
 _EXTRA_ASSETS = {
-    "planning.js", "surroundings-model.js", "surroundings.js", "gus-client.js", "mobile.js", "sw.js", "parcel-model.js",
+    "planning.js", "surroundings-model.js", "surroundings.js", "gus-client.js", "mobile.js", "sw.js", "parcel-model.js", "indicator-model.js", "access-model.js", "address-access.js",
     "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable.png",
     "data/map-services.json", "data/surroundings.json", "data/gus-catalog.json", "data/bdl-units.json", "data/gus-population.json",
 }
