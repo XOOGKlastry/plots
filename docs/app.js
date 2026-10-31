@@ -24,9 +24,9 @@
   const BASEMAPS = [
     { id: "map", name: "Mapa", style: true, url: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
     { id: "gp-orto", name: "Ortofoto", url: `${GP}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`, max: 19, attr: "© GUGiK geoportal.gov.pl" },
-    { id: "gp-topo", name: "Topo", url: wms(`${GP}/img/guest/TOPO/MapServer/WMSServer`, "Raster", "image/png"), max: 19, attr: "© GUGiK geoportal.gov.pl" }
+    { id: "gp-topo", name: "Topo", topo: true, max: 20, attr: "© GUGiK · BDOT10k" }
   ];
-  const HILL = `${ESRI}/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}`;
+  const overlaySourceIds = new Set(["dzialki", "adresy"]);
   function tileUrl(t, z, x, y) {
     const R = 20037508.342789244, s = (2 * R) / Math.pow(2, z);
     const bb = [-R + x * s, R - (y + 1) * s, -R + (x + 1) * s, R - y * s].join(",");
@@ -55,11 +55,18 @@
     const requestId = ++basemapRequest;
     const b = BASEMAPS.find((x) => x.id === id) || BASEMAPS[0];
     let baseStyle;
-    if (b.style) {
+    if (b.style || b.topo) {
       try {
         const response = await fetch(`styles/map-${dark.matches ? "dark" : "light"}.json`, { signal: AbortSignal.timeout(10000) });
         if (!response.ok) throw new Error("Map style unavailable");
         baseStyle = await response.json();
+        if (b.topo) {
+          const response = await fetch("data/map-services.json");
+          if (!response.ok) throw new Error("Topographic catalog unavailable");
+          const services = await response.json();
+          baseStyle.sources["topo-current"] = { type: "raster", tiles: [wms(services.topo.url, services.topo.layers, "image/png")], tileSize: 256, maxzoom: 20, attribution: b.attr };
+          baseStyle.layers.push({ id: "topo-current", type: "raster", source: "topo-current", minzoom: 11, paint: { "raster-fade-duration": 150 } });
+        }
       } catch (error) {
         if (requestId !== basemapRequest) return;
         toast("Wczytano zapasowy podkład mapy. Spróbuj ponownie później.");
@@ -68,11 +75,11 @@
     if (requestId !== basemapRequest) return;
     if (!baseStyle) baseStyle = {
       version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
-      sources: { base: { type: "raster", tiles: [b.url], tileSize: 256, maxzoom: b.max, attribution: b.attr } },
+      sources: { base: { type: "raster", tiles: [b.url || BASEMAPS[0].url], tileSize: 256, maxzoom: b.topo ? 19 : b.max, attribution: b.topo ? BASEMAPS[0].attr : b.attr } },
       layers: [{ id: "base", type: "raster", source: "base", paint: { "raster-fade-duration": 200 } }]
     };
     const current = map.getStyle(), overlaySources = {};
-    ["hill", "dzialki", "adresy"].forEach((key) => { if (current.sources[key]) overlaySources[key] = current.sources[key]; });
+    overlaySourceIds.forEach((key) => { if (current.sources[key]) overlaySources[key] = current.sources[key]; });
     const overlays = current.layers.filter((layer) => Object.prototype.hasOwnProperty.call(overlaySources, layer.source));
     map.setStyle({ ...baseStyle, sources: { ...baseStyle.sources, ...overlaySources }, layers: [...baseStyle.layers, ...overlays] });
     bmId = b.id; if (save !== false) store.set("basemap", b.id);
@@ -398,8 +405,6 @@
 
   /* ---------- Layers ---------- */
   map.on("load", () => {
-    map.addSource("hill", { type: "raster", tiles: [HILL], tileSize: 256, maxzoom: 16, attribution: "© Esri" });
-    map.addLayer({ id: "hill", type: "raster", source: "hill", layout: { visibility: store.get("hill", false) ? "visible" : "none" }, paint: { "raster-opacity": 0.35 } });
     map.addSource("dzialki", { type: "vector", tiles: [BASE + "/tiles/{z}/{x}/{y}.pbf"], minzoom: MINZ, maxzoom: 16 });
     const op = store.get("opac", 45) / 100;
     map.addLayer({ id: "dz-fill", type: "fill", source: "dzialki", "source-layer": "dzialki", paint: { "fill-color": matchExpr, "fill-opacity": op } });
@@ -416,14 +421,15 @@
     const bind = (el, key, ids, def) => { el.checked = store.get(key, def); setVis(ids, el.checked); el.onchange = () => { store.set(key, el.checked); setVis(ids, el.checked); }; };
     bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
     bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl"], true);
-    bind($("#lyrHill"), "hill", ["hill"], false);
     const o = $("#opac"); o.value = store.get("opac", 45); $("#opacValue").textContent = o.value + "%";
     o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", o.value / 100); store.set("opac", +o.value); $("#opacValue").textContent = o.value + "%"; };
-    const countLayers = () => { $("#layerCount").textContent = ["#lyrDz", "#lyrAdr", "#lyrHill"].filter((id) => $(id).checked).length; };
-    ["#lyrDz", "#lyrAdr", "#lyrHill"].forEach((id) => $(id).addEventListener("change", countLayers)); countLayers();
+    const countLayers = () => { $("#layerCount").textContent = document.querySelectorAll("#layerPanel .layer-entry input[type=checkbox]:checked").length; };
+    $("#layerPanel").addEventListener("change", countLayers); countLayers();
 
     // tap: address point has priority, with a touch-friendly hit box
     map.on("click", (e) => {
+      if (window.PLOTS_PLANNING?.inspecting()) return;
+      if (window.PLOTS_SURROUNDINGS?.handleClick(e)) return;
       const r = isMobile() ? 14 : 6;
       const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
       const a = map.getLayer("adr-pt") ? map.queryRenderedFeatures(box, { layers: ["adr-pt"] }) : [];
@@ -454,7 +460,7 @@
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
-  dark.addEventListener("change", () => { if (bmId === "map" && map.isStyleLoaded()) setBasemap("map", false); });
+  dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
   $("#shareView").onclick = async () => {
     const c = map.getCenter(), url = new URL(location.href); url.search = "";
     url.searchParams.set("lon", c.lng.toFixed(6)); url.searchParams.set("lat", c.lat.toFixed(6)); url.searchParams.set("z", map.getZoom().toFixed(2));
@@ -462,7 +468,10 @@
     if (curTab === "gmina" && window.PLOTS_GMINY.current()) url.searchParams.set("gmina", window.PLOTS_GMINY.current());
     try { await navigator.clipboard.writeText(url.href); toast("Link do widoku skopiowany"); } catch (err) { toast("Nie udało się skopiować linku. Sprawdź uprawnienia schowka."); }
   };
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers,
+    registerOverlaySource(id) { overlaySourceIds.add(id); },
+    showInfo(html) { showCard(html); },
+    showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };
 
   // deep link: ?id=... or ?q=...
   if (params.get("id")) map.once("load", () => { q.value = params.get("id"); $("#search").requestSubmit(); });

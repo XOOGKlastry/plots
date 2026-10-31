@@ -6,7 +6,7 @@ Interfejs inspirowany systemowymi mapami: jeden panel boczny na komputerze, zwij
 
 - Trzy podkłady: spokojna mapa wektorowa (jasna/ciemna), ortofotomapa GUGiK i mapa topograficzna GUGiK. Warstwy EGiB i PRG pozostają niezależne od podkładu.
 - Warstwy są dostępne jednym przyciskiem, z wyszukiwaniem, licznikiem aktywnych warstw, kryciem działek i legendą wewnątrz katalogu.
-- 2479 profili gmin z PolskoZnawcy / Miasta-pl: ludność, finanse, przedsiębiorczość i warunki życia. Nazwa, typ gminy i TERYT są zawsze rozróżniane.
+- 2479 profili gmin z GUS BDL i zestawu referencyjnego: ludność, finanse, przedsiębiorczość i warunki życia. Nazwa, typ gminy i TERYT są zawsze rozróżniane.
 - Wspólne wyszukiwanie adresu, działki i gminy; skrót `/`; ostatnio otwierane gminy; przejście od działki do właściwej jednostki po TERYT.
 - Link do aktualnego widoku mapy, wybranej działki albo gminy.
 - Każdy wskaźnik podaje rok i źródło. Braki i nieznane lata są jawne; data zestawu nie jest rokiem statystyki.
@@ -14,7 +14,7 @@ Interfejs inspirowany systemowymi mapami: jeden panel boczny na komputerze, zwij
 
 ## Granice tej zmiany
 
-Jakdaleko jest dostępne jako osobna aplikacja z zakładki Źródła. Integracja jego punktów, grafu dojść i cen RCN z katalogiem warstw nie jest częścią tej wersji. Nie dodano raportów, eksportów ani porównywania gmin. Położenie z Miasta-pl jest punktem miejscowości, nie granicą gminy; nie służy do przypisywania klikniętej działki do gminy. Nieznanego punktu nie zastępujemy sąsiednią jednostką.
+Punkty usług, istniejące odległości piesze budynków i siatki cen RCN są zintegrowane w katalogu warstw. Pełny opis bieżącej wersji, instalacji mobilnej i aktualizacji GUS znajduje się w EXPANSION.md. Nie dodano raportów, eksportów ani porównywania gmin. Położenie z zestawu referencyjnego jest punktem miejscowości, nie granicą gminy; nie służy do przypisywania klikniętej działki do gminy. Nieznanego punktu nie zastępujemy sąsiednią jednostką.
 
 ## Sprawdzenie
 
@@ -28,6 +28,7 @@ python -m http.server 8091 --bind 127.0.0.1 --directory docs
 # W drugim terminalu:
 $env:BROWSER_CHANNEL='msedge'  # albo zainstaluj Chromium przez Playwright
 pnpm test:browser
+node tests/features-browser.cjs
 ```
 
 Test przeglądarkowy używa prawdziwego MapLibre, ale kontrolowanych odpowiedzi API działek. Obejmuje 320, 390, 768 i 1440 px w obu motywach, zmianę podkładu bez utraty nakładek, wyszukiwanie, rozróżnianie gmin, metadane, zapis preferencji, link do widoku i regresję karty działki (powierzchnia w ha). Poza tym sprawdzono endpointy zasobów Flask bez połączenia z bazą.

@@ -14,6 +14,7 @@ const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obre
   await page.route('**/tiles/**/*.pbf', route => route.fulfill({status:200,contentType:'application/x-protobuf',body:Buffer.alloc(0)}));
   await page.route('**/api/adres?*', route => route.fulfill({json:{wyniki:[]}}));
   await page.route('**/api/dzialka?*', route => route.fulfill({json:parcel}));
+  await page.route('https://bdl.stat.gov.pl/api/v1/data/by-unit/**', route => route.fulfill({json:require('./fixtures/gus-ustka.json')}));
   await page.goto(base, { waitUntil:'domcontentloaded' });
   await page.waitForFunction(() => window.PLOTS && window.PLOTS.map.loaded());
   await page.locator('#tab-gmina').click();
