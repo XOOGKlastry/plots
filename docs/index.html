@@ -31,6 +31,11 @@
   <button id="btnId" class="sec">Szukaj ID</button>
 </div>
 <div id="hint">Uruchom lokalnie <code>start.bat</code> (API :5001), potem przybli&#380; map&#281; (z&#8805;13). Kolor = grupa rejestrowa (EGiB &#167;14). Opcja: <code>?tiles=http://HOST:PORT</code></div>
+<div id="layers" style="position:absolute;top:56px;right:56px;z-index:2;background:rgba(255,255,255,.95);padding:8px 12px;border-radius:10px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+  <b style="display:block;margin-bottom:4px">Warstwy</b>
+  <label><input type="checkbox" id="lyrDz" checked/> Dzia&#322;ki</label><br/>
+  <label><input type="checkbox" id="lyrAdr" checked/> <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#d81b60;border:1.5px solid #fff;box-shadow:0 0 0 1px #d81b60"></span> Punkty adresowe (z&#8805;16)</label>
+</div>
 <div id="legend"><h3>Grupy rejestrowe</h3></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="config.js"></script>

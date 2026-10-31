@@ -118,6 +118,153 @@ def at_point():
     d = dict(zip(k, r[:8])); d["bbox"] = [[r[8], r[9]], [r[10], r[11]]]
     return Response(json.dumps(enrich(d), default=str, ensure_ascii=False), mimetype="application/json; charset=utf-8")
 
+
+# ---------------- Punkty adresowe (administracja."punktyAdresowe") ----------------
+# Introspekcja przy pierwszym uzyciu (DB moze nie byc gotowa przy starcie).
+from psycopg import sql as _sql
+ADR_SCHEMA = os.environ.get("PLOTS_ADR_SCHEMA", "administracja")
+ADR_TABLE = os.environ.get("PLOTS_ADR_TABLE", "punktyAdresowe")
+ADR_MINZ = int(os.environ.get("PLOTS_ADR_MINZ", "16"))
+_ADR = {"meta": None, "err": None}
+_ADR_LOCK = threading.Lock()
+_ADR_CANDS = {
+    "numer": ["numer", "numerporzadkowy", "numer_porzadkowy", "nr", "numer_adr", "pa_numer", "numerdomu", "numer_domu"],
+    "ulica": ["ulica", "nazwaulicy", "nazwa_ulicy", "ul_nazwa", "ulica_nazwa", "nazwaglownaczesc", "ul"],
+    "miejscowosc": ["miejscowosc", "nazwamiejscowosci", "nazwa_miejscowosci", "msc", "miejscowosc_nazwa", "simc_nazwa"],
+    "kod": ["kodpocztowy", "kod_pocztowy", "kod", "pna"],
+    "gmina": ["gmina", "nazwagminy", "gmina_nazwa"],
+}
+
+def _norm(s):
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+def _adr_meta():
+    if _ADR["meta"] is not None:
+        return _ADR["meta"]
+    with _ADR_LOCK:
+        if _ADR["meta"] is not None:
+            return _ADR["meta"]
+        with POOL.connection() as c:
+            cols = c.execute("""SELECT column_name, udt_name FROM information_schema.columns
+                WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position""",
+                (ADR_SCHEMA, ADR_TABLE)).fetchall()
+            if not cols:
+                raise RuntimeError("Brak tabeli %s.%s" % (ADR_SCHEMA, ADR_TABLE))
+            g = c.execute("""SELECT f_geometry_column, srid FROM geometry_columns
+                WHERE f_table_schema=%s AND f_table_name=%s LIMIT 1""", (ADR_SCHEMA, ADR_TABLE)).fetchone()
+            if g:
+                gcol, srid = g[0], int(g[1] or 0)
+            else:
+                gc = [n for n, u in cols if u == "geometry"]
+                if not gc:
+                    raise RuntimeError("Brak kolumny geometry w %s.%s" % (ADR_SCHEMA, ADR_TABLE))
+                gcol, srid = gc[0], 0
+            if not srid:
+                try:
+                    srid = int(c.execute("SELECT Find_SRID(%s,%s,%s)", (ADR_SCHEMA, ADR_TABLE, gcol)).fetchone()[0] or 0)
+                except Exception:
+                    srid = 0
+            if not srid:
+                r = c.execute(_sql.SQL("SELECT ST_SRID({g}) FROM {t} WHERE {g} IS NOT NULL LIMIT 1").format(
+                    g=_sql.Identifier(gcol), t=_sql.Identifier(ADR_SCHEMA, ADR_TABLE))).fetchone()
+                srid = int(r[0]) if r and r[0] else 2180
+        names = [n for n, u in cols if n != gcol and u not in ("geometry", "geography", "bytea")]
+        by_norm = {_norm(n): n for n in names}
+        mapped = {}
+        for key, cands in _ADR_CANDS.items():
+            for cnd in cands:
+                if cnd in by_norm:
+                    mapped[key] = by_norm[cnd]; break
+        meta = {"geom": gcol, "srid": srid, "cols": names, "map": mapped}
+        _ADR["meta"] = meta
+        print("punktyAdresowe:", meta)
+        return meta
+
+def _adr_select_list(meta):
+    parts = []
+    used = set()
+    for key, col in meta["map"].items():
+        parts.append(_sql.SQL("{c}::text AS {a}").format(c=_sql.Identifier(col), a=_sql.Identifier(key)))
+        used.add(key)
+    for col in meta["cols"]:
+        alias = col if col not in used else col + "_src"
+        parts.append(_sql.SQL("{c}::text AS {a}").format(c=_sql.Identifier(col), a=_sql.Identifier(alias)))
+        used.add(alias)
+    return _sql.SQL(", ").join(parts) if parts else _sql.SQL("NULL::text AS numer")
+
+def _adr_geom(meta, to):
+    g = _sql.Identifier(meta["geom"])
+    if meta["srid"] == to:
+        return g
+    return _sql.SQL("ST_Transform({g}, {s})").format(g=g, s=_sql.Literal(to))
+
+@app.route("/tiles/adresy/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
+def tile_adresy(z, x, y):
+    if request.method == "OPTIONS":
+        return Response(status=204)
+    if z < ADR_MINZ or z > 22:
+        return Response(b"", mimetype="application/x-protobuf")
+    try:
+        meta = _adr_meta()
+    except Exception as e:
+        _ADR["err"] = str(e)
+        return Response(b"", mimetype="application/x-protobuf", headers={"X-Adresy-Error": str(e)[:200]})
+    q = _sql.SQL("""WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e)
+        SELECT ST_AsMVT(q, 'adresy', 4096, 'g') FROM (
+          SELECT {sel}, ST_AsMVTGeom({g3857}, b.e, 4096, 16, true) g
+          FROM {t}, b
+          WHERE {g} && ST_Transform(b.e, {srid})
+        ) q WHERE g IS NOT NULL""").format(
+        sel=_adr_select_list(meta), g3857=_adr_geom(meta, 3857),
+        t=_sql.Identifier(ADR_SCHEMA, ADR_TABLE), g=_sql.Identifier(meta["geom"]),
+        srid=_sql.Literal(meta["srid"]))
+    with POOL.connection() as c:
+        b = c.execute(q, {"z": z, "x": x, "y": y}).fetchone()[0]
+    return Response(bytes(b or b""), mimetype="application/x-protobuf",
+                    headers={"Cache-Control": "public, max-age=600"})
+
+@app.get("/api/adres")
+def api_adres():
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        abort(400)
+    try:
+        meta = _adr_meta()
+    except Exception as e:
+        return Response(json.dumps({"wyniki": [], "error": str(e)}, ensure_ascii=False),
+                        mimetype="application/json; charset=utf-8")
+    m = meta["map"]
+    fields = [m[k] for k in ("ulica", "numer", "kod", "miejscowosc") if k in m]
+    if not fields:
+        return Response(json.dumps({"wyniki": [], "error": "brak kolumn adresowych"}, ensure_ascii=False),
+                        mimetype="application/json; charset=utf-8")
+    hay = _sql.SQL("concat_ws(' ', {})").format(_sql.SQL(", ").join(_sql.Identifier(f) for f in fields))
+    toks = [t for t in re.split(r"[\s,]+", q) if t][:6]
+    conds = _sql.SQL(" AND ").join(_sql.SQL("{h} ILIKE {p}").format(h=hay, p=_sql.Literal("%" + t + "%")) for t in toks)
+    numcol = m.get("numer")
+    order = _sql.SQL("length({h})").format(h=hay)
+    g4326 = _adr_geom(meta, 4326)
+    stmt = _sql.SQL("""SELECT {sel}, ST_X({g}) lon, ST_Y({g}) lat FROM {t}
+        WHERE {conds} ORDER BY {order} LIMIT 10""").format(
+        sel=_adr_select_list(meta), g=g4326, t=_sql.Identifier(ADR_SCHEMA, ADR_TABLE),
+        conds=conds, order=order)
+    with POOL.connection() as c:
+        cur = c.execute(stmt)
+        names = [d.name for d in cur.description]
+        rows = [dict(zip(names, r)) for r in cur.fetchall()]
+    for r in rows:
+        r["adres"] = " ".join(x for x in [r.get("ulica"), r.get("numer")] if x) + \
+            ((", " + " ".join(x for x in [r.get("kod"), r.get("miejscowosc")] if x)) if (r.get("kod") or r.get("miejscowosc")) else "")
+    return Response(json.dumps({"wyniki": rows}, default=str, ensure_ascii=False),
+                    mimetype="application/json; charset=utf-8")
+
+@app.get("/api/adresy/meta")
+def api_adresy_meta():
+    try:
+        return _adr_meta()
+    except Exception as e:
+        return {"error": str(e)}, 503
+
 @app.get("/health")
 def health():
     return {"ok": True, "minzoom": MINZ, "port": PORT}

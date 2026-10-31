@@ -31,6 +31,7 @@
           attribution: "© OpenStreetMap"
         }
       },
+      glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
       layers: [{ id: "osm", type: "raster", source: "osm" }]
     },
     center: [19.2, 52.1],
@@ -86,7 +87,55 @@
       paint: { "line-color": "#222", "line-width": 0.8, "line-opacity": 0.7 }
     });
 
+    // --- Punkty adresowe ---
+    const ADR_MINZ = +(CFG.ADR_MIN_ZOOM || 16);
+    map.addSource("adresy", {
+      type: "vector",
+      tiles: [BASE + "/tiles/adresy/{z}/{x}/{y}.pbf"],
+      minzoom: ADR_MINZ,
+      maxzoom: 18
+    });
+    map.addLayer({
+      id: "adr-pt", type: "circle", source: "adresy", "source-layer": "adresy", minzoom: ADR_MINZ,
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3.5, 19, 7],
+        "circle-color": "#d81b60",
+        "circle-stroke-color": "#fff",
+        "circle-stroke-width": 1.5,
+        "circle-opacity": 0.95
+      }
+    });
+    map.addLayer({
+      id: "adr-lbl", type: "symbol", source: "adresy", "source-layer": "adresy", minzoom: 17,
+      layout: {
+        "text-field": ["coalesce", ["get", "numer"], ""],
+        "text-font": ["Open Sans Semibold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 17, 11, 19, 14],
+        "text-offset": [0, -1.1],
+        "text-anchor": "bottom",
+        "text-allow-overlap": false
+      },
+      paint: { "text-color": "#880e4f", "text-halo-color": "#fff", "text-halo-width": 1.8, "text-halo-blur": 0.3 }
+    });
+    map.on("click", "adr-pt", (e) => {
+      const f = e.features && e.features[0];
+      if (!f) return;
+      e.originalEvent.cancelBubble = true;
+      e.preventDefault && e.preventDefault();
+      new maplibregl.Popup({ maxWidth: "360px" }).setLngLat(e.lngLat).setHTML(adrPopup(f.properties)).addTo(map);
+    });
+    map.on("mouseenter", "adr-pt", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "adr-pt", () => { map.getCanvas().style.cursor = ""; });
+
+    function setVis(ids, on) { ids.forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", on ? "visible" : "none")); }
+    const cbD = document.getElementById("lyrDz"), cbA = document.getElementById("lyrAdr");
+    if (cbD) cbD.onchange = () => setVis(["dz-fill", "dz-line"], cbD.checked);
+    if (cbA) cbA.onchange = () => setVis(["adr-pt", "adr-lbl"], cbA.checked);
+
     map.on("click", "dz-fill", (e) => {
+      if (e.defaultPrevented) return;
+      const hit = map.queryRenderedFeatures(e.point, { layers: ["adr-pt"] });
+      if (hit.length) return;
       const f = e.features && e.features[0];
       if (!f) return;
       new maplibregl.Popup({ maxWidth: "360px" })
@@ -97,6 +146,28 @@
     map.on("mouseenter", "dz-fill", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "dz-fill", () => { map.getCanvas().style.cursor = ""; });
   });
+
+  function esc(v) { return String(v == null ? "" : v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  function adrText(p) {
+    const a = [p.ulica, p.numer].filter(Boolean).join(" ");
+    const b = [p.kod, p.miejscowosc].filter(Boolean).join(" ");
+    return [a, b].filter(Boolean).join(", ") || p.adres || "(adres)";
+  }
+  function adrPopup(p) {
+    const skip = new Set(["ulica", "numer", "kod", "miejscowosc", "lon", "lat", "adres"]);
+    const rest = Object.keys(p).filter((k) => !skip.has(k) && p[k] !== null && p[k] !== "")
+      .map((k) => `<tr><td style="color:#777;padding-right:6px">${esc(k)}</td><td>${esc(p[k])}</td></tr>`).join("");
+    return `<b>${esc(adrText(p))}</b>${p.gmina ? "Gmina: " + esc(p.gmina) + "<br/>" : ""}
+      <table style="font-size:11px;margin-top:4px">${rest}</table>`;
+  }
+  async function searchOwnAddr(q) {
+    try {
+      const r = await fetch(`${BASE}/api/adres?q=${encodeURIComponent(q)}`);
+      if (!r.ok) return null;
+      const j = await r.json();
+      return (j.wyniki && j.wyniki.length) ? j.wyniki[0] : null;
+    } catch (e) { return null; }
+  }
 
   async function fetchAt(lon, lat) {
     const r = await fetch(`${BASE}/api/at?lon=${lon}&lat=${lat}`);
@@ -124,6 +195,15 @@
     if (!q) return;
     document.getElementById("hint").textContent = "Szukam adresu…";
     try {
+      const own = await searchOwnAddr(q);
+      if (own && own.lon != null) {
+        const lon = +own.lon, lat = +own.lat;
+        map.flyTo({ center: [lon, lat], zoom: 18 });
+        new maplibregl.Popup({ maxWidth: "360px" }).setLngLat([lon, lat]).setHTML(adrPopup(own)).addTo(map);
+        document.getElementById("hint").textContent = "Punkt adresowy (PRG): " + adrText(own);
+        try { await fetchAt(lon, lat); } catch (e) {}
+        return;
+      }
       const url =
         "https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=" +
         encodeURIComponent(q);
