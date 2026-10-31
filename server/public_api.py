@@ -314,6 +314,29 @@ def map_style_asset() -> Response:
         abort(404)
     return Response(path.read_bytes(), content_type="application/json; charset=utf-8")
 
+
+# Closed asset list: new mobile/data modules are served without exposing arbitrary paths.
+_EXTRA_ASSETS = {
+    "planning.js", "surroundings-model.js", "surroundings.js", "gus-client.js", "mobile.js", "sw.js",
+    "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable.png",
+    "data/map-services.json", "data/surroundings.json", "data/gus-catalog.json", "data/bdl-units.json", "data/gus-population.json",
+}
+
+
+@app.get("/<path:asset_path>")
+def extra_frontend_asset(asset_path: str) -> Response:
+    """Serve reviewed PWA and catalog assets; reject all other paths."""
+    if asset_path not in _EXTRA_ASSETS:
+        abort(404)
+    path = _DOCS / asset_path
+    if not path.is_file():
+        abort(404)
+    suffix = path.suffix
+    content_type = {".js": "application/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
+                    ".webmanifest": "application/manifest+json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png"}[suffix]
+    headers = {"Cache-Control": "no-cache"} if asset_path == "sw.js" else {}
+    return Response(path.read_bytes(), content_type=content_type, headers=headers)
+
 if __name__ == "__main__":
     print("PLOTS mapa+API  http://127.0.0.1:%s/  (PostGIS %s)" % (PORT, DSN.split("@")[-1]))
     app.run(host="0.0.0.0", port=PORT, threaded=True)
