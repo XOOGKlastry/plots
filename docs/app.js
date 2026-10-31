@@ -9,7 +9,7 @@
   const ADR_MINZ = +(CFG.ADR_MIN_ZOOM || 16);
   const GR = window.GRUPY_REJ || {};
   const COL = window.GRUPY_COLORS || {};
-  const isMobile = () => matchMedia("(max-width:760px)").matches;
+  const isMobile = () => matchMedia("(max-width:767px)").matches;
   const dark = matchMedia("(prefers-color-scheme: dark)");
   const store = {
     get: (k, d) => { try { const v = localStorage.getItem("plots." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -22,15 +22,9 @@
   const wms = (u, lyr, fmt) => `${u}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${lyr}&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=${fmt}`;
   const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
   const BASEMAPS = [
-    { id: "esri-img", name: "Esri satelita", url: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri, Maxar, Earthstar" },
-    { id: "gp-orto", name: "Ortofoto Geoportal", url: `${GP}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`, max: 19, attr: "© GUGiK geoportal.gov.pl" },
-    { id: "gp-hr", name: "Ortofoto HD Geoportal", url: wms(`${GP}/PZGIK/ORTO/WMS/HighResolution`, "Raster", "image/jpeg"), max: 21, thumb: [17, 73180, 43164], attr: "© GUGiK geoportal.gov.pl" },
-    { id: "gp-topo", name: "Topo Geoportal", url: wms(`${GP}/img/guest/TOPO/MapServer/WMSServer`, "Raster", "image/png"), max: 19, attr: "© GUGiK geoportal.gov.pl" },
-    { id: "esri-topo", name: "Esri topo", url: `${ESRI}/World_Topo_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
-    { id: "esri-street", name: "Esri ulice", url: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
-    { id: "osm", name: "OpenStreetMap", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", max: 19, attr: "© OpenStreetMap" },
-    { id: "gray-light", name: "Jasna (Esri)", url: `${ESRI}/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`, max: 16, attr: "© Esri" },
-    { id: "gray-dark", name: "Ciemna (Esri)", url: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, max: 16, attr: "© Esri" }
+    { id: "map", name: "Mapa", style: true, url: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
+    { id: "gp-orto", name: "Ortofoto", url: `${GP}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`, max: 19, attr: "© GUGiK geoportal.gov.pl" },
+    { id: "gp-topo", name: "Topo", url: wms(`${GP}/img/guest/TOPO/MapServer/WMSServer`, "Raster", "image/png"), max: 19, attr: "© GUGiK geoportal.gov.pl" }
   ];
   const HILL = `${ESRI}/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}`;
   function tileUrl(t, z, x, y) {
@@ -38,11 +32,15 @@
     const bb = [-R + x * s, R - (y + 1) * s, -R + (x + 1) * s, R - y * s].join(",");
     return t.replace("{z}", z).replace("{x}", x).replace("{y}", y).replace("{bbox-epsg-3857}", bb);
   }
-  let bmId = store.get("basemap", dark.matches ? "gray-dark" : "gray-light");
-  if (!BASEMAPS.some((b) => b.id === bmId)) bmId = "gray-light";
+  let bmId = store.get("basemap", "map");
+  if (!BASEMAPS.some((b) => b.id === bmId)) bmId = /img|orto|hr/.test(bmId) ? "gp-orto" : /topo/.test(bmId) ? "gp-topo" : "map";
 
   /* ---------- Map ---------- */
   const view = store.get("view", { center: [19.2, 52.1], zoom: 6 });
+  const linkView = [Number(params.get("lon")), Number(params.get("lat")), Number(params.get("z"))];
+  if (params.has("lon") && params.has("lat") && params.has("z") && linkView.every(Number.isFinite) && Math.abs(linkView[0]) <= 180 && Math.abs(linkView[1]) <= 85 && linkView[2] >= 0 && linkView[2] <= 21) {
+    view.center = linkView.slice(0, 2); view.zoom = linkView[2];
+  }
   const map = new maplibregl.Map({
     container: "map",
     style: { version: 8, sources: {}, layers: [], glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf" },
@@ -52,14 +50,32 @@
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
 
-  function setBasemap(id, save) {
+  let basemapRequest = 0;
+  async function setBasemap(id, save) {
+    const requestId = ++basemapRequest;
     const b = BASEMAPS.find((x) => x.id === id) || BASEMAPS[0];
+    let baseStyle;
+    if (b.style) {
+      try {
+        const response = await fetch(`styles/map-${dark.matches ? "dark" : "light"}.json`, { signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error("Map style unavailable");
+        baseStyle = await response.json();
+      } catch (error) {
+        if (requestId !== basemapRequest) return;
+        toast("Wczytano zapasowy podkład mapy. Spróbuj ponownie później.");
+      }
+    }
+    if (requestId !== basemapRequest) return;
+    if (!baseStyle) baseStyle = {
+      version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+      sources: { base: { type: "raster", tiles: [b.url], tileSize: 256, maxzoom: b.max, attribution: b.attr } },
+      layers: [{ id: "base", type: "raster", source: "base", paint: { "raster-fade-duration": 200 } }]
+    };
+    const current = map.getStyle(), overlaySources = {};
+    ["hill", "dzialki", "adresy"].forEach((key) => { if (current.sources[key]) overlaySources[key] = current.sources[key]; });
+    const overlays = current.layers.filter((layer) => Object.prototype.hasOwnProperty.call(overlaySources, layer.source));
+    map.setStyle({ ...baseStyle, sources: { ...baseStyle.sources, ...overlaySources }, layers: [...baseStyle.layers, ...overlays] });
     bmId = b.id; if (save !== false) store.set("basemap", b.id);
-    const before = map.getLayer("hill") ? "hill" : (map.getLayer("dz-fill") ? "dz-fill" : undefined);
-    if (map.getLayer("base")) map.removeLayer("base");
-    if (map.getSource("base")) map.removeSource("base");
-    map.addSource("base", { type: "raster", tiles: [b.url], tileSize: 256, maxzoom: b.max, attribution: b.attr });
-    map.addLayer({ id: "base", type: "raster", source: "base", paint: { "raster-fade-duration": 200 } }, before);
     document.querySelectorAll(".bm").forEach((el) => el.setAttribute("aria-pressed", el.dataset.id === b.id));
     // lighter outlines on imagery / dark maps
     if (map.getLayer("dz-line")) map.setPaintProperty("dz-line", "line-color", /img|orto|hr|dark/.test(b.id) ? "#ffffff" : "#1b1e24");
@@ -68,7 +84,7 @@
   BASEMAPS.forEach((b) => {
     const el = document.createElement("button");
     el.className = "bm"; el.dataset.id = b.id; el.type = "button"; el.setAttribute("aria-pressed", "false");
-    el.innerHTML = `<div class="th"><img loading="lazy" alt="" src="${esc(tileUrl(b.url, ...(b.thumb || [16, 36602, 21642])))}"/></div><span>${esc(b.name)}</span>`;
+    el.innerHTML = `<span>${esc(b.name)}</span>`;
     el.onclick = () => setBasemap(b.id);
     bmBox.appendChild(el);
   });
@@ -88,25 +104,47 @@
   const panel = $("#panel");
   const tbar = $("#tabbar");
   let curTab = "info";
+  function openLayers(legend) {
+    $("#layerPanel").hidden = false; $("#layersFab").setAttribute("aria-expanded", "true");
+    if (legend) { $("#legendDetails").open = true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
+  }
+  function closeLayers() { $("#layerPanel").hidden = true; $("#layersFab").setAttribute("aria-expanded", "false"); }
   function tab(name) {
+    if (name === "layers" || name === "legend") { openLayers(name === "legend"); return; }
     curTab = name;
     document.querySelectorAll(".tabs button, #tabbar button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
-    document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === name));
+    document.querySelectorAll(".pane").forEach((p) => { p.classList.toggle("on", p.dataset.pane === name); p.hidden = p.dataset.pane !== name; });
     panel.querySelector(".tabbody").scrollTop = 0;
   }
-  document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => tab(b.dataset.tab)));
+  document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { tab(b.dataset.tab); if (isMobile()) snap("half"); }));
+  $(".tabs").addEventListener("keydown", (e) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault(); const buttons = [...document.querySelectorAll(".tabs button")];
+    const current = buttons.indexOf(document.activeElement);
+    const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1 : (current + (e.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[next].click(); buttons[next].focus();
+  });
   document.querySelectorAll("#tabbar button").forEach((b) => (b.onclick = () => {
     const t = b.dataset.tab;
     if (t === "search") { snap("hidden"); b.setAttribute("aria-selected", "true"); $("#q").focus(); return; }
     if (curTab === t && panel.dataset.snap !== "hidden") { snap("hidden"); return; }
     tab(t); snap(t === "info" ? (card.classList.contains("empty") ? "peek" : "half") : "half");
   }));
-  $("#layersFab").onclick = () => { tab("layers"); snap("half"); };
+  $("#layersFab").onclick = () => { $("#layerPanel").hidden ? openLayers() : closeLayers(); };
+  document.querySelectorAll("[data-open-layers]").forEach((b) => b.onclick = () => openLayers());
+  document.querySelectorAll("[data-open-legend]").forEach((b) => b.onclick = () => openLayers(true));
+  $("[data-close-layers]").onclick = closeLayers;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLayers(); if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && !$("#gminaDialog").open) { e.preventDefault(); $("#q").focus(); } });
+  $("#layerFilter").addEventListener("input", (e) => {
+    const needle = window.GminyModel.normalize(e.target.value); let count = 0;
+    document.querySelectorAll(".layer-entry").forEach((row) => { row.hidden = !window.GminyModel.normalize(row.dataset.keywords).includes(needle); if (!row.hidden) count++; });
+    $("#noLayers").hidden = count > 0;
+  });
   // snap positions (px from top of sheet, i.e. translateY)
   function sheetH() { return panel.getBoundingClientRect().height; }
   function snapY() {
     const h = sheetH(), vh = window.innerHeight;
-    const peek = 148, half = Math.min(h, Math.max(300, Math.min(440, vh * 0.52)));
+    const peek = 170, half = Math.min(h, Math.max(320, Math.min(480, vh * 0.62)));
     return { hidden: h + 20, peek: h - peek, half: h - half, full: 0 };
   }
   function visibleSheet() { if (!isMobile()) return 0; const y = snapY()[panel.dataset.snap] || 0; return Math.max(0, sheetH() - y); }
@@ -114,13 +152,21 @@
     panel.dataset.snap = s;
     if (isMobile()) panel.style.transform = `translateY(${snapY()[s]}px)`; else panel.style.transform = "";
     document.body.dataset.snap = s;
+    $("#collapse").setAttribute("aria-expanded", String(isMobile() ? s !== "hidden" : !document.body.classList.contains("collapsed")));
+    $("#collapse").setAttribute("aria-label", s === "hidden" && isMobile() ? "Otwórz panel" : "Zwiń panel");
     if (isMobile()) document.documentElement.style.setProperty("--sheetvis", visibleSheet() + "px");
     if (s === "hidden") document.querySelectorAll("#tabbar button").forEach((b) => b.dataset.tab !== "search" && b.setAttribute("aria-selected", "false"));
     else document.querySelectorAll("#tabbar button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === curTab));
   }
   window.addEventListener("resize", () => snap(panel.dataset.snap || "hidden"));
-  snap("hidden");
-  $("#collapse").onclick = () => { document.body.classList.toggle("collapsed"); setTimeout(() => map.resize(), 360); };
+  snap("peek");
+  $("#collapse").onclick = () => {
+    if (isMobile()) { snap(panel.dataset.snap === "hidden" ? "half" : "hidden"); return; }
+    document.body.classList.toggle("collapsed");
+    $("#collapse").setAttribute("aria-expanded", String(!document.body.classList.contains("collapsed")));
+    $("#collapse").setAttribute("aria-label", document.body.classList.contains("collapsed") ? "Otwórz panel" : "Zwiń panel");
+    setTimeout(() => map.resize(), 360);
+  };
 
   // drag handling for sheet
   (function () {
@@ -165,7 +211,9 @@
   const status = $("#status");
   function updStatus() {
     const z = map.getZoom();
-    status.textContent = `z ${z.toFixed(1)} · ${map.getCenter().lat.toFixed(5)}, ${map.getCenter().lng.toFixed(5)}` + (z < MINZ ? ` · przybliż do z ${MINZ}, by zobaczyć działki` : "");
+    status.textContent = z < MINZ ? "Przybliż mapę, aby zobaczyć działki · EGiB / PRG" : "Działki: EGiB · adresy: PRG";
+    $("#dzZoomHint").textContent = z < MINZ ? "Przybliż mapę, aby zobaczyć granice" : "Widoczne w tym przybliżeniu";
+    $("#adrZoomHint").textContent = z < ADR_MINZ ? "Widoczne przy większym przybliżeniu" : "Widoczne w tym przybliżeniu";
   }
 
   /* ---------- Cards ---------- */
@@ -238,30 +286,35 @@
   function highlight(id) {
     if (map.getLayer("dz-sel")) map.setFilter("dz-sel", ["==", ["get", "id_dzialki"], id || "__none__"]);
   }
-  function selectParcel(p) { highlight(p.id_dzialki); showCard(parcelCard(p)); }
+  let selectedParcelId = null;
+  function selectParcel(p) { selectedParcelId = p.id_dzialki; highlight(p.id_dzialki); showCard(parcelCard(p)); document.dispatchEvent(new CustomEvent("plots:parcel", { detail: p })); }
 
   /* ---------- API ---------- */
   async function api(path) {
-    const r = await fetch(BASE + path);
+    const r = await fetch(BASE + path, { signal: AbortSignal.timeout(12000) });
     if (!r.ok) throw new Error(r.status === 404 ? "Nie znaleziono" : "Błąd API " + r.status);
     return r.json();
   }
   const fetchAt = (lon, lat) => api(`/api/at?lon=${lon}&lat=${lat}`);
-  let selMarker = null;
+  let selMarker = null, addressRequest = 0;
   function mark(lnglat) {
     if (!selMarker) { const el = document.createElement("div"); el.style.cssText = "width:18px;height:18px;border-radius:50%;background:#d81b60;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"; selMarker = new maplibregl.Marker({ element: el }); }
     selMarker.setLngLat(lnglat).addTo(map);
   }
-  function padding() { return isMobile() ? { top: 90, bottom: Math.max(visibleSheet(), snapY().hidden - snapY().half) + 70, left: 30, right: 60 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 420, right: 70 }; }
+  function padding() { return isMobile() ? { top: 90, bottom: Math.min(visibleSheet() + 24, window.innerHeight * .55), left: 24, right: 65 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 380, right: 70 }; }
 
   async function showAddress(p) {
+    const requestId = ++addressRequest; selectedParcelId = null;
     const lon = +p.lon, lat = +p.lat;
     mark([lon, lat]);
     showCard(adrCard(p));
     map.flyTo({ center: [lon, lat], zoom: 18, padding: padding(), speed: 1.6 });
     try {
       const d = await fetchAt(lon, lat);
+      if (requestId !== addressRequest) return;
       highlight(d.id_dzialki);
+      selectedParcelId = d.id_dzialki;
+      document.dispatchEvent(new CustomEvent("plots:parcel", { detail: d }));
       const box = $("#adrParcel");
       if (box) box.innerHTML = `<h4 style="margin-top:22px">Działka pod adresem</h4>` + parcelCard(d);
     } catch (e) {}
@@ -277,38 +330,50 @@
   let items = [], active = -1, seq = 0, deb;
   function renderSugg() {
     sugg.hidden = !items.length;
-    sugg.innerHTML = items.map((it, i) => `<li role="option" data-i="${i}" aria-selected="${i === active}">${esc(it.title)}<small>${esc(it.sub || "")}</small></li>`).join("");
+    q.setAttribute("aria-expanded", String(items.length > 0));
+    if (active >= 0) q.setAttribute("aria-activedescendant", "suggestion-" + active); else q.removeAttribute("aria-activedescendant");
+    sugg.innerHTML = items.map((it, i) => `<li id="suggestion-${i}" role="option" data-i="${i}" aria-selected="${i === active}">${esc(it.title)}<small>${esc(it.sub || "")}</small></li>`).join("");
   }
   async function suggest(s) {
     const my = ++seq;
-    if (s.length < 3 || isId(s)) { items = []; renderSugg(); return; }
+    if (s.length < 2 || isId(s)) { items = []; renderSugg(); return; }
+    const gminy = await window.PLOTS_GMINY.search(s).catch(() => []);
+    if (my !== seq) return;
+    items = gminy; active = -1; renderSugg();
+    if (s.length < 3) return;
     try {
       const j = await api(`/api/adres?q=${encodeURIComponent(s)}`);
       if (my !== seq) return;
-      items = (j.wyniki || []).slice(0, 6).map((w) => ({ kind: "adr", data: w, title: [w.ulica || w.miejscowosc, w.numer].filter(Boolean).join(" "), sub: [w.kod, w.miejscowosc, w.gmina && w.gmina !== w.miejscowosc ? "gm. " + w.gmina : ""].filter(Boolean).join(" · ") }));
+      items = gminy.concat((j.wyniki || []).slice(0, 4).map((w) => ({ kind: "adr", data: w, title: [w.ulica || w.miejscowosc, w.numer].filter(Boolean).join(" "), sub: [w.kod, w.miejscowosc, w.gmina && w.gmina !== w.miejscowosc ? "gm. " + w.gmina : ""].filter(Boolean).join(" · ") })));
       active = -1; renderSugg();
-    } catch (e) { items = []; renderSugg(); }
+    } catch (e) { if (my === seq) { items = gminy; renderSugg(); } }
   }
-  q.addEventListener("input", () => { qClear.hidden = !q.value; clearTimeout(deb); deb = setTimeout(() => suggest(q.value.trim()), 250); });
+  q.addEventListener("input", () => { seq++; qClear.hidden = !q.value; clearTimeout(deb); deb = setTimeout(() => suggest(q.value.trim()), 250); });
   q.addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") { if (!items.length) return; e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length; renderSugg(); }
-    if (e.key === "Escape") { items = []; renderSugg(); }
+    if (e.key === "Escape") { seq++; clearTimeout(deb); items = []; renderSugg(); }
   });
   sugg.addEventListener("mousedown", (e) => e.preventDefault());
   sugg.addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) pick(items[+li.dataset.i]); });
   q.addEventListener("blur", () => setTimeout(() => { items = []; renderSugg(); }, 150));
-  qClear.onclick = () => { q.value = ""; qClear.hidden = true; items = []; renderSugg(); q.focus(); };
+  qClear.onclick = () => { seq++; clearTimeout(deb); q.value = ""; qClear.hidden = true; items = []; renderSugg(); q.focus(); };
   function pick(it) {
-    items = []; renderSugg(); q.blur();
+    seq++; items = []; renderSugg(); q.blur();
     if (it.kind === "adr") { q.value = adrText(it.data); showAddress(it.data); }
+    if (it.kind === "gmina") { q.value = it.title; window.PLOTS_GMINY.select(it.data.k, true); }
   }
   $("#search").addEventListener("submit", async (e) => {
     e.preventDefault();
+    seq++; clearTimeout(deb);
     const s = q.value.trim(); if (!s) return;
     if (active >= 0 && items[active]) return pick(items[active]);
     items = []; renderSugg(); q.blur();
     try {
       if (isId(s)) { showParcelFull(await api(`/api/dzialka?id=${encodeURIComponent(s)}`)); return; }
+      const gminy = await window.PLOTS_GMINY.search(s).catch(() => []);
+      const exact = gminy.find((it) => it.data.k === s || window.GminyModel.normalize(it.data.n) === window.GminyModel.normalize(s));
+      if (exact && gminy.filter((it) => window.GminyModel.normalize(it.data.n) === window.GminyModel.normalize(s)).length <= 1) { pick(exact); return; }
+      if (gminy.length && !/\d.*\s|\s.*\d/.test(s)) { items = gminy; active = -1; renderSugg(); q.focus(); return; }
       const j = await api(`/api/adres?q=${encodeURIComponent(s)}`).catch(() => ({}));
       if (j.wyniki && j.wyniki.length) { showAddress(j.wyniki[0]); return; }
       const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=" + encodeURIComponent(s));
@@ -343,7 +408,7 @@
     map.addSource("adresy", { type: "vector", tiles: [BASE + "/tiles/adresy/{z}/{x}/{y}.pbf"], minzoom: ADR_MINZ, maxzoom: 18 });
     map.addLayer({ id: "adr-pt", type: "circle", source: "adresy", "source-layer": "adresy", minzoom: ADR_MINZ, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3, 19, 6.5], "circle-color": "#d81b60", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
     map.addLayer({ id: "adr-lbl", type: "symbol", source: "adresy", "source-layer": "adresy", minzoom: 17,
-      layout: { "text-field": ["coalesce", ["get", "numer"], ""], "text-font": ["Open Sans Semibold"], "text-size": ["interpolate", ["linear"], ["zoom"], 17, 11, 19, 14], "text-offset": [0, -1.1], "text-anchor": "bottom" },
+      layout: { "text-field": ["coalesce", ["get", "numer"], ""], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 17, 11, 19, 14], "text-offset": [0, -1.1], "text-anchor": "bottom" },
       paint: { "text-color": "#880e4f", "text-halo-color": "#fff", "text-halo-width": 1.8 } });
     setBasemap(bmId, false);
 
@@ -352,8 +417,10 @@
     bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
     bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl"], true);
     bind($("#lyrHill"), "hill", ["hill"], false);
-    const o = $("#opac"); o.value = store.get("opac", 45);
-    o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", o.value / 100); store.set("opac", +o.value); };
+    const o = $("#opac"); o.value = store.get("opac", 45); $("#opacValue").textContent = o.value + "%";
+    o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", o.value / 100); store.set("opac", +o.value); $("#opacValue").textContent = o.value + "%"; };
+    const countLayers = () => { $("#layerCount").textContent = ["#lyrDz", "#lyrAdr", "#lyrHill"].filter((id) => $(id).checked).length; };
+    ["#lyrDz", "#lyrAdr", "#lyrHill"].forEach((id) => $(id).addEventListener("change", countLayers)); countLayers();
 
     // tap: address point has priority, with a touch-friendly hit box
     map.on("click", (e) => {
@@ -362,15 +429,15 @@
       const a = map.getLayer("adr-pt") ? map.queryRenderedFeatures(box, { layers: ["adr-pt"] }) : [];
       if (a.length) {
         const p = Object.assign({}, a[0].properties, { lon: a[0].geometry.coordinates[0], lat: a[0].geometry.coordinates[1] });
-        mark([p.lon, p.lat]); showCard(adrCard(p));
-        fetchAt(p.lon, p.lat).then((d) => { highlight(d.id_dzialki); const b = $("#adrParcel"); if (b) b.innerHTML = `<h4 style="margin-top:22px">Działka pod adresem</h4>` + parcelCard(d); }).catch(() => {});
+        showAddress(p);
         return;
       }
       const f = map.queryRenderedFeatures(e.point, { layers: ["dz-fill"] });
       if (f.length) {
+        addressRequest++;
         if (selMarker) selMarker.remove();
         selectParcel(f[0].properties);
-        fetchAt(e.lngLat.lng, e.lngLat.lat).then((d) => { if (d.id_dzialki === f[0].properties.id_dzialki) card.innerHTML = parcelCard(d); }).catch(() => {});
+        fetchAt(e.lngLat.lng, e.lngLat.lat).then((d) => { if (d.id_dzialki === selectedParcelId) card.innerHTML = parcelCard(d); }).catch(() => {});
       } else {
         if (isMobile() && panel.dataset.snap !== "hidden") snap(card.classList.contains("empty") ? "hidden" : "peek");
         if (map.getZoom() < MINZ) toast(`Przybliż mapę (z ≥ ${MINZ}), aby zobaczyć działki`);
@@ -386,8 +453,16 @@
   });
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
-  map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Serwer kafelków niedostępny – uruchom start.bat na OptimusPrime", 5000); } });
-  dark.addEventListener("change", (e) => { if (!localStorage.getItem("plots.basemap")) setBasemap(e.matches ? "gray-dark" : "gray-light", false); });
+  map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
+  dark.addEventListener("change", () => { if (bmId === "map" && map.isStyleLoaded()) setBasemap("map", false); });
+  $("#shareView").onclick = async () => {
+    const c = map.getCenter(), url = new URL(location.href); url.search = "";
+    url.searchParams.set("lon", c.lng.toFixed(6)); url.searchParams.set("lat", c.lat.toFixed(6)); url.searchParams.set("z", map.getZoom().toFixed(2));
+    if (selectedParcelId && curTab === "info") url.searchParams.set("id", selectedParcelId);
+    if (curTab === "gmina" && window.PLOTS_GMINY.current()) url.searchParams.set("gmina", window.PLOTS_GMINY.current());
+    try { await navigator.clipboard.writeText(url.href); toast("Link do widoku skopiowany"); } catch (err) { toast("Nie udało się skopiować linku. Sprawdź uprawnienia schowka."); }
+  };
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };
 
   // deep link: ?id=... or ?q=...
   if (params.get("id")) map.once("load", () => { q.value = params.get("id"); $("#search").requestSubmit(); });

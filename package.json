@@ -1,0 +1,10 @@
+{
+  "name": "plots",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/gminy-model.test.cjs",
+    "test:browser": "node tests/browser.cjs",
+    "check": "node --check docs/app.js && node --check docs/gminy.js && node --check docs/gminy-model.js"
+  },
+  "devDependencies": { "playwright": "1.62.1" }
+}

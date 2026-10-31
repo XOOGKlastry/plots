@@ -6,3 +6,5 @@ __pycache__/
 *.pmtiles
 tools/
 cloudflare*
+node_modules/
+browser-results/
