@@ -56,6 +56,13 @@
 <div class="fabs">
   <button id="locate" class="fab" aria-label="Moja lokalizacja"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/></svg></button>
 </div>
+<button id="layersFab" class="fab mob" aria-label="Warstwy"><svg class="ic" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/></svg></button>
+<nav id="tabbar" aria-label="Nawigacja">
+  <button data-tab="info"><svg class="ic" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Działka</button>
+  <button data-tab="layers"><svg class="ic" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/></svg>Warstwy</button>
+  <button data-tab="legend"><svg class="ic" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Legenda</button>
+  <button data-tab="search"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Szukaj</button>
+</nav>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

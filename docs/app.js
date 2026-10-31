@@ -86,57 +86,74 @@
 
   /* ---------- Panel / tabs / bottom sheet ---------- */
   const panel = $("#panel");
+  const tbar = $("#tabbar");
+  let curTab = "info";
   function tab(name) {
-    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
+    curTab = name;
+    document.querySelectorAll(".tabs button, #tabbar button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
     document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === name));
+    panel.querySelector(".tabbody").scrollTop = 0;
   }
-  document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { tab(b.dataset.tab); if (isMobile() && panel.dataset.snap !== "full") snap("half"); }));
+  document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => tab(b.dataset.tab)));
+  document.querySelectorAll("#tabbar button").forEach((b) => (b.onclick = () => {
+    const t = b.dataset.tab;
+    if (t === "search") { snap("hidden"); b.setAttribute("aria-selected", "true"); $("#q").focus(); return; }
+    if (curTab === t && panel.dataset.snap !== "hidden") { snap("hidden"); return; }
+    tab(t); snap(t === "info" ? (card.classList.contains("empty") ? "peek" : "half") : "half");
+  }));
+  $("#layersFab").onclick = () => { tab("layers"); snap("half"); };
+  // snap positions (px from top of sheet, i.e. translateY)
+  function sheetH() { return panel.getBoundingClientRect().height; }
+  function snapY() {
+    const h = sheetH(), vh = window.innerHeight;
+    const peek = 148, half = Math.min(h, Math.max(300, Math.min(440, vh * 0.52)));
+    return { hidden: h + 20, peek: h - peek, half: h - half, full: 0 };
+  }
+  function visibleSheet() { if (!isMobile()) return 0; const y = snapY()[panel.dataset.snap] || 0; return Math.max(0, sheetH() - y); }
   function snap(s) {
     panel.dataset.snap = s;
-    document.body.classList.toggle("sheet-up", s !== "peek");
+    if (isMobile()) panel.style.transform = `translateY(${snapY()[s]}px)`; else panel.style.transform = "";
+    document.body.dataset.snap = s;
+    if (isMobile()) document.documentElement.style.setProperty("--sheetvis", visibleSheet() + "px");
+    if (s === "hidden") document.querySelectorAll("#tabbar button").forEach((b) => b.dataset.tab !== "search" && b.setAttribute("aria-selected", "false"));
+    else document.querySelectorAll("#tabbar button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === curTab));
   }
-  snap("peek");
+  window.addEventListener("resize", () => snap(panel.dataset.snap || "hidden"));
+  snap("hidden");
   $("#collapse").onclick = () => { document.body.classList.toggle("collapsed"); setTimeout(() => map.resize(), 360); };
 
   // drag handling for sheet
   (function () {
-    let y0 = 0, t0 = 0, start = 0, dragging = false, scrollEl = panel.querySelector(".tabbody");
-    const H = () => panel.getBoundingClientRect().height;
-    const snapY = () => {
-      const h = H(), peek = 132;
-      return { peek: h - peek, half: h * 0.48, full: 0 };
-    };
+    let y0 = 0, t0 = 0, start = 0, dragging = false, moved = false;
+    const scrollEl = panel.querySelector(".tabbody");
     panel.addEventListener("touchstart", (e) => {
       if (!isMobile()) return;
-      const onBody = scrollEl.contains(e.target);
-      if (onBody && panel.dataset.snap === "full" && scrollEl.scrollTop > 0) return;
-      y0 = e.touches[0].clientY; t0 = Date.now();
-      start = snapY()[panel.dataset.snap]; dragging = true;
+      if (scrollEl.contains(e.target) && panel.dataset.snap === "full" && scrollEl.scrollTop > 0) return;
+      y0 = e.touches[0].clientY; t0 = Date.now(); start = snapY()[panel.dataset.snap]; dragging = true; moved = false;
     }, { passive: true });
     panel.addEventListener("touchmove", (e) => {
       if (!dragging) return;
       const dy = e.touches[0].clientY - y0;
-      if (Math.abs(dy) < 6) return;
-      if (scrollEl.contains(e.target) && panel.dataset.snap === "full" && dy < 0) { dragging = false; return; }
-      panel.classList.add("drag");
-      const y = Math.max(0, Math.min(snapY().peek, start + dy));
-      panel.style.transform = `translateY(${y}px)`;
+      if (!moved && Math.abs(dy) < 6) return;
+      if (!moved && scrollEl.contains(e.target) && panel.dataset.snap === "full" && dy < 0) { dragging = false; return; }
+      moved = true; panel.classList.add("drag");
+      const S = snapY();
+      panel.style.transform = `translateY(${Math.max(0, Math.min(S.hidden, start + dy))}px)`;
       e.cancelable && e.preventDefault();
     }, { passive: false });
     panel.addEventListener("touchend", (e) => {
       if (!dragging) return; dragging = false;
-      if (!panel.classList.contains("drag")) return;
+      if (!moved) return;
       panel.classList.remove("drag");
       const dy = e.changedTouches[0].clientY - y0, v = dy / Math.max(1, Date.now() - t0);
-      const cur = start + dy, S = snapY();
-      let s;
-      if (v < -0.5) s = panel.dataset.snap === "peek" ? "half" : "full";
-      else if (v > 0.5) s = panel.dataset.snap === "full" ? "half" : "peek";
-      else s = Object.keys(S).reduce((a, k) => (Math.abs(S[k] - cur) < Math.abs(S[a] - cur) ? k : a), "peek");
-      panel.style.transform = "";
+      const S = snapY(), cur = start + dy, order = ["full", "half", "peek", "hidden"];
+      let i = order.indexOf(panel.dataset.snap), s;
+      if (v < -0.5) s = order[Math.max(0, i - 1)];
+      else if (v > 0.5) s = order[Math.min(3, i + 1)];
+      else s = order.reduce((a, k) => (Math.abs(S[k] - cur) < Math.abs(S[a] - cur) ? k : a), "peek");
       snap(s);
     });
-    $("#handle").addEventListener("click", () => snap(panel.dataset.snap === "peek" ? "half" : "peek"));
+    $("#handle").addEventListener("click", () => snap(panel.dataset.snap === "half" ? "full" : "half"));
   })();
 
   /* ---------- Toast / status ---------- */
@@ -159,22 +176,34 @@
   }
   const fmtHa = (v) => (v == null || v === "" ? "—" : `${Number(v).toLocaleString("pl-PL", { maximumFractionDigits: 4 })} ha`);
   const copyBtn = (txt) => `<button class="copy" type="button" data-copy="${esc(txt)}"><svg class="ic" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Kopiuj</button>`;
+  const IC = {
+    map: '<svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>',
+    leaf: '<svg class="ic" viewBox="0 0 24 24"><path d="M12 21v-8M12 13c0-4 3-7 8-7 0 5-3 7-8 7zM12 15c0-3-2-6-7-6 0 4 2 6 7 6z"/></svg>',
+    area: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 20h18M3 20V4M6 16l4-5 4 3 6-7"/></svg>',
+    clock: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    users: '<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.3 2.5 3.5 5.5"/></svg>',
+    doc: '<svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7zM14 3v4h4M9 12h6M9 16h6"/></svg>',
+    chev: '<svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>'
+  };
+  const fmtDate = (d) => { if (!d) return "—"; const m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]}` : esc(d); };
   function parcelCard(p) {
     const gs = groupsOf(p);
-    const c0 = COL[gs[0]] || COL.brak || "#bbb";
-    const grp = gs.length
-      ? gs.map((g) => `<div class="grp"><i style="background:${COL[g] || "#999"}"></i><div><span class="kicker">Grupa ${esc(g)}</span><strong>${esc(GR[g] || "")}</strong></div></div>`).join("")
-      : `<div class="grp"><i style="background:${COL.brak || "#bbb"}"></i><div><span class="kicker">Grupa rejestrowa</span><strong>brak danych</strong></div></div>`;
-    return `<div class="kicker"><i style="background:${c0}"></i>Działka ewidencyjna</div>
-      <div class="idrow"><code>${esc(p.id_dzialki || "—")}</code>${p.id_dzialki ? copyBtn(p.id_dzialki) : ""}</div>
-      ${grp}
-      <dl class="kv">
-        <dt>Numer</dt><dd class="num">${esc(p.numer_dzialki || "—")}</dd>
-        <dt>Obręb</dt><dd><span class="num">${esc(p.obreb || "—")}</span>${p.nazwa_obrebu ? " · " + esc(p.nazwa_obrebu) : ""}</dd>
-        <dt>Pole ewid.</dt><dd class="num">${fmtHa(p.pole_ewid)}</dd>
-        <dt>Użytki</dt><dd class="num">${esc(p.klasouzytki || "—")}</dd>
-        ${p.data_zrodla ? `<dt>Stan danych</dt><dd class="num">${esc(String(p.data_zrodla).slice(0, 10))}</dd>` : ""}
-      </dl>`;
+    const chips = gs.length
+      ? gs.map((g) => { const c = COL[g] || "#888"; return `<div class="chip" style="--c:${c}">${IC.users}<span><b>Grupa ${esc(g)}</b> · ${esc(GR[g] || "")}</span></div>`; }).join("")
+      : `<div class="chip" style="--c:#8b93a1">${IC.users}<span>Grupa rejestrowa · brak danych</span></div>`;
+    const cell = (ic, k, v) => `<div class="cell">${ic}<div><small>${k}</small><b>${v}</b></div></div>`;
+    const skip = new Set(["bbox", "grupy", "g1"]);
+    const all = Object.keys(p).filter((k) => !skip.has(k) && p[k] != null && p[k] !== "").map((k) => `<dt>${esc(k)}</dt><dd class="num">${esc(p[k])}</dd>`).join("");
+    return `<div class="phead"><div><h2>Działka ${esc(p.numer_dzialki || "—")}</h2><code>${esc(p.id_dzialki || "")}</code></div>${p.id_dzialki ? copyBtn(p.id_dzialki) : ""}</div>
+      ${chips}
+      <div class="grid4">
+        ${cell(IC.map, "Obręb", `${esc(p.obreb || "—")}${p.nazwa_obrebu ? " · " + esc(String(p.nazwa_obrebu).replace(/-\d+$/, "")) : ""}`)}
+        ${cell(IC.leaf, "Użytki", esc(p.klasouzytki || "—"))}
+        ${cell(IC.area, "Powierzchnia", fmtHa(p.pole_ewid))}
+        ${cell(IC.clock, "Aktualność", fmtDate(p.data_zrodla))}
+      </div>
+      <button class="more" type="button" data-more>${IC.doc}<span>Pełne informacje</span>${IC.chev}</button>
+      <div class="full" hidden><h4>Wszystkie atrybuty</h4><dl class="kv">${all}</dl></div>`;
   }
   function adrText(p) {
     const a = [p.ulica, p.numer].filter(Boolean).join(" ");
@@ -198,6 +227,8 @@
     else document.body.classList.remove("collapsed");
   }
   card.addEventListener("click", async (e) => {
+    const m = e.target.closest("[data-more]");
+    if (m) { const f = m.nextElementSibling; const open = f.hidden; f.hidden = !open; m.classList.toggle("open", open); if (open && isMobile()) snap("full"); if (open) f.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     const b = e.target.closest("[data-copy]"); if (!b) return;
     try { await navigator.clipboard.writeText(b.dataset.copy); }
     catch (err) { const ta = document.createElement("textarea"); ta.value = b.dataset.copy; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
@@ -221,7 +252,7 @@
     if (!selMarker) { const el = document.createElement("div"); el.style.cssText = "width:18px;height:18px;border-radius:50%;background:#d81b60;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"; selMarker = new maplibregl.Marker({ element: el }); }
     selMarker.setLngLat(lnglat).addTo(map);
   }
-  function padding() { return isMobile() ? { top: 90, bottom: window.innerHeight * 0.52 + 20, left: 30, right: 30 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 420, right: 70 }; }
+  function padding() { return isMobile() ? { top: 90, bottom: Math.max(visibleSheet(), snapY().hidden - snapY().half) + 70, left: 30, right: 60 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 420, right: 70 }; }
 
   async function showAddress(p) {
     const lon = +p.lon, lat = +p.lat;
@@ -340,8 +371,9 @@
         if (selMarker) selMarker.remove();
         selectParcel(f[0].properties);
         fetchAt(e.lngLat.lng, e.lngLat.lat).then((d) => { if (d.id_dzialki === f[0].properties.id_dzialki) card.innerHTML = parcelCard(d); }).catch(() => {});
-      } else if (map.getZoom() < MINZ) {
-        toast(`Przybliż mapę (z ≥ ${MINZ}), aby zobaczyć działki`);
+      } else {
+        if (isMobile() && panel.dataset.snap !== "hidden") snap(card.classList.contains("empty") ? "hidden" : "peek");
+        if (map.getZoom() < MINZ) toast(`Przybliż mapę (z ≥ ${MINZ}), aby zobaczyć działki`);
       }
     });
     if (matchMedia("(hover:hover)").matches) {
@@ -352,6 +384,7 @@
     }
     updStatus();
   });
+  map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Serwer kafelków niedostępny – uruchom start.bat na OptimusPrime", 5000); } });
   dark.addEventListener("change", (e) => { if (!localStorage.getItem("plots.basemap")) setBasemap(e.matches ? "gray-dark" : "gray-light", false); });
