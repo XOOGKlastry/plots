@@ -7,9 +7,9 @@
     { id: "pog-draft", label: "Plany ogólne · projekty", description: "Projekty, nie plany uchwalone", url: "https://mapy.geoportal.gov.pl/wss/ext/ProjektowanePlanyOgolneGmin", layers: "strefaPlanistyczna,obszarUzupelnieniaZabudowy", query: "strefaPlanistyczna,obszarUzupelnieniaZabudowy", date: "GUGiK · projektowane POG" }
   ];
   const panel = document.getElementById("planningLayers");
-  panel.innerHTML = `<h3>Planowanie przestrzenne</h3>${services.map(s=>`<div class="layer-entry" data-keywords="planowanie ${esc(s.label)} mpzp pog zagospodarowanie"><label class="sw"><input type="checkbox" id="plan-${s.id}" data-plan="${s.id}"/><span></span><div>${esc(s.label)}<small>${esc(s.description)}</small></div></label></div>`).join("")}<button type="button" id="inspectPlans" class="secondary-action" aria-pressed="false">Identyfikuj plan w punkcie</button><p class="source-note muted">Zasięg zależy od publikacji gmin. Projekty są oddzielone od uchwalonych planów. <a href="https://rejestr-urbanistyczny.gov.pl/published" target="_blank" rel="noopener noreferrer">Rejestr Urbanistyczny</a></p><p id="planningStatus" class="source-note muted" role="status"></p>`;
+  panel.innerHTML = `<h3>Planowanie przestrzenne</h3>${services.map(s=>`<div class="layer-entry" data-keywords="planowanie ${esc(s.label)} mpzp pog zagospodarowanie"><label class="sw"><input type="checkbox" id="plan-${s.id}" data-plan="${s.id}"/><span></span><div>${esc(s.label)}<small>${esc(s.description)}</small></div></label></div>`).join("")}<button type="button" id="inspectPlans" class="secondary-action" aria-pressed="false">Wskaż plan na mapie</button><p class="source-note muted">Zasięg zależy od publikacji gmin. Projekty są oddzielone od uchwalonych planów. <a href="https://rejestr-urbanistyczny.gov.pl/published" target="_blank" rel="noopener noreferrer">Rejestr Urbanistyczny</a></p><p id="planningStatus" class="source-note muted" role="status"></p>`;
   let inspect = false, request = 0;
-  window.PLOTS_PLANNING = { inspecting: () => inspect };
+  window.PLOTS_PLANNING = { inspecting: () => inspect, inspectPoint: e => identify(e,true) };
   function count() { panel.dispatchEvent(new Event("change", { bubbles: true })); }
   function active() { return services.filter(s=>document.getElementById("plan-"+s.id).checked); }
   function initialize() {
@@ -32,11 +32,12 @@
     app.toast(inspect?"Wskaż plan na mapie":"Identyfikacja planów wyłączona");
     if(inspect)document.querySelector("[data-close-layers]").click();
   };
-  map.on("click",async e=>{
-    if(!inspect)return;
-    const current=++request, selected=active();
+  async function identify(e, all=false){
+    const selected=all?services:active();
     if(!selected.length)return;
     app.showInfo(`<div class="phead"><div><h2>Planowanie</h2><p class="muted small">Sprawdzam wskazany punkt…</p></div></div>`);
+    app.markPoint([e.lngLat.lng,e.lngLat.lat]);
+    const current=request;
     const R=6378137,merc=([lon,lat])=>[R*lon*Math.PI/180,R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];
     const center=merc([e.lngLat.lng,e.lngLat.lat]),metres=80;
     const parts=await Promise.all(selected.map(async s=>{
@@ -48,11 +49,16 @@
         const doc=new DOMParser().parseFromString(raw,"text/html");doc.querySelectorAll("script,style,iframe,object").forEach(n=>n.remove());
         const text=(doc.body.textContent||"").replace(/\s+/g," ").trim();
         const links=[...doc.querySelectorAll("a[href]")].slice(0,4).flatMap(a=>{try{const target=new URL(a.getAttribute("href"),s.url);return target.protocol==="https:"?[`<a href="${esc(target.href)}" target="_blank" rel="noopener noreferrer">${esc((a.textContent||"Dokument źródłowy").slice(0,100))}</a>`]:[];}catch{return [];}});
-        return `<section class="plan-result"><h3>${esc(s.label)}</h3><p>${text?esc(text.slice(0,2500)):"Usługa nie zwróciła obiektów dla tego punktu."}</p>${links.join("<br>")}<small>${esc(s.date)}</small></section>`;
+        const table=[...doc.querySelectorAll('tr')].map(row=>[...row.querySelectorAll('th,td')].map(c=>c.textContent.replace(/\s+/g,' ').trim()).filter(Boolean).join(': ')).filter(Boolean);
+        const blocks=table.length?table:[...doc.querySelectorAll('p,li')].map(n=>n.textContent.replace(/\s+/g,' ').trim()).filter(Boolean);
+        const facts=(blocks.length?blocks:text?[text]:['Usługa nie zwróciła obiektów dla tego punktu.']).slice(0,30);
+        return `<section class="plan-result"><h3>${esc(s.label)}</h3><ul class="plan-facts">${facts.map(t=>`<li>${esc(t.slice(0,700))}</li>`).join('')}${links.map(link=>`<li>${link}</li>`).join('')}</ul><small>${esc(s.date)}</small></section>`;
       }catch(error){return `<section class="plan-result"><h3>${esc(s.label)}</h3><p>Nie udało się pobrać informacji z tej usługi. Spróbuj ponownie lub sprawdź dokument w rejestrze.</p></section>`;}
     }));
-    if(current!==request)return;
+    if(current!==request||app.currentTab()!=="info")return;
     app.showInfo(`<div class="phead"><div><h2>Planowanie</h2><p class="muted small">${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}</p></div></div>${parts.join("")}<p class="source-note muted">Brak obiektu w usłudze nie potwierdza braku planu. <a href="https://rejestr-urbanistyczny.gov.pl/published" target="_blank" rel="noopener noreferrer">Sprawdź rejestr</a></p>`);
-  });
+  }
+  document.addEventListener('plots:selection',()=>request++);
+  map.on('click',e=>{if(inspect)identify(e);});
   map.on("error",e=>{if(e.sourceId?.startsWith("plan-source-"))document.getElementById("planningStatus").textContent="Usługa planowania jest chwilowo niedostępna lub nie obsługuje tego widoku.";});
 })();

@@ -1,0 +1,7 @@
+const test=require('node:test'),assert=require('node:assert/strict'),model=require('../docs/indicator-model.js');
+const peers=Array.from({length:100},(_,i)=>({value:i+1,year:2025}));
+test('20/60/20 boundaries and position use the matching year',()=>{for(const [value,tone,rank]of[[100,'good',1],[81,'good',20],[80,'neutral',21],[21,'neutral',80],[20,'bad',81],[1,'bad',100]]){const r=model.rank({key:'firmy_na_1000',value,year:2025},peers.concat([{year:2024,value:999}]));assert.equal(r.tone,tone);assert.equal(r.rank,rank);assert.equal(r.n,100);}});
+test('a smaller burden is better; descriptive size stays neutral',()=>{assert.equal(model.rank({key:'bezrobocie_proc',value:1,year:2025},peers).tone,'good');assert.equal(model.rank({key:'ludnosc',value:100,year:2025},peers).tone,'neutral');});
+test('ties do not create artificial top and bottom bands',()=>{assert.equal(model.rank({key:'firmy_na_1000',value:1,year:2025},Array.from({length:100},()=>({value:1,year:2025}))).tone,'neutral');});
+test('unknown years and missing values never receive a score',()=>{assert.equal(model.rank({value:100,year:null},peers).rank,null);assert.equal(model.rank({value:null,year:2025},peers).rank,null);assert.equal(model.rank({value:1,year:2023},peers).rank,null);});
+test('trend is a consecutive year delta, percentages use percentage points',()=>{assert.match(model.trend({value:8,year:2025,unit:'%',digits:1,history:[{value:10,year:2024}]}).text,/-2 p.p./);assert.equal(model.trend({value:8,year:2025,history:[{value:10,year:2023}]}).tone,'missing');});

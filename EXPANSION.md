@@ -4,7 +4,7 @@
 
 - Usunięto kontrolkę i źródło cieniowania rzeźby.
 - `Topo` korzysta z kompozycji BDOT10k GUGiK zamiast dawnej mapy rastrowej TOPO. Od mniejszych przybliżeń pozostaje czytelny podkład wektorowy; BDOT10k jest nakładany od z=11. Układ wyjściowy GetMap EPSG:3857 sprawdzono na rzeczywistym obrazie usługi, a nie jedynie na deklaracji capabilities.
-- MPZP, uchwalone POG i projektowane POG są oddzielnymi warstwami. Identyfikacja WMS jest opcjonalnym trybem wskazywania punktu. HTML z usług jest zamieniany na zwykły tekst, skrypty usuwane, a linki ograniczone do HTTPS. Nieudane zapytanie nie jest traktowane jako brak planu.
+- MPZP, uchwalone POG i projektowane POG są oddzielnymi warstwami. Kliknięcie mapy poza działką, adresem i obiektem identyfikuje wszystkie trzy usługi; pozostaje też opcjonalny tryb wskazywania tylko aktywnych planów. Wyniki są punktowanymi listami. HTML z usług jest zamieniany na zwykły tekst, skrypty usuwane, a linki ograniczone do HTTPS. Nieudane zapytanie nie jest traktowane jako brak planu.
 - Usługi planistyczne GUGiK są nadal dostępne w oficjalnym wykazie i zostały sprawdzone 31.10.2026. Zasięg i aktualność zależą od usług źródłowych. Interfejs odsyła również do Rejestru Urbanistycznego; jego publiczny endpoint listowania zwracał podczas wdrożenia błąd systemu i nie jest ukrytym zamiennikiem danych.
 
 Oficjalne źródła:
@@ -20,7 +20,7 @@ Oficjalne źródła:
 
 `gus-catalog.json` przechowuje sprawdzone identyfikatory i metadane zmiennych. Dwie zmienne historyczne dotyczące gazu są odfiltrowane, ponieważ ich szeregi kończą się w latach 90. Dla wybranej gminy jednym zapytaniem pobierane są 19 bieżących zmiennych i trzy lata obserwacji. PIT na mieszkańca i gęstość zaludnienia są wyliczane tylko przy zgodnych latach licznika i mianownika. REGON na 10 tys. mieszkańców przeliczany jest na 1000 dokładnie raz, a hektary na km² przez podzielenie przez 100.
 
-Dane 20 ostatnio odczytanych gmin są przechowywane lokalnie przez aplikację. Po 7 dniach następuje próba odświeżenia. Błąd lub limit GUS pozostawia dostępne zapisane wartości i jawny komunikat. Daty i braki pozostają widoczne. Kolory kart oznaczają kategorie, nie arbitralną ocenę gmin.
+Dane 20 ostatnio odczytanych gmin są przechowywane lokalnie przez aplikację. Po 7 dniach następuje próba odświeżenia. Błąd lub limit GUS pozostawia dostępne zapisane wartości i jawny komunikat. Daty i braki pozostają widoczne. Kolory kart oznaczają ocenę 20/60/20; szczegóły w `INTERACTIONS.md`.
 
 Odświeżenie katalogu i indeksu wszystkich jednostek: `node scripts/refresh-gus.cjs`. Skrypt respektuje tempo żądań, weryfikuje jednostki i pokrycie oraz zapisuje pliki dopiero po poprawnym pobraniu. Opcjonalny klucz GUS może być przekazany w zmiennej środowiskowej `GUS_API_KEY`; nie trafia do strony ani repozytorium.
 
@@ -28,9 +28,7 @@ Odświeżenie katalogu i indeksu wszystkich jednostek: `node scripts/refresh-gus
 
 - 63 kategorie usług z zachowaniem nazw źródeł, typu źródła i daty.
 - Punkty ładowane kaflami, a mniejsze zbiory jako jeden plik; renderowane są punkty w aktualnym widoku.
-- Budynki mieszkalne BDOT10k są dostępne od z=15. Indeks budynku pozostaje zgodny z jednym bajtem kodu odległości w plikach `d/`. Nie przeliczamy odległości w linii prostej na piesze.
-- Filtr `bliżej/dalej niż` korzysta z istniejących odległości po grafie pieszym. Kwantyzacja: 20 m do 2 km, 100 m do 10 km, 500 m powyżej; kod 255 pozostaje brakiem połączenia/danych. Kod 254 to co najmniej 47 km. Braki nie przechodzą filtrów blisko/daleko.
-- Widok ograniczony do 15 tys. budynków z jawnym komunikatem o potrzebie przybliżenia. Bufory danych mają ograniczony cache.
+- Usunięto widok odległości budynków i filtry blisko/daleko. Dojścia piesze dostępne są wyłącznie po wybraniu kategorii w karcie adresu; trzy kierunki na mapie są prostymi przerywanymi liniami. Odległości oblicza macierz piesza Valhalla/OSM, nie geometria linii.
 - RCN pokazuje mediany cen lokali mieszkalnych w siatkach około 1 i 5 km, min. 5 transakcji. Okres 01.09.2024–31.08.2026 i liczba transakcji są widoczne. Mediana okolicy nie jest wyceną budynku.
 
 Pliki punktów, budynków i cen pozostają w `https://xoogklastry.github.io/jakdaleko/`; katalog źródeł jest zapisany lokalnie. Źródła pierwotne: GUGiK, GUS, rejestry publiczne, operatorzy i OpenStreetMap zgodnie z metadanymi danej warstwy.
@@ -43,6 +41,6 @@ Service worker zapisuje interfejs, katalogi i dane referencyjne. Zapisane profil
 
 ## Walidacja i wdrożenie
 
-`pnpm test` uruchamia 15 testów danych, jednostek, lat i formatów binarnych. `node tests/browser.cjs` obejmuje 4 szerokości i 2 motywy. `node tests/features-browser.cjs` sprawdza nowe warstwy, prawdziwe punkty/budynki/siatki RCN, filtr pieszy, zachowanie źródeł po zmianie podkładu, wybór roku i tryb offline po instalacji service workera. Odpowiedź GUS w testach przeglądarkowych pochodzi z zapisanej rzeczywistej odpowiedzi Ustki, aby nie zużywać limitów przy każdej regresji.
+`pnpm test` uruchamia 27 testów danych, jednostek, lat i formatów binarnych. `node tests/browser.cjs` obejmuje 4 szerokości i 2 motywy. `node tests/features-browser.cjs` sprawdza nowe warstwy, prawdziwe punkty i siatki RCN, zachowanie źródeł po zmianie podkładu, wybór roku i tryb offline po instalacji service workera. `node tests/interactions-browser.cjs` sprawdza odległości tylko w adresie, ranking po sieci, trzy kierunki, listy planów, anulowanie starego wyboru i brak kolizji paneli. Odpowiedź GUS w testach przeglądarkowych pochodzi z zapisanej rzeczywistej odpowiedzi Ustki, aby nie zużywać limitów przy każdej regresji.
 
 GitHub Pages nadal publikuje `docs/`. Przy wdrożeniu lokalnego API skopiuj wszystkie nowe pliki z `docs/` oraz `server/public_api.py` i uruchom ponownie proces API. Nie podmieniaj aktualnego `config.js`. Cofnięcie commita odtwarza poprzedni interfejs; service worker ma wersjonowany cache i powinien zostać zaktualizowany przy rollbacku.
