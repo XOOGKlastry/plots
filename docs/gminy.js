@@ -6,6 +6,7 @@
   const icon = (name) => `<svg class="ic" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const categories = ["Przegląd", "Ludność", "Finanse i firmy", "Warunki życia", "Infrastruktura", "Edukacja i kultura", "Środowisko", "Źródła"];
   const dialog = $("#gminaDialog");
+  let contextRevision=0;
   let data = null, loading = null, selected = null, category = "Przegląd", pendingParcel = null, selectedYear = null;
   const categoryTone = name => ({"Ludność":"blue","Finanse i firmy":"purple","Warunki życia":"orange","Infrastruktura":"cyan","Edukacja i kultura":"pink","Środowisko":"green"}[name] || "blue");
   async function loadGus(g, force) {
@@ -47,15 +48,16 @@
     if (!selected) { chooser(); return; }
     selected._selectedYear = null;
     const m = model.metrics(selected), pop = m.find((x) => x.key === "ludnosc"), area = m.find((x) => x.key === "powierzchnia");
-    $("#gminaCard").innerHTML = `<button type="button" class="gmina-back" data-choose-gmina>${icon("back")}Zmień gminę</button><div class="gmina-head"><div><h2>${esc(selected.n)}</h2><div class="gmina-type">${esc(selected.typ || "Gmina")}</div></div><div class="place-icon">${icon("town")}</div></div><p class="muted small">${esc(region(selected))}</p><div class="gmina-stats"><div class="gmina-stat"><strong>${esc(model.formatValue(pop, false))}</strong><small>mieszkańców${pop.year ? " · " + pop.year : ""}</small></div><div class="gmina-stat"><strong>${esc(model.formatValue(area, false))}</strong><small>km²${area.year ? " · " + area.year : " · rok niepodany"}</small></div></div><button type="button" class="primary" data-gmina-details>Dane gminy ${icon("arrow")}</button><div class="gmina-source"><span>TERYT ${esc(selected.k)}</span><span>GUS BDL</span></div>`;
+    $("#gminaCard").innerHTML = `<button type="button" class="gmina-back" data-choose-gmina>${icon("back")}Zmień gminę</button><div class="gmina-head"><div><h2>${esc(selected.n)}</h2><div class="gmina-type">${esc(selected.typ || "Gmina")}</div></div>${window.MunicipalityCrests.render(selected)}</div><p class="muted small">${esc(region(selected))}</p><div class="gmina-stats"><div class="gmina-stat"><strong>${esc(model.formatValue(pop, false))}</strong><small>mieszkańców${pop.year ? " · " + pop.year : ""}</small></div><div class="gmina-stat"><strong>${esc(model.formatValue(area, false))}</strong><small>km²${area.year ? " · " + area.year : " · rok niepodany"}</small></div></div><button type="button" class="primary" data-gmina-details>Dane gminy ${icon("arrow")}</button><div class="gmina-source"><span>TERYT ${esc(selected.k)}</span><span>GUS BDL</span></div>`;
   }
   async function select(id, fly) {
+    const context=++contextRevision;document.dispatchEvent(new Event("plots:manual-gmina"));
     try {
-      await load(); const g = data.gminy.find((item) => item.k === id);
+      await load();if(context!==contextRevision)return; const g = data.gminy.find((item) => item.k === id);
       if (!g) { app.toast("Brak profilu tej gminy w bieżącym zestawie"); return; }
       selected = g; category = "Przegląd";
       selectedYear = null;
-      await window.GusClient.seed(selected).catch(()=>{});
+      await window.GusClient.seed(g).catch(()=>{});if(context!==contextRevision)return;
       app.store.set("gmina", g.k); app.store.set("gminyRecent", [g.k, ...recentIds().filter((k) => k !== g.k)].slice(0, 5));
       drawCard(); app.showGmina();
       if (fly) {
@@ -74,7 +76,7 @@
   }
   function metricCard(item) {
     const a=assessment(item);
-    return `<article class="indicator-card score-${a.tone}"><header><span>${esc(item.label)}</span><span class="score-pill">${a.tone==='good'?'●':a.tone==='bad'?'▼':'—'} ${esc(a.label)}</span></header><div class="indicator-value">${esc(model.formatValue(item,false))}<small>${esc(item.unit)}</small></div><div class="indicator-context"><span>${a.rank?`Pozycja <b>${a.rank.toLocaleString('pl-PL')}</b> / ${a.n.toLocaleString('pl-PL')}`:'Pozycja —'}</span><span>${esc(a.trend.text)}</span></div><footer>${item.year||'Rok niepodany'} · ${esc(item.source)}</footer></article>`;
+    return `<article class="indicator-card score-${a.tone}"><header><span>${esc(item.label)}</span><span class="score-pill">${Icons.svg(a.tone==='good'?'check-circle':a.tone==='bad'?'warning-circle':'minus-circle')} ${esc(a.label)}</span></header><div class="indicator-value">${esc(model.formatValue(item,false))}<small>${esc(item.unit)}</small></div><div class="indicator-context"><span>${a.rank?`Pozycja <b>${a.rank.toLocaleString('pl-PL')}</b> / ${a.n.toLocaleString('pl-PL')}`:'Pozycja —'}</span><span>${a.trend.direction?Icons.svg(a.trend.direction==='up'?'trend-up':a.trend.direction==='down'?'trend-down':'minus'):""}${esc(a.trend.text)}</span></div><footer>${item.year||'Rok niepodany'} · ${esc(item.source)}</footer></article>`;
   }
   function rows(items) {return `<div class="indicator-grid">${items.map(metricCard).join('')}</div>`;}
   function renderDetails() {
@@ -89,7 +91,7 @@
     } else if (category === "Źródła") {
       body = `<h2>Dane i ich aktualność</h2><div class="source-description">Zestaw bazowy: ${esc(data.baseBuilt)}. Dane uzupełniające pobrano: ${esc(data.cardsFetched?.slice(0, 10))}. Daty pobrania nie są rokiem obserwacji. Każdy wskaźnik pokazuje własny rok; brak roku w źródle jest oznaczony wprost.</div><div class="metric-list"><div class="metric-row"><div>Identyfikator jednostki</div><div>${esc(selected.k)}<small>${esc(selected.typ)}</small></div></div><div class="metric-row"><div>Zestaw źródłowy</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL i dane referencyjne</a></div></div><div class="metric-row"><div>Oficjalne statystyki</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL</a></div></div><div class="metric-row"><div>Usługi i otoczenie</div><div><a href="https://xoogklastry.github.io/jakdaleko/" target="_blank" rel="noopener noreferrer">Jakdaleko ${icon("arrow")}</a><small>Obiekty i ceny RCN w warstwach; dojścia piesze w karcie adresu</small></div></div></div><h2>Źródła wskaźników</h2>${rows(m)}<p class="source-description">Powierzchnia pochodzi w pierwszej kolejności z karty GUS z podanym rokiem. Starsza wartość z bazy jest używana tylko przy braku tej karty. Brak danych nie jest zerem. Zestaw zawiera również dane opisowe z Wikidata.</p>`;
     } else body = `<h2>${esc(category)}</h2>` + rows(m.filter((x) => x.category === category));
-    $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><h1 id="gminaDialogTitle">${esc(selected.n)}</h1><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header><div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>${body}`;
+    $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><div class="municipality-title">${window.MunicipalityCrests.render(selected)}<h1 id="gminaDialogTitle">${esc(selected.n)}</h1></div><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header><div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>${body}`;
     $("#gminaDetails").scrollTop = 0;
   }
   function failure(error) {
@@ -109,6 +111,13 @@
   }
   window.PLOTS_GMINY = {
     select,
+    async setContext(id,message='') {
+      const context=++contextRevision;await load();if(context!==contextRevision)return;const g=id?data.gminy.find(item=>item.k===id):null;
+      const changed=selected?.k!==g?.k;selected=g||null;selectedYear=null;
+      if(selected){app.store.set('gmina',selected.k);await window.GusClient.seed(selected).catch(()=>{});if(context!==contextRevision)return;drawCard();if(changed)loadGus(selected,false).catch(()=>{});}
+      else{app.store.set('gmina',null);$('#gminaCard').innerHTML=`<div class="empty-context">${icon('town')}<h2>Gmina miejsca</h2><p class="muted small">${esc(message||'Wybierz punkt, adres lub działkę na mapie.')}</p><button type="button" class="gmina-back" data-choose-gmina>Wyszukaj gminę</button></div>`;}
+      if(dialog.open&&selected)renderDetails();
+    },
     current: () => selected?.k || null,
     async search(query) { await load(); return model.search(data.gminy, query).map((g) => ({ kind: "gmina", data: g, title: g.n, sub: `${g.typ || "Gmina"} · ${region(g)} · TERYT ${g.k}` })); }
   };
@@ -124,12 +133,6 @@
   $("#gminaDetails").addEventListener("click", (e) => { if (e.target.closest("[data-gmina-map]")) { dialog.close(); select(selected.k, true); } });
   $("#gminaDetails").addEventListener("click", async e=>{const b=e.target.closest("[data-refresh-gus]");if(b){b.disabled=true;b.textContent="Pobieram…";try{await loadGus(selected,true);}finally{if(b.isConnected){b.disabled=false;b.textContent="Odśwież z GUS";}}}});
   $("#gminaDetails").addEventListener("change",e=>{if(e.target.id==="dataYear"){selectedYear=e.target.value?Number(e.target.value):null;renderDetails();}});
-  document.addEventListener("plots:parcel", (e) => {
-    const id = model.parcelTeryt(e.detail.id_dzialki); if (!id) return;
-    // Update the context without switching away from the parcel the user selected.
-    if (!data) { pendingParcel = id; return; }
-    const g = data.gminy.find((item) => item.k === id);
-    selected = g || null; selectedYear=null; if (selected) { app.store.set("gmina", selected.k); loadGus(selected,false).catch(()=>{}); } drawCard();
-  });
+  document.addEventListener("plots:parcel", e=>{const id=model.parcelTeryt(e.detail.id_dzialki);if(id)window.PLOTS_GMINY.setContext(id).catch(failure);});
   initialize();
 })();

@@ -4,7 +4,9 @@
   "scripts": {
     "test": "node --test tests/*.test.cjs",
     "test:browser": "node tests/browser.cjs",
-    "check": "node --check docs/app.js && node --check docs/gminy.js && node --check docs/gus-client.js && node --check docs/planning.js && node --check docs/surroundings.js && node --check docs/mobile.js && node --check docs/sw.js"
+    "check": "node --check docs/app.js && node --check docs/gminy.js && node --check docs/gus-client.js && node --check docs/planning.js && node --check docs/surroundings.js && node --check docs/mobile.js && node --check docs/sw.js && node --check docs/icons.js && node --check docs/municipality-model.js && node --check docs/municipality-context.js && node --check docs/municipality-crests.js && node --check docs/isochrone-model.js && node --check docs/service-places.js && node --check docs/layer-ui.js && node --check docs/address-access.js"
   },
-  "devDependencies": { "playwright": "1.62.1" }
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
 }

@@ -37,6 +37,7 @@
     if(!selected.length)return;
     app.showInfo(`<div class="phead"><div><h2>Planowanie</h2><p class="muted small">Sprawdzam wskazany punkt…</p></div></div>`);
     app.markPoint([e.lngLat.lng,e.lngLat.lat]);
+    document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon:e.lngLat.lng,lat:e.lngLat.lat}}));
     const current=request;
     const R=6378137,merc=([lon,lat])=>[R*lon*Math.PI/180,R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];
     const center=merc([e.lngLat.lng,e.lngLat.lat]),metres=80;
