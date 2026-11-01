@@ -1,0 +1,3 @@
+module.exports=async function(page){
+ await page.route('**/api/gmina-granice?*',route=>{const id=new URL(route.request().url()).searchParams.get('id'),box=id==='1465011'?[20.85,52.09,21.28,52.37]:id==='1007013'?[20.18,51.23,20.42,51.36]:id==='2212102'?[16.65,54.42,17.05,54.64]:[16.822,54.554,16.905,54.594],rect=b=>({type:'Polygon',coordinates:[[[b[0],b[1]],[b[2],b[1]],[b[2],b[3]],[b[0],b[3]],[b[0],b[1]]]]}),features=[{type:'Feature',properties:{kind:'gmina',source:'test fixture'},geometry:rect(box)}];if(id.endsWith('3'))features.push({type:'Feature',properties:{kind:'miasto',source:'test fixture'},geometry:rect([20.28,51.29,20.32,51.31])});route.fulfill({json:{type:'FeatureCollection',features,bbox:box,municipality:id,simplified:false}});});
+};

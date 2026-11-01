@@ -8,3 +8,7 @@
 - Budowanie danych: `node scripts/build-municipality-context.cjs <katalog-źródłowy>`. Wymagane pliki: `baza.json`, `herby.json`, `gminy.topojson` i obrazy z indeksu. Wynik jest deterministyczny i weryfikuje pełną liczbę granic. Aplikacja wyświetla brak źródłowego herbu, jeśli obraz jest niedostępny.
 
 Kontrola 31.10.2026: rozdzielenie miasta Ustka (`2212011`) i gminy wiejskiej Ustka (`2212102`), Warszawa (`1465011`), punkt poza Polską, otwory i niejednoznaczne granice. Obraz Ustki z lokalnego pakietu oraz zdalny herb gminy Kleszczów zostały odczytane w rzeczywistej przeglądarce.
+
+## Wyświetlane granice od 01.11.2026
+
+Granice wybranej gminy są pobierane bezpośrednio z `administracja.gminypolskie`, a obszar miasta w gminie miejsko-wiejskiej z `administracja.miastapolskie`. Obie warstwy są w EPSG:2180. Wyświetlenie używa pełnej geometrii bez uproszczenia, po transformacji do WGS84. Test punktu również używa `administracja.gminypolskie` z indeksem GiST; zapisany krajowy TopoJSON pozostaje jedynie awaryjnym kontekstem offline. Wszystkie zapytania są do odczytu.
