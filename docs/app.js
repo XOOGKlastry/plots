@@ -114,7 +114,7 @@
   function openLayers(legend) {
     document.body.classList.add("layers-open");
     $("#layerPanel").hidden = false; $("#layersFab").setAttribute("aria-expanded", "true");
-    if (legend) { $("#legendDetails").open = true; const parent=$("#legendDetails").closest(".layer-section");if(parent)parent.open=true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
+    if (legend) { window.LayerControls?.show("map");$("#legendDetails").open = true; const parent=$("#legendDetails").closest(".layer-section");if(parent)parent.open=true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
   }
   function closeLayers() { document.body.classList.remove("layers-open"); $("#layerPanel").hidden = true; $("#layersFab").setAttribute("aria-expanded", "false"); }
   function tab(name) {
@@ -123,6 +123,7 @@
     document.querySelectorAll(".tabs button, #tabbar button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
     document.querySelectorAll(".pane").forEach((p) => { p.classList.toggle("on", p.dataset.pane === name); p.hidden = p.dataset.pane !== name; });
     panel.querySelector(".tabbody").scrollTop = 0;
+    document.dispatchEvent(new CustomEvent("plots:tab",{detail:name}));
   }
   document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => { tab(b.dataset.tab); if (isMobile()) snap("half"); }));
   $(".tabs").addEventListener("keydown", (e) => {
@@ -297,26 +298,28 @@
   function selectParcel(p) { selectedParcelId = p.id_dzialki; highlight(p.id_dzialki); showCard(parcelCard(p)); document.dispatchEvent(new CustomEvent("plots:parcel", { detail: p })); }
 
   /* ---------- API ---------- */
-  async function api(path) {
-    const r = await fetch(BASE + path, { signal: AbortSignal.timeout(12000) });
-    if (!r.ok) throw new Error(r.status === 404 ? "Nie znaleziono" : "Błąd API " + r.status);
+  async function api(path,options={}) {
+    const r = await fetch(BASE + path, { signal: AbortSignal.timeout(12000),...options });
+    if (!r.ok) {const detail=await r.json().catch(()=>({}));const error=new Error(detail.error||(r.status === 404 ? "Nie znaleziono" : "Błąd API " + r.status));error.status=r.status;throw error;}
     return r.json();
   }
   const fetchAt = (lon, lat) => api(`/api/at?lon=${lon}&lat=${lat}`);
   let selMarker = null, addressRequest = 0;
   function mark(lnglat) {
-    if (!selMarker) { const el = document.createElement("div"); el.style.cssText = "width:18px;height:18px;border-radius:50%;background:#d81b60;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"; selMarker = new maplibregl.Marker({ element: el }); }
+    if (!selMarker) { const el = document.createElement("div"); el.className="selected-location-marker"; selMarker = new maplibregl.Marker({ element: el }); }
     selMarker.setLngLat(lnglat).addTo(map);
   }
-  function padding() { return isMobile() ? { top: 90, bottom: Math.min(visibleSheet() + 24, window.innerHeight * .55), left: 24, right: 65 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 380, right: 70 }; }
+  function padding() { return isMobile() ? { top: 140, bottom: visibleSheet()+80, left: 24, right: 65 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 380, right: 70 }; }
 
+  function frame(bounds,maxZoom=18) {if(isMobile()&&visibleSheet()>window.innerHeight*.6)snap('peek');map.stop();map.setPadding({top:0,bottom:0,left:0,right:0});map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]],{padding:padding(),maxZoom,duration:650,retainPadding:false});}
+  function framePoint(lon,lat,zoom=18){frame([lon-.00003,lat-.00003,lon+.00003,lat+.00003],zoom);}
   async function showAddress(p) {
     const requestId = ++addressRequest; selectedParcelId = null;
     const lon = +p.lon, lat = +p.lat;
     mark([lon, lat]);
     showCard(adrCard(p));
     document.dispatchEvent(new CustomEvent("plots:address", {detail:p}));
-    map.flyTo({ center: [lon, lat], zoom: 18, padding: padding(), retainPadding:false, speed: 1.6 });
+    framePoint(lon,lat);
     try {
       const d = await fetchAt(lon, lat);
       if (requestId !== addressRequest) return;
@@ -328,14 +331,15 @@
     } catch (e) {}
   }
   function showParcelFull(d) {
-    if (d.bbox) map.fitBounds(d.bbox, { padding: padding(), maxZoom: 18 });
     selectParcel(d);
+    if (d.bbox) frame([...d.bbox[0],...d.bbox[1]],18);
   }
 
   /* ---------- Search ---------- */
   const q = $("#q"), sugg = $("#sugg"), qClear = $("#qClear");
   const isId = (s) => /^\d{6}_\d\.\d{4}\./.test(s) || (/_/.test(s) && /\./.test(s) && !/\s/.test(s));
   let items = [], active = -1, seq = 0, deb;
+  document.addEventListener("plots:selection",()=>seq++);
   function renderSugg() {
     sugg.hidden = !items.length;
     q.setAttribute("aria-expanded", String(items.length > 0));
@@ -356,7 +360,7 @@
       active = -1; renderSugg();
     } catch (e) { if (my === seq) { items = gminy; renderSugg(); } }
   }
-  q.addEventListener("input", () => { seq++; qClear.hidden = !q.value; clearTimeout(deb); deb = setTimeout(() => suggest(q.value.trim()), 250); });
+  q.addEventListener("input", () => { seq++;items=[];active=-1;renderSugg(); qClear.hidden = !q.value; clearTimeout(deb); deb = setTimeout(() => suggest(q.value.trim()), 250); });
   q.addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") { if (!items.length) return; e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length; renderSugg(); }
     if (e.key === "Escape") { seq++; clearTimeout(deb); items = []; renderSugg(); }
@@ -372,28 +376,32 @@
   }
   $("#search").addEventListener("submit", async (e) => {
     e.preventDefault();
-    seq++; clearTimeout(deb);
+    const requestId=++seq; clearTimeout(deb);
     const s = q.value.trim(); if (!s) return;
     if (active >= 0 && items[active]) return pick(items[active]);
     items = []; renderSugg(); q.blur();
     try {
-      if (isId(s)) { showParcelFull(await api(`/api/dzialka?id=${encodeURIComponent(s)}`)); return; }
+      if (isId(s)) { const d=await api(`/api/dzialka?id=${encodeURIComponent(s)}`);if(requestId===seq)showParcelFull(d);return; }
       const gminy = await window.PLOTS_GMINY.search(s).catch(() => []);
+      if(requestId!==seq)return;
       const exact = gminy.find((it) => it.data.k === s || window.GminyModel.normalize(it.data.n) === window.GminyModel.normalize(s));
       if (exact && gminy.filter((it) => window.GminyModel.normalize(it.data.n) === window.GminyModel.normalize(s)).length <= 1) { pick(exact); return; }
+      if(gminy.length===1&&!/\d/.test(s)){pick(gminy[0]);return;}
       if (gminy.length && !/\d.*\s|\s.*\d/.test(s)) { items = gminy; active = -1; renderSugg(); q.focus(); return; }
       const j = await api(`/api/adres?q=${encodeURIComponent(s)}`).catch(() => ({}));
+      if(requestId!==seq)return;
       if (j.wyniki && j.wyniki.length) { showAddress(j.wyniki[0]); return; }
       const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&countrycodes=pl&limit=1&q=" + encodeURIComponent(s));
       const arr = await r.json();
+      if(requestId!==seq)return;
       if (!arr.length) throw new Error("Nie znaleziono: " + s);
       const lon = +arr[0].lon, lat = +arr[0].lat;
       mark([lon, lat]);
       document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon,lat}}));
-      map.flyTo({ center: [lon, lat], zoom: 17, padding: padding() });
+      framePoint(lon,lat,17);
       toast(arr[0].display_name.split(",").slice(0, 3).join(","));
-      try { selectParcel(await fetchAt(lon, lat)); } catch (er) {}
-    } catch (err) { toast(err.message || String(err)); }
+      try { const d=await fetchAt(lon,lat);if(requestId===seq)selectParcel(d); } catch (er) {}
+    } catch (err) { if(requestId===seq)toast(err.message || String(err)); }
   });
 
   /* ---------- Geolocation ---------- */
@@ -401,7 +409,7 @@
     if (!navigator.geolocation) return toast("Geolokalizacja niedostępna");
     toast("Ustalam położenie…");
     navigator.geolocation.getCurrentPosition(
-      (pos) => { const c = [pos.coords.longitude, pos.coords.latitude]; mark(c); document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon:c[0],lat:c[1]}})); map.flyTo({ center: c, zoom: 17, padding: padding() }); },
+      (pos) => { const c = [pos.coords.longitude, pos.coords.latitude]; mark(c); document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon:c[0],lat:c[1]}})); framePoint(c[0],c[1],17); },
       () => toast("Brak zgody na lokalizację"), { enableHighAccuracy: true, timeout: 10000 });
   };
 
@@ -413,16 +421,17 @@
     map.addLayer({ id: "dz-line", type: "line", source: "dzialki", "source-layer": "dzialki", paint: { "line-color": "#1b1e24", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 0.3, 18, 1.2], "line-opacity": 0.75 } });
     map.addLayer({ id: "dz-sel", type: "line", source: "dzialki", "source-layer": "dzialki", filter: ["==", ["get", "id_dzialki"], "__none__"], paint: { "line-color": "#2f6bff", "line-width": 3.5 } });
     map.addSource("adresy", { type: "vector", tiles: [BASE + "/tiles/adresy/{z}/{x}/{y}.pbf"], minzoom: ADR_MINZ, maxzoom: 18 });
-    map.addLayer({ id: "adr-pt", type: "circle", source: "adresy", "source-layer": "adresy", minzoom: ADR_MINZ, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 3, 19, 6.5], "circle-color": "#d81b60", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
+    map.addLayer({ id: "adr-pt", type: "circle", source: "adresy", "source-layer": "adresy", minzoom: ADR_MINZ, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 16, 5, 19, 7], "circle-color": "#087cfc", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
+    map.addLayer({id:"adr-hit",type:"circle",source:"adresy","source-layer":"adresy",minzoom:ADR_MINZ,paint:{"circle-radius":18,"circle-opacity":.001}});
     map.addLayer({ id: "adr-lbl", type: "symbol", source: "adresy", "source-layer": "adresy", minzoom: 17,
-      layout: { "text-field": ["coalesce", ["get", "numer"], ""], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 17, 11, 19, 14], "text-offset": [0, -1.1], "text-anchor": "bottom" },
-      paint: { "text-color": "#880e4f", "text-halo-color": "#fff", "text-halo-width": 1.8 } });
+      layout: { "text-field": ["coalesce", ["get", "numer"], ""], "text-font": ["Noto Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 17, 12, 19, 15], "text-offset": [0, -1.1], "text-anchor": "bottom" },
+      paint: { "text-color": "#16497b", "text-halo-color": "#fff", "text-halo-width": 2.5 } });
     setBasemap(bmId, false);
 
     const setVis = (ids, on) => ids.forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", on ? "visible" : "none"));
     const bind = (el, key, ids, def) => { el.checked = store.get(key, def); setVis(ids, el.checked); el.onchange = () => { store.set(key, el.checked); setVis(ids, el.checked); }; };
     bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
-    bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl"], true);
+    bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl", "adr-hit"], true);
     const o = $("#opac"); o.value = store.get("opac", 45); $("#opacValue").textContent = o.value + "%";
     o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", mapFocused?Math.min(o.value/100,.09):o.value/100); store.set("opac", +o.value); $("#opacValue").textContent = o.value + "%"; };
     const countLayers = () => { $("#layerCount").textContent = document.querySelectorAll("#layerPanel .layer-entry input[type=checkbox]:checked").length; };
@@ -431,11 +440,13 @@
     // tap: address point has priority, with a touch-friendly hit box
     map.on("click", (e) => {
       if (window.PLOTS_PLANNING?.inspecting()) return;
-      const r = isMobile() ? 14 : 6;
+      const r = isMobile() ? 18 : 9;
       const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
-      const a = map.getLayer("adr-pt") ? map.queryRenderedFeatures(box, { layers: ["adr-pt"] }) : [];
-      if (a.length) {
-        const p = Object.assign({}, a[0].properties, { lon: a[0].geometry.coordinates[0], lat: a[0].geometry.coordinates[1] });
+      const labels=map.getLayer('adr-lbl')?map.queryRenderedFeatures(e.point,{layers:['adr-lbl']}):[];
+      const hits=labels.length?labels:map.getLayer('adr-hit')?[...map.queryRenderedFeatures(box,{layers:['adr-pt']}),...map.queryRenderedFeatures(e.point,{layers:['adr-hit']})]:[];
+      const a=AddressPicking.closest(hits,e.point,c=>map.project(c));
+      if (a) {
+        const p = Object.assign({}, a.properties, { lon: a.geometry.coordinates[0], lat: a.geometry.coordinates[1] });
         showAddress(p);
         return;
       }
@@ -453,7 +464,7 @@
     });
     if (matchMedia("(hover:hover)").matches) {
       map.on("mousemove", (e) => {
-        const h = map.queryRenderedFeatures(e.point, { layers: ["adr-pt", "dz-fill"].filter((l) => map.getLayer(l)) });
+        const h = map.queryRenderedFeatures(e.point, { layers: ["adr-hit", "adr-lbl", "dz-fill"].filter((l) => map.getLayer(l)) });
         map.getCanvas().style.cursor = h.length ? "pointer" : "";
       });
     }
@@ -463,7 +474,7 @@
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
   dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap,
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint,
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
     showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };

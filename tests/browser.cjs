@@ -15,6 +15,7 @@ const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obre
   await page.route('**/api/adres?*', route => route.fulfill({json:{wyniki:[]}}));
   await page.route('**/api/dzialka?*', route => route.fulfill({json:parcel}));
   await page.route('https://bdl.stat.gov.pl/api/v1/data/by-unit/**', route => route.fulfill({json:require('./fixtures/gus-ustka.json')}));
+ await require('./browser-admin-fixture.cjs')(page);
   await page.goto(base, { waitUntil:'domcontentloaded' });
   await page.waitForFunction(() => window.PLOTS && window.PLOTS.map.loaded());
   await page.locator('#tab-gmina').click();
@@ -43,7 +44,7 @@ const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obre
   assert.equal(await page.locator('.layer-entry:visible').count(),1);
   await page.locator('#layerFilter').fill('');
   await page.locator('label.sw').filter({has:page.locator('#lyrAdr')}).click();
-  assert.equal(await page.locator('#layerCount').innerText(),'1');
+  assert.equal(await page.locator('#layerCount').innerText(),'2');
   await page.keyboard.press('Escape');
   await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.PLOTS?.map.loaded());

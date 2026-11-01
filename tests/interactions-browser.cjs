@@ -14,6 +14,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
  await page.route('https://mapy.geoportal.gov.pl/wss/ext/**',r=>{
   if(new URL(r.request().url()).searchParams.get('REQUEST')==='GetFeatureInfo')r.fulfill({contentType:'text/html',body:'<table><tr><td>Maksymalna wysokość</td><td>12 m</td></tr><tr><td>Powierzchnia biologicznie czynna</td><td>40%</td></tr></table><script>window.bad=true</script>'});else r.continue();
  });
+ await require('./browser-admin-fixture.cjs')(page);
  await page.goto('http://127.0.0.1:8091/?gmina=2212011',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>window.PLOTS?.map.loaded()&&document.getElementById('networkSelect'));
  await page.evaluate(()=>PLOTS.showAddress({lon:16.8611,lat:54.5804,ulica:'Marynarki Polskiej',numer:'1',miejscowosc:'Ustka'}));

@@ -48,7 +48,8 @@
     if (!selected) { chooser(); return; }
     selected._selectedYear = null;
     const m = model.metrics(selected), pop = m.find((x) => x.key === "ludnosc"), area = m.find((x) => x.key === "powierzchnia");
-    $("#gminaCard").innerHTML = `<button type="button" class="gmina-back" data-choose-gmina>${icon("back")}Zmień gminę</button><div class="gmina-head"><div><h2>${esc(selected.n)}</h2><div class="gmina-type">${esc(selected.typ || "Gmina")}</div></div>${window.MunicipalityCrests.render(selected)}</div><p class="muted small">${esc(region(selected))}</p><div class="gmina-stats"><div class="gmina-stat"><strong>${esc(model.formatValue(pop, false))}</strong><small>mieszkańców${pop.year ? " · " + pop.year : ""}</small></div><div class="gmina-stat"><strong>${esc(model.formatValue(area, false))}</strong><small>km²${area.year ? " · " + area.year : " · rok niepodany"}</small></div></div><button type="button" class="primary" data-gmina-details>Dane gminy ${icon("arrow")}</button><div class="gmina-source"><span>TERYT ${esc(selected.k)}</span><span>GUS BDL</span></div>`;
+    $("#gminaCard").innerHTML = `<button type="button" class="gmina-back" data-choose-gmina>${icon("back")}Zmień gminę</button><div class="gmina-head"><div><h2>${esc(selected.n)}</h2><div class="gmina-type">${esc(selected.typ || "Gmina")}</div></div>${window.MunicipalityCrests.render(selected)}</div><p class="muted small">${esc(region(selected))}</p><div class="gmina-stats"><div class="gmina-stat"><strong>${esc(model.formatValue(pop, false))}</strong><small>mieszkańców${pop.year ? " · " + pop.year : ""}</small></div><div class="gmina-stat"><strong>${esc(model.formatValue(area, false))}</strong><small>km²${area.year ? " · " + area.year : " · rok niepodany"}</small></div></div><button type="button" class="primary" data-gmina-details>Dane gminy ${icon("arrow")}</button><div class="gmina-source"><span>TERYT ${esc(selected.k)}</span><span>GUS BDL</span></div><p class="boundary-key"><i></i>Granica gminy${selected.k.endsWith('3')?'<span><i></i>Obszar miasta</span>':''}</p>`;
+    document.dispatchEvent(new CustomEvent("plots:gmina",{detail:{id:selected.k}}));
   }
   async function select(id, fly) {
     const context=++contextRevision;document.dispatchEvent(new Event("plots:manual-gmina"));
@@ -60,10 +61,8 @@
       await window.GusClient.seed(g).catch(()=>{});if(context!==contextRevision)return;
       app.store.set("gmina", g.k); app.store.set("gminyRecent", [g.k, ...recentIds().filter((k) => k !== g.k)].slice(0, 5));
       drawCard(); app.showGmina();
-      if (fly) {
-        if (Number.isFinite(g.lon) && Number.isFinite(g.lat)) app.map.flyTo({ center: [g.lon, g.lat], zoom: 11, padding: app.padding() });
-        else app.toast("Profil otwarty. Ten zbiór nie zawiera położenia gminy.");
-      }
+      if(fly){const shown=await window.MunicipalBoundaries?.select(g.k,true);if(context!==contextRevision)return;if(!shown&&Number.isFinite(g.lon)&&Number.isFinite(g.lat))app.framePoint(g.lon,g.lat,11);}
+
       if (dialog.open) renderDetails();
       loadGus(g, false).catch(error=>console.warn(error.message));
     } catch (error) { failure(error); }
@@ -115,7 +114,7 @@
       const context=++contextRevision;await load();if(context!==contextRevision)return;const g=id?data.gminy.find(item=>item.k===id):null;
       const changed=selected?.k!==g?.k;selected=g||null;selectedYear=null;
       if(selected){app.store.set('gmina',selected.k);await window.GusClient.seed(selected).catch(()=>{});if(context!==contextRevision)return;drawCard();if(changed)loadGus(selected,false).catch(()=>{});}
-      else{app.store.set('gmina',null);$('#gminaCard').innerHTML=`<div class="empty-context">${icon('town')}<h2>Gmina miejsca</h2><p class="muted small">${esc(message||'Wybierz punkt, adres lub działkę na mapie.')}</p><button type="button" class="gmina-back" data-choose-gmina>Wyszukaj gminę</button></div>`;}
+      else{document.dispatchEvent(new CustomEvent('plots:gmina',{detail:{id:null}}));app.store.set('gmina',null);$('#gminaCard').innerHTML=`<div class="empty-context">${icon('town')}<h2>Gmina miejsca</h2><p class="muted small">${esc(message||'Wybierz punkt, adres lub działkę na mapie.')}</p><button type="button" class="gmina-back" data-choose-gmina>Wyszukaj gminę</button></div>`;}
       if(dialog.open&&selected)renderDetails();
     },
     current: () => selected?.k || null,
