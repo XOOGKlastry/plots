@@ -3,7 +3,7 @@
  const app=window.PLOTS,map=app.map,cache=new Map(),pending=new Map();let current=null,revision=0,data=null;
  const empty=()=>({type:'FeatureCollection',features:[]});
  const toggle=document.getElementById('lyrMunicipality');toggle.checked=app.store.get('municipalityBoundary',true);
- function visible(){return toggle.checked&&app.currentTab()==='gmina';}
+ function visible(){return !window.DistanceModule?.isOpen()&&toggle.checked&&app.currentTab()==='gmina';}
  function render(){map.getSource('municipal-boundaries')?.setData(visible()&&data?data:empty());}
  function save(id,value){try{localStorage.setItem('plots.boundary.'+id,JSON.stringify(value));let recent=JSON.parse(localStorage.getItem('plots.boundaryRecent')||'[]');recent=[id,...recent.filter(x=>x!==id)];recent.slice(6).forEach(x=>localStorage.removeItem('plots.boundary.'+x));localStorage.setItem('plots.boundaryRecent',JSON.stringify(recent.slice(0,6)));}catch{/* Storage is optional. */}}
  async function load(id){
@@ -25,6 +25,7 @@
  if(map.loaded())initialize();else map.once('load',initialize);
  toggle.onchange=()=>{app.store.set('municipalityBoundary',toggle.checked);render();};
  document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,visible());});
+ document.addEventListener('plots:mode',render);
  document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,true);});
  window.MunicipalBoundaries={select,current:()=>current,fit:()=>current?select(current,true):Promise.resolve(false)};
 })();

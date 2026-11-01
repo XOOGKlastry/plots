@@ -4,7 +4,7 @@
   "scripts": {
     "test": "node --test tests/*.test.cjs",
     "test:browser": "node tests/browser.cjs",
-    "check": "node --check docs/app.js && node --check docs/gminy.js && node --check docs/gus-client.js && node --check docs/planning.js && node --check docs/surroundings.js && node --check docs/mobile.js && node --check docs/sw.js && node --check docs/icons.js && node --check docs/municipality-model.js && node --check docs/municipality-context.js && node --check docs/municipality-crests.js && node --check docs/isochrone-model.js && node --check docs/service-places.js && node --check docs/layer-ui.js && node --check docs/address-access.js && node --check docs/municipal-boundaries.js && node --check docs/category-access.js && node --check docs/address-picking.js"
+    "check": "node --check docs/app.js && node --check docs/gminy.js && node --check docs/gus-client.js && node --check docs/planning.js && node --check docs/surroundings.js && node --check docs/mobile.js && node --check docs/sw.js && node --check docs/icons.js && node --check docs/municipality-model.js && node --check docs/municipality-context.js && node --check docs/municipality-crests.js && node --check docs/service-places.js && node --check docs/layer-ui.js && node --check docs/address-access.js && node --check docs/municipal-boundaries.js && node --check docs/address-picking.js && node --check docs/distance-module.js && node --check docs/building-distance-model.js && node --check docs/place-ui.js"
   },
   "devDependencies": {
     "playwright": "1.62.1"
