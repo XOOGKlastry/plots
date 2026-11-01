@@ -1,5 +1,23 @@
 # Oceny gmin i wybór punktu
 
+## Uzupełnienie: kontekst, herby i izochrony
+
+Profil gminy aktualizuje się po wskazaniu działki, adresu PRG, obiektu usługowego, pustego punktu mapy, wyniku geokodowania lub własnej lokalizacji. TERYT ma pierwszeństwo przed testem granic. Obsługa nie przełącza samoczynnie na drugą zakładkę: właściwa gmina już na niej czeka. Brak rozpoznania usuwa poprzednią gminę; nie pozostawia starego profilu pod nowym punktem. Ręczny wybór gminy anuluje oczekujące rozpoznanie położenia.
+
+Herby i ich pełne pokrycie opisuje `docs/data/CONTEXT-SOURCES.md`: 2039 przypisań, 979 z lokalnymi obrazami, brak zweryfikowanego pliku dla 440 gmin. Pakiety regionalne mają cache offline po odczycie i ograniczony cache pamięci. Ładowanie odbywa się na żądanie.
+
+Warstwy są zorganizowane w pięć zwijanych grup. W widoku początkowym widoczne są nazwy grup i liczba aktywnych warstw. Wyszukiwanie rozwija pasujące grupy; legenda rozwija odpowiednią grupę ustawień. Filtry, przełączniki i stan podkładu zachowują dotychczasową obsługę.
+
+Wyniki dojścia wyróżniają minuty, z odległością w drugiej linii. Wybór wyniku otwiera taką samą kartę jak kliknięcie punktu na mapie. Google Maps otrzymuje dokładne współrzędne obiektu, nie zapytanie po podobnej nazwie. Podczas oglądania dojść i izochron wypełnienie działek jest tymczasowo przygaszone, po nowym wyborze wraca do ustawionego krycia.
+
+Izochrony: 5, 10, 15, 20, 25, 30, 40, 50 i 60 minut. Są obliczane z `costing=pedestrian`, prędkością modelową 5 km/h, bez promów, `reverse=true` (dojście do obiektu), jako poligony Valhalla. Wybrany czas jest sprawdzany w odpowiedzi — brak lub obcięcie do innego czasu nie jest akceptowane. Jeden czas oznacza jedno opóźnione i anulowalne zapytanie; zmiana „do/dalej niż” wykorzystuje już pobraną geometrię.
+
+„Dalej niż” jest dopełnieniem zasięgu do obiektu, także dla miejsc bez wyznaczonego dojścia. Nie jest kolejną izochroną ani odwróceniem kierunku podróży. Używana operacja różnicy zachowuje otwory, enklawy i wieloczęściowe kontury. Granica dostępnego dojścia pozostaje niebieska; obszar poza zasięgiem jest neutralny. Zasięg jest przybliżony ze względu na sieć OSM i raster obliczeniowy konturu. Błędy usługi czyszczą starą geometrię zamiast pozostawiać pozornie aktualny zasięg.
+
+Ikony aplikacji to lokalne SVG Phosphor regular 2.1.1 (MIT, licencja w `docs/icons/`); symbole tekstowe ocen i trendów zostały zastąpione ikonami. Operacje geometrii: polygon-clipping 0.15.7 (MIT, licencja w `docs/vendor/`).
+
+Weryfikacja: 35 testów jednostkowych; testy kontekstu adres/punkt/działka, herbów, linku Google, wszystkich dziewięciu wyborów czasu, zmiany podkładu, czyszczenia i obu trybów izochron. Rzeczywisty serwer zwrócił poprawne poligony 5, 25 i 60 minut dla szkoły w Ustce. Widok oraz lokalne i zdalne herby sprawdzono w przeglądarce. Dokumentacja API: https://valhalla.github.io/valhalla/api/isochrone/ (sprawdzone 31.10.2026).
+
 ## Wskaźniki
 
 `indicator-model.js` ocenia wartości dla tego samego klucza i roku. Zielony oznacza najlepsze 20%, czerwony najsłabsze 20%, szary środek. Pozycje są konkurencyjne (1, 1, 3); remis przecinający próg nie jest arbitralnie rozdzielany. Wymagane jest co najmniej 30 porównywalnych wartości. Dane o nieznanym roku nie trafiają do rankingu. UI pokazuje liczebność faktycznego zbioru, np. 2473, a nie liczbę wszystkich jednostek.

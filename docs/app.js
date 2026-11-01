@@ -114,7 +114,7 @@
   function openLayers(legend) {
     document.body.classList.add("layers-open");
     $("#layerPanel").hidden = false; $("#layersFab").setAttribute("aria-expanded", "true");
-    if (legend) { $("#legendDetails").open = true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
+    if (legend) { $("#legendDetails").open = true; const parent=$("#legendDetails").closest(".layer-section");if(parent)parent.open=true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
   }
   function closeLayers() { document.body.classList.remove("layers-open"); $("#layerPanel").hidden = true; $("#layersFab").setAttribute("aria-expanded", "false"); }
   function tab(name) {
@@ -232,16 +232,8 @@
     return nums.filter((n) => GR[n]);
   }
   const fmtHa = (v) => (v == null || v === "" ? "—" : `${Number(v).toLocaleString("pl-PL", { maximumFractionDigits: 4 })} ha`);
-  const copyBtn = (txt) => `<button class="copy" type="button" data-copy="${esc(txt)}"><svg class="ic" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Kopiuj</button>`;
-  const IC = {
-    map: '<svg class="ic" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>',
-    leaf: '<svg class="ic" viewBox="0 0 24 24"><path d="M12 21v-8M12 13c0-4 3-7 8-7 0 5-3 7-8 7zM12 15c0-3-2-6-7-6 0 4 2 6 7 6z"/></svg>',
-    area: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 20h18M3 20V4M6 16l4-5 4 3 6-7"/></svg>',
-    clock: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-    users: '<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5c2 .6 3.3 2.5 3.5 5.5"/></svg>',
-    doc: '<svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7zM14 3v4h4M9 12h6M9 16h6"/></svg>',
-    chev: '<svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>'
-  };
+  const copyBtn = (txt) => `<button class="copy" type="button" data-copy="${esc(txt)}">${Icons.svg('copy')}Kopiuj</button>`;
+  const IC=Object.fromEntries(Object.entries({map:'map-trifold',leaf:'leaf',area:'ruler',clock:'clock',users:'users',doc:'file-text',chev:'caret-right'}).map(([key,name])=>[key,Icons.svg(name)]));
   const fmtDate = (d) => { if (!d) return "—"; const m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]}` : esc(d); };
   function parcelCard(p) {
     const area = window.ParcelModel.area(p);
@@ -298,6 +290,9 @@
   function highlight(id) {
     if (map.getLayer("dz-sel")) map.setFilter("dz-sel", ["==", ["get", "id_dzialki"], id || "__none__"]);
   }
+  let mapFocused=false;
+  function focusMap(active){mapFocused=active;if(map.getLayer('dz-fill'))map.setPaintProperty('dz-fill','fill-opacity',active?Math.min(store.get('opac',45)/100,.09):store.get('opac',45)/100);}
+  document.addEventListener('plots:selection',()=>focusMap(false));
   let selectedParcelId = null;
   function selectParcel(p) { selectedParcelId = p.id_dzialki; highlight(p.id_dzialki); showCard(parcelCard(p)); document.dispatchEvent(new CustomEvent("plots:parcel", { detail: p })); }
 
@@ -394,6 +389,7 @@
       if (!arr.length) throw new Error("Nie znaleziono: " + s);
       const lon = +arr[0].lon, lat = +arr[0].lat;
       mark([lon, lat]);
+      document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon,lat}}));
       map.flyTo({ center: [lon, lat], zoom: 17, padding: padding() });
       toast(arr[0].display_name.split(",").slice(0, 3).join(","));
       try { selectParcel(await fetchAt(lon, lat)); } catch (er) {}
@@ -405,7 +401,7 @@
     if (!navigator.geolocation) return toast("Geolokalizacja niedostępna");
     toast("Ustalam położenie…");
     navigator.geolocation.getCurrentPosition(
-      (pos) => { const c = [pos.coords.longitude, pos.coords.latitude]; mark(c); map.flyTo({ center: c, zoom: 17, padding: padding() }); },
+      (pos) => { const c = [pos.coords.longitude, pos.coords.latitude]; mark(c); document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon:c[0],lat:c[1]}})); map.flyTo({ center: c, zoom: 17, padding: padding() }); },
       () => toast("Brak zgody na lokalizację"), { enableHighAccuracy: true, timeout: 10000 });
   };
 
@@ -428,7 +424,7 @@
     bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
     bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl"], true);
     const o = $("#opac"); o.value = store.get("opac", 45); $("#opacValue").textContent = o.value + "%";
-    o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", o.value / 100); store.set("opac", +o.value); $("#opacValue").textContent = o.value + "%"; };
+    o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", mapFocused?Math.min(o.value/100,.09):o.value/100); store.set("opac", +o.value); $("#opacValue").textContent = o.value + "%"; };
     const countLayers = () => { $("#layerCount").textContent = document.querySelectorAll("#layerPanel .layer-entry input[type=checkbox]:checked").length; };
     $("#layerPanel").addEventListener("change", countLayers); countLayers();
 
@@ -467,7 +463,7 @@
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
   dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab,
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap,
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
     showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };

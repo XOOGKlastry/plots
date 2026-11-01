@@ -21,7 +21,9 @@
   }
   function parcelTeryt(id) {
     const match = String(id || "").match(/^(\d{6})_(\d)\./);
-    return match ? match[1] + match[2] : null;
+    if(!match)return null;
+    const code=match[1]+match[2];
+    return /[45]$/.test(code)?code.slice(0,6)+'3':/[89]$/.test(code)?code.slice(0,4)+'011':code;
   }
   function search(gminy, query, limit = 6) {
     const needle = normalize(query);

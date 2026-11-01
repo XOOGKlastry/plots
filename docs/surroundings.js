@@ -55,6 +55,7 @@
   window.PLOTS_SURROUNDINGS={
     ready(){if(configError)return Promise.reject(configError);return config?Promise.resolve(config):new Promise((resolve,reject)=>readyResolvers.push({resolve,reject}));},
     nameFor,
+    openPoint(point){const network=config?.networks.find(n=>n.id===point.network);if(network)window.ServicePlaces.open(point,network);},
     async candidates(origin,id,radius=25000){
       const cfg=await this.ready(),n=cfg.networks.find(x=>x.id===id);if(!n)throw Error('Nieznana kategoria');
       const dx=radius/(111000*Math.cos(origin.lat*Math.PI/180)),dy=radius/111000,points=[];
@@ -70,12 +71,8 @@
     if(!config)return false;
     const ids=["near-poi-points"].filter(id=>map.getLayer(id));
     const hit=map.queryRenderedFeatures([[e.point.x-5,e.point.y-5],[e.point.x+5,e.point.y+5]],{layers:ids})[0];if(!hit)return false;
-    const p=hit.properties;
-    const selection=++selectionRevision;
-    if(hit.layer.id==="near-poi-points"){
-      const n=config.networks.find(n=>n.id===p.network);app.showInfo(`<div class="phead"><div><h2>${esc(n.label)}</h2></div></div><p id="poiName" class="muted small">Wczytuję nazwę…</p><p class="source-note">${esc(n.source)} · ${esc(n.source_date)}</p>`);
-      nameFor(p).then(name=>{const el=document.getElementById("poiName");if(el&&selection===selectionRevision)el.textContent=name;});
-    }
+    const p={...hit.properties,lon:hit.geometry.coordinates[0],lat:hit.geometry.coordinates[1]};
+    const network=config.networks.find(n=>n.id===p.network);window.ServicePlaces.open(p,network);
     return true;
   }};
   async function initialize(){

@@ -329,8 +329,13 @@ _EXTRA_ASSETS = {
     "planning.js", "surroundings-model.js", "surroundings.js", "gus-client.js", "mobile.js", "sw.js", "parcel-model.js", "indicator-model.js", "access-model.js", "address-access.js",
     "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable.png",
     "data/map-services.json", "data/surroundings.json", "data/gus-catalog.json", "data/bdl-units.json", "data/gus-population.json",
+    "icons.js", "icons/phosphor.svg", "icons/PHOSPHOR-LICENSE.txt", "municipality-model.js", "municipality-context.js", "municipality-crests.js",
+    "isochrone-model.js", "service-places.js", "layer-ui.js", "vendor/polygon-clipping.js", "vendor/POLYGON-CLIPPING-LICENSE.md",
+    "data/municipality-crests.json", "data/municipalities.topojson",
+
 }
 
+_EXTRA_ASSETS.update("data/crests-" + code + ".bin" for code in ["02","04","06","08","10","12","14","16","18","20","22","24","26","28","30","32"])
 
 @app.get("/<path:asset_path>")
 def extra_frontend_asset(asset_path: str) -> Response:
@@ -342,7 +347,7 @@ def extra_frontend_asset(asset_path: str) -> Response:
         abort(404)
     suffix = path.suffix
     content_type = {".js": "application/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
-                    ".webmanifest": "application/manifest+json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png"}[suffix]
+                    ".webmanifest": "application/manifest+json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".bin": "application/octet-stream", ".topojson": "application/json; charset=utf-8", ".txt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8"}[suffix]
     headers = {"Cache-Control": "no-cache"} if asset_path == "sw.js" else {}
     return Response(path.read_bytes(), content_type=content_type, headers=headers)
 

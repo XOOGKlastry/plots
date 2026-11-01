@@ -14,9 +14,9 @@
   function trend(item){
     const previous=item.history?.find(p=>p.year===item.year-1&&Number.isFinite(p.value));
     if(!Number.isFinite(item.value)||!previous)return {text:'Brak danych rok do roku',tone:'missing'};
-    const delta=item.value-previous.value,sign=delta>0?'+':'',arrow=delta>0?'↗':delta<0?'↘':'→';
+    const delta=item.value-previous.value,sign=delta>0?'+':'';
     const unit=item.unit==='%'?'p.p.':item.unit;
-    return {text:`${arrow} ${sign}${delta.toLocaleString('pl-PL',{maximumFractionDigits:item.digits})} ${unit} r/r`,tone:'neutral',delta,year:previous.year};
+    return {direction:delta>0?'up':delta<0?'down':'flat',text:`${sign}${delta.toLocaleString('pl-PL',{maximumFractionDigits:item.digits})} ${unit} r/r`,tone:'neutral',delta,year:previous.year};
   }
   const api={rank,trend,descriptive:[...descriptive],lower:[...lower]};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.IndicatorModel=api;
