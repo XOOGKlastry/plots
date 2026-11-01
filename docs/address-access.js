@@ -13,13 +13,7 @@
   }
   if(map.loaded())initialize();else map.once('load',initialize);
   document.addEventListener('plots:selection',clear);
-  document.addEventListener('plots:address',async e=>{
-    const current=revision;origin={lon:Number(e.detail.lon),lat:Number(e.detail.lat)};
-    const cfg=await window.PLOTS_SURROUNDINGS.ready().catch(()=>null),el=document.getElementById('addressAccess');
-    if(!el||current!==revision)return;if(!cfg){el.innerHTML='<p class="muted small">Katalog obiektów jest chwilowo niedostępny. Odśwież stronę, aby spróbować ponownie.</p>';return;}
-    const frequent=['szkola','przedszkole','poz','apteka'],categoryIcons={szkola:'graduation-cap',przedszkole:'baby',poz:'first-aid-kit',apteka:'pill'};
-    el.innerHTML=`<section class="address-access"><h3>${Icons.svg('person-simple-walk')}Dojście pieszo</h3><div class="access-categories">${frequent.map(id=>{const n=cfg.networks.find(n=>n.id===id);return `<button type="button" data-access="${id}" title="${esc(n.label)}">${Icons.svg(categoryIcons[id])}<span>${esc({szkola:'Szkoły',przedszkole:'Przedszkola',poz:'Przychodnie',apteka:'Apteki'}[id])}</span></button>`;}).join('')}</div><label class="access-select">Inne obiekty<select id="accessCategory"><option value="">Wybierz kategorię</option>${cfg.categories.map(c=>`<optgroup label="${esc(c.label)}">${cfg.networks.filter(n=>n.cat===c.id).map(n=>`<option value="${esc(n.id)}">${esc(n.label)}</option>`).join('')}</optgroup>`).join('')}</select></label><div id="accessResults" aria-live="polite"><p class="muted small">Wybierz kategorię, aby zobaczyć trzy najbliższe obiekty.</p></div></section>`;
-  });
+  document.addEventListener('plots:address',e=>{origin={lon:+e.detail.lon,lat:+e.detail.lat};window.DistanceModule?.setOrigin(origin);});
   async function matrix(at,targets,signal){
     const loc=p=>({lat:p.lat,lon:p.lon,radius:100,search_cutoff:100});
     const payload={sources:[loc(at)],targets:targets.map(loc),costing:'pedestrian',units:'kilometers'};
@@ -43,7 +37,7 @@
   }
   async function choose(id){
     if(!origin)return;const at={...origin},current=++revision;controller?.abort();controller=new AbortController();const activeController=controller;const timeout=setTimeout(()=>activeController.abort(),60000);
-    const el=document.getElementById('accessResults');if(!el)return;document.getElementById('card').classList.add('access-focused');
+    const el=document.getElementById('accessResults');if(!el)return;
     document.querySelectorAll('[data-access]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.access===id)));
     el.innerHTML='<p class="muted small">Sprawdzam dojścia piesze po drogach…</p>';map.getSource('address-directions')?.setData(empty());
     try{
@@ -52,11 +46,10 @@
       const features=result.top.flatMap((p,i)=>[{type:'Feature',geometry:{type:'LineString',coordinates:[[at.lon,at.lat],[p.lon,p.lat]]},properties:{rank:i+1}},{type:'Feature',geometry:{type:'Point',coordinates:[p.lon,p.lat]},properties:{rank:i+1}}]);
       map.getSource('address-directions')?.setData({type:'FeatureCollection',features});
       el.innerHTML=result.top.length?`<ol class="access-results">${result.top.map((p,i)=>`<li><button class="access-result" type="button" data-facility="${i}" title="${esc(p.name)}"><span class="access-number">${i+1}</span><span class="access-place">${esc(p.name)}</span><span class="access-cost"><strong>${Math.max(1,Math.round(p.seconds/60))}<small>min</small></strong><span>≈ ${p.metres<1000?Math.round(p.metres/10)*10+' m':(p.metres/1000).toLocaleString('pl-PL',{maximumFractionDigits:2})+' km'}</span></span>${Icons.svg('caret-right','result-chevron')}</button></li>`).join('')}</ol><p class="source-note">${result.complete?'Najbliższe dostępne dojścia w promieniu 25 km.':'Wyniki wśród '+result.checked+' sprawdzonych obiektów — wyszukiwanie ograniczone.'} Przerywane linie wskazują kierunek; liczby oznaczają dojście po drogach. OSM · Valhalla.</p>`:'<p class="muted small">Nie znaleziono dostępnych dojść do obiektów w promieniu 25 km.</p>';
-      const parcel=document.getElementById('adrParcel');if(parcel)parcel.hidden=true;
-      app.closeLayers();if(app.isMobile())app.snap('half');
+      app.closeLayers();window.DistanceModule?.sync();
       if(result.top.length){const bounds=new maplibregl.LngLatBounds([at.lon,at.lat],[at.lon,at.lat]);result.top.forEach(p=>bounds.extend([p.lon,p.lat]));app.frame([...bounds.getSouthWest().toArray(),...bounds.getNorthEast().toArray()],16);}
     }catch(error){if(current===revision&&el.isConnected)el.innerHTML=`<p class="inline-error">${esc(error.name==='AbortError'?'Dojście jest chwilowo niedostępne. Wybierz kategorię, aby spróbować ponownie.':error.message)}</p>`;}finally{clearTimeout(timeout);}
   }
-  document.getElementById('card').addEventListener('click',e=>{const b=e.target.closest('[data-access]'),facility=e.target.closest('[data-facility]');if(b)choose(b.dataset.access);if(facility){const point=currentResults[Number(facility.dataset.facility)];if(point)window.PLOTS_SURROUNDINGS.openPoint(point);}});
-  document.getElementById('card').addEventListener('change',e=>{if(e.target.id==='accessCategory'&&e.target.value)choose(e.target.value);});
+  document.addEventListener('click',e=>{const facility=e.target.closest('[data-facility]');if(facility){const point=currentResults[Number(facility.dataset.facility)];if(point)window.DistanceModule?.showService(point);}});
+  window.AddressAccess={choose,clear,setOrigin:p=>{origin={lon:+p.lon,lat:+p.lat};}};
 })();

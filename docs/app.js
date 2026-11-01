@@ -112,7 +112,7 @@
   const tbar = $("#tabbar");
   let curTab = "info";
   function openLayers(legend) {
-    document.body.classList.add("layers-open");
+    window.PlaceUI?.closePalette();document.body.classList.add("layers-open");
     $("#layerPanel").hidden = false; $("#layersFab").setAttribute("aria-expanded", "true");
     if (legend) { window.LayerControls?.show("map");$("#legendDetails").open = true; const parent=$("#legendDetails").closest(".layer-section");if(parent)parent.open=true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
   }
@@ -236,7 +236,7 @@
   const copyBtn = (txt) => `<button class="copy" type="button" data-copy="${esc(txt)}">${Icons.svg('copy')}Kopiuj</button>`;
   const IC=Object.fromEntries(Object.entries({map:'map-trifold',leaf:'leaf',area:'ruler',clock:'clock',users:'users',doc:'file-text',chev:'caret-right'}).map(([key,name])=>[key,Icons.svg(name)]));
   const fmtDate = (d) => { if (!d) return "—"; const m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]}` : esc(d); };
-  function parcelCard(p) {
+  function parcelCard(p,embedded=false) {
     const area = window.ParcelModel.area(p);
     const gs = groupsOf(p);
     const chips = gs.length
@@ -246,15 +246,15 @@
     const skip = new Set(["bbox", "grupy", "g1"]);
     const all = Object.keys(p).filter((k) => !skip.has(k) && p[k] != null && p[k] !== "").map((k) => `<dt>${esc(k)}</dt><dd class="num">${esc(p[k])}</dd>`).join("");
     return `<div class="phead"><div><h2>Działka ${esc(p.numer_dzialki || "—")}</h2><code>${esc(p.id_dzialki || "")}</code></div>${p.id_dzialki ? copyBtn(p.id_dzialki) : ""}</div>
-      ${chips}
-      <div class="grid4">
+      <details class="place-section" open><summary>${Icons.svg('ruler')}Dane działki</summary><div class="grid4">
         ${cell(IC.map, "Obręb", `${esc(p.obreb || "—")}${p.nazwa_obrebu ? " · " + esc(String(p.nazwa_obrebu).replace(/-\d+$/, "")) : ""}`)}
         ${cell(IC.leaf, "Użytki", esc(p.klasouzytki || "—"))}
         ${cell(IC.area, "Powierzchnia · " + area.source.toLowerCase(), esc(window.ParcelModel.format(area.m2, "m²")) + `<span class="area-secondary">${esc(window.ParcelModel.format(area.ha, "ha"))}</span>`)}
         ${cell(IC.clock, "Aktualność", fmtDate(p.data_zrodla))}
       </div>
+      </details>${embedded?'':`<details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details>`}<details class="place-section"><summary>${Icons.svg('users')}Ewidencja i własność</summary>${chips}
       <button class="more" type="button" data-more>${IC.doc}<span>Pełne informacje</span>${IC.chev}</button>
-      <div class="full" hidden><h4>Wszystkie atrybuty</h4><dl class="kv">${all}</dl></div>`;
+      <div class="full" hidden><h4>Wszystkie atrybuty</h4><dl class="kv">${all}</dl></div></details>${embedded?'':`<button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`}`;
   }
   function adrText(p) {
     const a = [p.ulica, p.numer].filter(Boolean).join(" ");
@@ -269,13 +269,13 @@
       <div class="idrow"><code style="font-family:var(--ui);font-weight:700;font-size:17px;word-break:normal">${esc(adrText(p))}</code>${copyBtn(adrText(p))}</div>
       <dl class="kv">${p.gmina ? `<dt>Gmina</dt><dd>${esc(p.gmina)}</dd>` : ""}</dl>
       ${rest ? `<details><summary>Atrybuty PRG</summary><dl class="kv">${rest}</dl></details>` : ""}
-      <div id="addressAccess"></div><div id="adrParcel"></div>`;
+      <details class="place-section" open><summary>${Icons.svg('ruler')}Działka pod adresem</summary><div id="adrParcel"><p class="muted small">Wczytuję działkę…</p></div></details><details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details><button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`;
   }
   const card = $("#card");
   function showCard(html) {
-    closeLayers();
+    window.DistanceModule?.close();closeLayers();
     document.dispatchEvent(new Event("plots:selection"));
-    card.classList.remove("empty"); card.innerHTML = html; tab("info");
+    card.classList.remove("empty"); card.innerHTML = html;card.classList.remove("card-enter");void card.offsetWidth;card.classList.add("card-enter"); tab("info");
     if (isMobile()) snap("half");
     else document.body.classList.remove("collapsed");
   }
@@ -291,11 +291,16 @@
   function highlight(id) {
     if (map.getLayer("dz-sel")) map.setFilter("dz-sel", ["==", ["get", "id_dzialki"], id || "__none__"]);
   }
+  let parcelColors=store.get('parcelColors','outline');
   let mapFocused=false;
-  function focusMap(active){mapFocused=active;if(map.getLayer('dz-fill'))map.setPaintProperty('dz-fill','fill-opacity',active?Math.min(store.get('opac',45)/100,.09):store.get('opac',45)/100);}
+  function applyParcelColors(){if(map.getLayer('dz-fill')){map.setPaintProperty('dz-fill','fill-color',parcelColors==='groups'?matchExpr:'#8da1b5');map.setPaintProperty('dz-fill','fill-opacity',parcelColors==='groups'?(mapFocused?Math.min(store.get('opac',45)/100,.09):store.get('opac',45)/100):.025);}}
+  function focusMap(active){mapFocused=active;applyParcelColors();}
+  function setDistanceMode(on){document.body.classList.toggle('distance-mode',on);for(const [ids,checked]of [[['dz-fill','dz-line','dz-sel'],$('#lyrDz').checked],[['adr-pt','adr-lbl','adr-hit'],$('#lyrAdr').checked]])ids.forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',!on&&checked?'visible':'none');});if(!on)snap(panel.dataset.snap||'half');document.dispatchEvent(new CustomEvent('plots:mode',{detail:on?'distance':'place'}));}
+
   document.addEventListener('plots:selection',()=>focusMap(false));
+  let currentPlace=null;
   let selectedParcelId = null;
-  function selectParcel(p) { selectedParcelId = p.id_dzialki; highlight(p.id_dzialki); showCard(parcelCard(p)); document.dispatchEvent(new CustomEvent("plots:parcel", { detail: p })); }
+  function selectParcel(p,point=null) { selectedParcelId = p.id_dzialki; highlight(p.id_dzialki); showCard(parcelCard(p)); document.dispatchEvent(new CustomEvent("plots:parcel", { detail: p }));currentPlace=point|| (p.bbox?{lon:(p.bbox[0][0]+p.bbox[1][0])/2,lat:(p.bbox[0][1]+p.bbox[1][1])/2}:currentPlace);if(currentPlace)window.PLOTS_PLANNING?.loadInto(currentPlace,document.getElementById('placePlans')); }
 
   /* ---------- API ---------- */
   async function api(path,options={}) {
@@ -309,16 +314,17 @@
     if (!selMarker) { const el = document.createElement("div"); el.className="selected-location-marker"; selMarker = new maplibregl.Marker({ element: el }); }
     selMarker.setLngLat(lnglat).addTo(map);
   }
-  function padding() { return isMobile() ? { top: 140, bottom: visibleSheet()+80, left: 24, right: 65 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 380, right: 70 }; }
+  function padding() { return isMobile() ? { top: 140, bottom: (window.DistanceModule?.isOpen()?window.DistanceModule.height():visibleSheet())+80, left: 24, right: 65 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 380, right: 70 }; }
 
   function frame(bounds,maxZoom=18) {if(isMobile()&&visibleSheet()>window.innerHeight*.6)snap('peek');map.stop();map.setPadding({top:0,bottom:0,left:0,right:0});map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]],{padding:padding(),maxZoom,duration:650,retainPadding:false});}
   function framePoint(lon,lat,zoom=18){frame([lon-.00003,lat-.00003,lon+.00003,lat+.00003],zoom);}
   async function showAddress(p) {
     const requestId = ++addressRequest; selectedParcelId = null;
-    const lon = +p.lon, lat = +p.lat;
+    const lon = +p.lon, lat = +p.lat;currentPlace={lon,lat};
     mark([lon, lat]);
     showCard(adrCard(p));
     document.dispatchEvent(new CustomEvent("plots:address", {detail:p}));
+    window.PLOTS_PLANNING?.loadInto({lon,lat},document.getElementById("placePlans"));
     framePoint(lon,lat);
     try {
       const d = await fetchAt(lon, lat);
@@ -327,8 +333,8 @@
       selectedParcelId = d.id_dzialki;
       document.dispatchEvent(new CustomEvent("plots:parcel", { detail: d }));
       const box = $("#adrParcel");
-      if (box) box.innerHTML = `<h4 style="margin-top:22px">Działka pod adresem</h4>` + parcelCard(d);
-    } catch (e) {}
+      if (box) box.innerHTML = `<h4 style="margin-top:22px">Działka pod adresem</h4>` + parcelCard(d,true);
+    } catch (e) {const box=$("#adrParcel");if(box)box.innerHTML='<p class="muted small">Brak działki w tym punkcie.</p>';}
   }
   function showParcelFull(d) {
     selectParcel(d);
@@ -416,8 +422,8 @@
   /* ---------- Layers ---------- */
   map.on("load", () => {
     map.addSource("dzialki", { type: "vector", tiles: [BASE + "/tiles/{z}/{x}/{y}.pbf"], minzoom: MINZ, maxzoom: 16 });
-    const op = store.get("opac", 45) / 100;
-    map.addLayer({ id: "dz-fill", type: "fill", source: "dzialki", "source-layer": "dzialki", paint: { "fill-color": matchExpr, "fill-opacity": op } });
+    const op = parcelColors==='groups'?store.get("opac", 45) / 100:.025;
+    map.addLayer({ id: "dz-fill", type: "fill", source: "dzialki", "source-layer": "dzialki", paint: { "fill-color": parcelColors==='groups'?matchExpr:'#8da1b5', "fill-opacity": op } });
     map.addLayer({ id: "dz-line", type: "line", source: "dzialki", "source-layer": "dzialki", paint: { "line-color": "#1b1e24", "line-width": ["interpolate", ["linear"], ["zoom"], 13, 0.3, 18, 1.2], "line-opacity": 0.75 } });
     map.addLayer({ id: "dz-sel", type: "line", source: "dzialki", "source-layer": "dzialki", filter: ["==", ["get", "id_dzialki"], "__none__"], paint: { "line-color": "#2f6bff", "line-width": 3.5 } });
     map.addSource("adresy", { type: "vector", tiles: [BASE + "/tiles/adresy/{z}/{x}/{y}.pbf"], minzoom: ADR_MINZ, maxzoom: 18 });
@@ -433,12 +439,17 @@
     bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
     bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl", "adr-hit"], true);
     const o = $("#opac"); o.value = store.get("opac", 45); $("#opacValue").textContent = o.value + "%";
-    o.oninput = () => { map.setPaintProperty("dz-fill", "fill-opacity", mapFocused?Math.min(o.value/100,.09):o.value/100); store.set("opac", +o.value); $("#opacValue").textContent = o.value + "%"; };
+    o.oninput = () => { store.set("opac", +o.value);applyParcelColors(); $("#opacValue").textContent = o.value + "%"; };
     const countLayers = () => { $("#layerCount").textContent = document.querySelectorAll("#layerPanel .layer-entry input[type=checkbox]:checked").length; };
     $("#layerPanel").addEventListener("change", countLayers); countLayers();
 
     // tap: address point has priority, with a touch-friendly hit box
-    map.on("click", (e) => {
+    let clickRevision=0;
+    map.on("click", async (e) => {
+      const click=++clickRevision;
+      if(window.DistanceModule?.handleClick(e))return;
+      const point={lon:e.lngLat.lng,lat:e.lngLat.lat};
+      if(map.getZoom()<MINZ){addressRequest++;await window.MunicipalityContext.update(point);if(click!==clickRevision)return;const id=window.PLOTS_GMINY.current();if(id)window.PLOTS_GMINY.select(id,true);else {tab("gmina");snap("half");}return;}
       if (window.PLOTS_PLANNING?.inspecting()) return;
       const r = isMobile() ? 18 : 9;
       const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
@@ -455,11 +466,12 @@
       if (f.length) {
         addressRequest++;
         if (selMarker) selMarker.remove();
-        selectParcel(f[0].properties);
-        fetchAt(e.lngLat.lng, e.lngLat.lat).then((d) => { if (d.id_dzialki === selectedParcelId) card.innerHTML = parcelCard(d); }).catch(() => {});
+        selectParcel(f[0].properties,point);
+        fetchAt(e.lngLat.lng, e.lngLat.lat).then((d) => { if (d.id_dzialki === selectedParcelId){card.innerHTML = parcelCard(d);window.PLOTS_PLANNING?.loadInto(point,document.getElementById("placePlans"));} }).catch(() => {});
       } else {
         addressRequest++; selectedParcelId=null; highlight(null); if(selMarker)selMarker.remove();
-        window.PLOTS_PLANNING?.inspectPoint(e);
+        currentPlace=point;mark([point.lon,point.lat]);
+        try{const d=await fetchAt(point.lon,point.lat);if(click===clickRevision)selectParcel(d,point);}catch{if(click!==clickRevision)return;showCard(`<div class="phead"><h2>Wskazane miejsce</h2></div><p class="muted small">${point.lat.toFixed(5)}, ${point.lon.toFixed(5)} · Brak działki w źródle.</p><details class="place-section" open><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details><button class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Moduł odległości</button>`);document.dispatchEvent(new CustomEvent('plots:point',{detail:point}));window.PLOTS_PLANNING?.loadInto(point,document.getElementById('placePlans'));}
       }
     });
     if (matchMedia("(hover:hover)").matches) {
@@ -470,11 +482,13 @@
     }
     updStatus();
   });
+  function syncMapScale(){const far=map.getZoom()<MINZ;document.body.classList.toggle("municipality-scale",far);if(far&&curTab!=="gmina"&&!window.DistanceModule?.isOpen())tab("gmina");}
+  map.on("load",syncMapScale);map.on("zoomend",syncMapScale);
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
   dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint,
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();},
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
     showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };

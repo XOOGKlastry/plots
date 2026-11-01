@@ -8,6 +8,7 @@
   const dialog = $("#gminaDialog");
   let contextRevision=0;
   let data = null, loading = null, selected = null, category = "Przegląd", pendingParcel = null, selectedYear = null;
+  const categoryIcons={'Przegląd':'squares-four','Ludność':'users','Finanse i firmy':'trend-up','Warunki życia':'house-line','Infrastruktura':'ruler','Edukacja i kultura':'graduation-cap','Środowisko':'tree','Źródła':'file-text'};
   const categoryTone = name => ({"Ludność":"blue","Finanse i firmy":"purple","Warunki życia":"orange","Infrastruktura":"cyan","Edukacja i kultura":"pink","Środowisko":"green"}[name] || "blue");
   async function loadGus(g, force) {
     await window.GusClient.enrich(g, force);
@@ -56,7 +57,7 @@
     try {
       await load();if(context!==contextRevision)return; const g = data.gminy.find((item) => item.k === id);
       if (!g) { app.toast("Brak profilu tej gminy w bieżącym zestawie"); return; }
-      selected = g; category = "Przegląd";
+      selected = g;app.setCurrentPlace(null); category = "Przegląd";
       selectedYear = null;
       await window.GusClient.seed(g).catch(()=>{});if(context!==contextRevision)return;
       app.store.set("gmina", g.k); app.store.set("gminyRecent", [g.k, ...recentIds().filter((k) => k !== g.k)].slice(0, 5));
@@ -75,18 +76,18 @@
   }
   function metricCard(item) {
     const a=assessment(item);
-    return `<article class="indicator-card score-${a.tone}"><header><span>${esc(item.label)}</span><span class="score-pill">${Icons.svg(a.tone==='good'?'check-circle':a.tone==='bad'?'warning-circle':'minus-circle')} ${esc(a.label)}</span></header><div class="indicator-value">${esc(model.formatValue(item,false))}<small>${esc(item.unit)}</small></div><div class="indicator-context"><span>${a.rank?`Pozycja <b>${a.rank.toLocaleString('pl-PL')}</b> / ${a.n.toLocaleString('pl-PL')}`:'Pozycja —'}</span><span>${a.trend.direction?Icons.svg(a.trend.direction==='up'?'trend-up':a.trend.direction==='down'?'trend-down':'minus'):""}${esc(a.trend.text)}</span></div><footer>${item.year||'Rok niepodany'} · ${esc(item.source)}</footer></article>`;
+    return `<article class="indicator-card score-${a.tone}"><header><span class="metric-caption">${Icons.svg(categoryIcons[item.category]||'buildings','metric-symbol')}<span>${esc(item.label)}</span></span><span class="score-pill">${Icons.svg(a.tone==='good'?'check-circle':a.tone==='bad'?'warning-circle':'minus-circle')} ${esc(a.label)}</span></header><div class="indicator-value">${esc(model.formatValue(item,false))}<small>${esc(item.unit)}</small></div><div class="indicator-context"><span>${a.rank?`Pozycja <b>${a.rank.toLocaleString('pl-PL')}</b> / ${a.n.toLocaleString('pl-PL')}`:'Pozycja —'}</span><span>${a.trend.direction?Icons.svg(a.trend.direction==='up'?'trend-up':a.trend.direction==='down'?'trend-down':'minus'):""}${esc(a.trend.text)}</span></div><footer>${item.year||'Rok niepodany'} · ${esc(item.source)}</footer></article>`;
   }
   function rows(items) {return `<div class="indicator-grid">${items.map(metricCard).join('')}</div>`;}
   function renderDetails() {
     if (!selected) return;
     selected._selectedYear = selectedYear;
-    $("#dataCategories").innerHTML = categories.map((c) => `<button type="button" data-category="${esc(c)}" aria-current="${c === category}">${esc(c)}</button>`).join("");
+    $("#dataCategories").innerHTML = categories.map((c) => `<button type="button" data-category="${esc(c)}" aria-current="${c === category}">${Icons.svg(categoryIcons[c])}<span>${esc(c)}</span></button>`).join("");
     const m = model.metrics(selected);
     let body;
     if (category === "Przegląd") {
-      const headline = ["firmy_na_1000", "przyrost_naturalny", "pit_na_mieszk", "mieszkanie_m2_os", "obciazenie_demograficzne", "kanalizacja_proc"].map((key) => m.find((x) => x.key === key)).filter(Boolean);
-      body=rows(headline)+`<p class="source-description">Więcej wskaźników znajdziesz w kategoriach: ludność, finanse, warunki życia, infrastruktura, edukacja i środowisko.</p>`;
+      const groups=[{label:'Ludność i demografia',icon:'users',keys:['ludnosc','przyrost_naturalny']},{label:'Finanse i przedsiębiorczość',icon:'trend-up',keys:['firmy_na_1000','pit_na_mieszk']},{label:'Mieszkanie i infrastruktura',icon:'house-line',keys:['mieszkanie_m2_os','kanalizacja_proc']}];
+      body=groups.map(group=>`<section class="metric-section"><h2>${Icons.svg(group.icon)}${esc(group.label)}</h2>${rows(group.keys.map(key=>m.find(x=>x.key===key)).filter(Boolean))}</section>`).join('');
     } else if (category === "Źródła") {
       body = `<h2>Dane i ich aktualność</h2><div class="source-description">Zestaw bazowy: ${esc(data.baseBuilt)}. Dane uzupełniające pobrano: ${esc(data.cardsFetched?.slice(0, 10))}. Daty pobrania nie są rokiem obserwacji. Każdy wskaźnik pokazuje własny rok; brak roku w źródle jest oznaczony wprost.</div><div class="metric-list"><div class="metric-row"><div>Identyfikator jednostki</div><div>${esc(selected.k)}<small>${esc(selected.typ)}</small></div></div><div class="metric-row"><div>Zestaw źródłowy</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL i dane referencyjne</a></div></div><div class="metric-row"><div>Oficjalne statystyki</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL</a></div></div><div class="metric-row"><div>Usługi i otoczenie</div><div><a href="https://xoogklastry.github.io/jakdaleko/" target="_blank" rel="noopener noreferrer">Jakdaleko ${icon("arrow")}</a><small>Obiekty i ceny RCN w warstwach; dojścia piesze w karcie adresu</small></div></div></div><h2>Źródła wskaźników</h2>${rows(m)}<p class="source-description">Powierzchnia pochodzi w pierwszej kolejności z karty GUS z podanym rokiem. Starsza wartość z bazy jest używana tylko przy braku tej karty. Brak danych nie jest zerem. Zestaw zawiera również dane opisowe z Wikidata.</p>`;
     } else body = `<h2>${esc(category)}</h2>` + rows(m.filter((x) => x.category === category));

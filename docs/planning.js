@@ -9,7 +9,7 @@
   const panel = document.getElementById("planningLayers");
   panel.innerHTML = `<h3>Planowanie przestrzenne</h3>${services.map(s=>`<div class="layer-entry" data-keywords="planowanie ${esc(s.label)} mpzp pog zagospodarowanie"><label class="sw"><input type="checkbox" id="plan-${s.id}" data-plan="${s.id}"/><span></span><div>${esc(s.label)}<small>${esc(s.description)}</small></div></label></div>`).join("")}<button type="button" id="inspectPlans" class="secondary-action" aria-pressed="false">Wskaż plan na mapie</button><p class="source-note muted">Zasięg zależy od publikacji gmin. Projekty są oddzielone od uchwalonych planów. <a href="https://rejestr-urbanistyczny.gov.pl/published" target="_blank" rel="noopener noreferrer">Rejestr Urbanistyczny</a></p><p id="planningStatus" class="source-note muted" role="status"></p>`;
   let inspect = false, request = 0;
-  window.PLOTS_PLANNING = { inspecting: () => inspect, inspectPoint: e => identify(e,true) };
+  window.PLOTS_PLANNING = { inspecting: () => inspect, inspectPoint: e => identify(e,true), loadInto };
   function count() { panel.dispatchEvent(new Event("change", { bubbles: true })); }
   function active() { return services.filter(s=>document.getElementById("plan-"+s.id).checked); }
   function initialize() {
@@ -39,8 +39,15 @@
     app.markPoint([e.lngLat.lng,e.lngLat.lat]);
     document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon:e.lngLat.lng,lat:e.lngLat.lat}}));
     const current=request;
+    const parts=await queryPoint({lon:e.lngLat.lng,lat:e.lngLat.lat},selected);
+    if(current!==request||app.currentTab()!=="info")return;
+    app.showInfo(`<div class="phead"><div><h2>Planowanie</h2><p class="muted small">${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}</p></div></div>${parts.join("")}<p class="source-note muted">Brak obiektu w usłudze nie potwierdza braku planu. <a href="https://rejestr-urbanistyczny.gov.pl/published" target="_blank" rel="noopener noreferrer">Sprawdź rejestr</a></p>`);
+  }
+  const queryCache=new Map(),queryPending=new Map();
+  async function queryPoint(point,selected=services){const key=[point.lon.toFixed(6),point.lat.toFixed(6),selected.map(s=>s.id).join(',')].join('/'),cached=queryCache.get(key);if(cached&&Date.now()-cached.at<60000)return cached.parts;if(!queryPending.has(key))queryPending.set(key,fetchPoint(point,selected).then(parts=>{if(!parts.some(p=>p.includes('Nie udało'))){queryCache.set(key,{at:Date.now(),parts});while(queryCache.size>20)queryCache.delete(queryCache.keys().next().value);}return parts;}).finally(()=>queryPending.delete(key)));return queryPending.get(key);}
+  async function fetchPoint(point,selected=services){
     const R=6378137,merc=([lon,lat])=>[R*lon*Math.PI/180,R*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))];
-    const center=merc([e.lngLat.lng,e.lngLat.lat]),metres=80;
+    const center=merc([point.lon,point.lat]),metres=80;
     const parts=await Promise.all(selected.map(async s=>{
       const url=new URL(s.url);const params={SERVICE:"WMS",VERSION:"1.3.0",REQUEST:"GetFeatureInfo",LAYERS:s.layers,QUERY_LAYERS:s.query,STYLES:"",CRS:"EPSG:3857",BBOX:[center[0]-metres,center[1]-metres,center[0]+metres,center[1]+metres].join(","),WIDTH:"256",HEIGHT:"256",I:"128",J:"128",FEATURE_COUNT:"10",INFO_FORMAT:"text/html"};
       Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
@@ -56,10 +63,13 @@
         return `<section class="plan-result"><h3>${esc(s.label)}</h3><ul class="plan-facts">${facts.map(t=>`<li>${esc(t.slice(0,700))}</li>`).join('')}${links.map(link=>`<li>${link}</li>`).join('')}</ul><small>${esc(s.date)}</small></section>`;
       }catch(error){return `<section class="plan-result"><h3>${esc(s.label)}</h3><p>Nie udało się pobrać informacji z tej usługi. Spróbuj ponownie lub sprawdź dokument w rejestrze.</p></section>`;}
     }));
-    if(current!==request||app.currentTab()!=="info")return;
-    app.showInfo(`<div class="phead"><div><h2>Planowanie</h2><p class="muted small">${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}</p></div></div>${parts.join("")}<p class="source-note muted">Brak obiektu w usłudze nie potwierdza braku planu. <a href="https://rejestr-urbanistyczny.gov.pl/published" target="_blank" rel="noopener noreferrer">Sprawdź rejestr</a></p>`);
+    return parts;
+  }
+  async function loadInto(point,element){
+    if(!element)return;const token=String(Math.random());element.dataset.request=token;element.innerHTML='<p class="muted small">Sprawdzam MPZP i plany ogólne w punkcie…</p>';
+    const parts=await queryPoint(point);if(element.isConnected&&element.dataset.request===token)element.innerHTML=parts.join('')+'<p class="source-note">Informacje dotyczą wskazanego punktu, nie całej działki. Brak odpowiedzi usługi nie potwierdza braku planu.</p>';
   }
   document.addEventListener('plots:selection',()=>request++);
-  map.on('click',e=>{if(inspect)identify(e);});
+  map.on('click',e=>{if(inspect&&map.getZoom()>=13&&!window.DistanceModule?.isOpen())identify(e);});
   map.on("error",e=>{if(e.sourceId?.startsWith("plan-source-"))document.getElementById("planningStatus").textContent="Usługa planowania jest chwilowo niedostępna lub nie obsługuje tego widoku.";});
 })();

@@ -4,7 +4,7 @@
 
 - Usunięto kontrolkę i źródło cieniowania rzeźby.
 - `Topo` korzysta z kompozycji BDOT10k GUGiK zamiast dawnej mapy rastrowej TOPO. Od mniejszych przybliżeń pozostaje czytelny podkład wektorowy; BDOT10k jest nakładany od z=11. Układ wyjściowy GetMap EPSG:3857 sprawdzono na rzeczywistym obrazie usługi, a nie jedynie na deklaracji capabilities.
-- MPZP, uchwalone POG i projektowane POG są oddzielnymi warstwami. Kliknięcie mapy poza działką, adresem i obiektem identyfikuje wszystkie trzy usługi; pozostaje też opcjonalny tryb wskazywania tylko aktywnych planów. Wyniki są punktowanymi listami. HTML z usług jest zamieniany na zwykły tekst, skrypty usuwane, a linki ograniczone do HTTPS. Nieudane zapytanie nie jest traktowane jako brak planu.
+- MPZP, uchwalone POG i projektowane POG są oddzielnymi warstwami. Karta działki, adresu lub pustego punktu automatycznie identyfikuje wszystkie trzy usługi w wybranym punkcie. Wyniki są punktowanymi listami. HTML z usług jest zamieniany na zwykły tekst, skrypty usuwane, a linki ograniczone do HTTPS. Nieudane zapytanie nie jest traktowane jako brak planu.
 - Usługi planistyczne GUGiK są nadal dostępne w oficjalnym wykazie i zostały sprawdzone 31.10.2026. Zasięg i aktualność zależą od usług źródłowych. Interfejs odsyła również do Rejestru Urbanistycznego; jego publiczny endpoint listowania zwracał podczas wdrożenia błąd systemu i nie jest ukrytym zamiennikiem danych.
 
 Oficjalne źródła:
@@ -44,3 +44,5 @@ Service worker zapisuje interfejs, katalogi i dane referencyjne. Zapisane profil
 `pnpm test` uruchamia 27 testów danych, jednostek, lat i formatów binarnych. `node tests/browser.cjs` obejmuje 4 szerokości i 2 motywy. `node tests/features-browser.cjs` sprawdza nowe warstwy, prawdziwe punkty i siatki RCN, zachowanie źródeł po zmianie podkładu, wybór roku i tryb offline po instalacji service workera. `node tests/interactions-browser.cjs` sprawdza odległości tylko w adresie, ranking po sieci, trzy kierunki, listy planów, anulowanie starego wyboru i brak kolizji paneli. Odpowiedź GUS w testach przeglądarkowych pochodzi z zapisanej rzeczywistej odpowiedzi Ustki, aby nie zużywać limitów przy każdej regresji.
 
 GitHub Pages nadal publikuje `docs/`. Przy wdrożeniu lokalnego API skopiuj wszystkie nowe pliki z `docs/` oraz `server/public_api.py` i uruchom ponownie proces API. Nie podmieniaj aktualnego `config.js`. Cofnięcie commita odtwarza poprzedni interfejs; service worker ma wersjonowany cache i powinien zostać zaktualizowany przy rollbacku.
+
+Aktualna organizacja karty miejsca, osobnego modułu odległości i dostępności na budynkach jest opisana w `INTERACTIONS.md`; zastępuje wcześniejszy panel dojść i poligony zasięgu.

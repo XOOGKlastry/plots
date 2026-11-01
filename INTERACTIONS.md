@@ -26,38 +26,32 @@ Pozycje i kolory 20/60/20 porównują ten sam wskaźnik i rocznik. Wymagane jest
 
 Trend oznacza różnicę z poprzednim rokiem w historii GUS; udziały procentowe używają punktów procentowych. Każda karta pokazuje źródło i rok. Przegląd ma sześć głównych wskaźników; pozostałe są w kategoriach. Nie dodano eksportu ani porównywarki.
 
-## Adres i trzy najbliższe obiekty
+## Skala mapy i karta miejsca
 
-W karcie adresu można wybrać kategorię i trzy najbliższe dojścia. Ranking korzysta z macierzy pieszej Valhalla/OSM, nie z odległości w linii prostej. Minuty są wyróżnione, kilometry drugorzędne. Przerywane proste na mapie oznaczają kierunek, nie przebieg trasy. Wyniki są przybliżone i ograniczone do 25 km; limit kandydatów jest jawny, jeśli nie można potwierdzić kompletności.
+Przy z < 13 aplikacja pokazuje zakładkę gminy. Kliknięcie ustala gminę po pełnej geometrii i otwiera jej granice. Z bliska wybierany jest adres lub działka; gdy kafel jeszcze jej nie zawiera, aplikacja próbuje API punktowego. Brak działki pozostawia kartę wskazanego punktu.
 
-Kliknięcie wyniku lub punktu usług otwiera kartę z Google Maps pod dokładnymi współrzędnymi. Z tej karty można włączyć wspólną dostępność całej kategorii; nie jest to już izochrona tylko jednego klikniętego obiektu.
+Działka ma trzy grupy: dane działki (w tym powierzchnia pełnej geometrii), MPZP i plany ogólne oraz ewidencja/własność. Adres ma analogiczne grupy i działkę pod adresem. MPZP, POG uchwalone i projekty są odpytywane automatycznie dla klikniętego punktu, niezależnie od widoczności rastrów. Informacje nie oznaczają parametrów całej działki; punktowy zakres jest podpisany. HTML jest oczyszczany do list faktów i bezpiecznych linków. Brak odpowiedzi usługi nie potwierdza braku planu. Żądania mają limit czasu, deduplikację i krótki cache; stare odpowiedzi nie nadpisują nowej karty.
 
-## Wspólny zasięg kategorii
+## Osobny moduł odległości
 
-`docs/category-access.js` pobiera wszystkie lokalizacje danej kategorii mogące wpływać na analizowany widok, także spoza ekranu. Zasięg jest niezależny od wybranego pojedynczego punktu. Dostępne czasy: 5, 10, 15, 20, 25, 30, 40, 50 i 60 minut; tryby „do” i „dalej niż”. Wspólna geometria jest sumą dostępności od wszystkich źródeł, a nie przecięciem zasięgów ani odległością od jednego obiektu.
+Przycisk w karcie i na mapie otwiera oddzielny panel. Działki, adresy i granice gmin są wtedy ukryte, a kategoria obiektów i jej punkty włączane. Powrót przywraca poprzedni widok i ustawienia. Panele nie nakładają się na siebie. Na małym ekranie moduł można zwinąć, aby odsłonić mapę.
 
-`POST /api/category-access` działa na istniejącym grafie `analiza_dostepnosci.krawedzie_ok` i jego łącznikach. Graf ma około 6,6 mln krawędzi, nie zawiera autostrad ani dróg ekspresowych. Zbadane łączniki mają długość nie większą niż 1 m. Punkty są przypinane do najbliższej krawędzi w promieniu 100 m. Frakcja położenia na krawędzi i długość dojścia są uwzględniane w kosztach połączenia z początkiem i końcem odcinka. Wirtualny wspólny korzeń pozwala liczyć jeden Dijkstra z kosztem do najbliższego źródła. Uwzględniane są również osiągalne fragmenty krawędzi, których oba końce leżą poza progiem.
+Dostępność pokazują punkty reprezentujące budynki mieszkalne BDOT10k, zgodnie z istniejącym indeksem danych. Nie są to obrysy budynków ani powierzchniowe izochrony. Kolor oznacza przybliżony czas do najbliższego obiektu całej kategorii po sieci pieszej przy 5 km/h. Cztery niebieskie przedziały to do 5, 5–15, 15–30 i ponad 30 minut; szary oznacza brak danych. Na progach kolor przechodzi do następnego przedziału. Dla pojedynczego budynku dostępny jest odczyt przybliżonego czasu.
 
-Model zakłada 5 km/h. Zasięg jest przedstawiany jako pas 25 m przy osiągalnych drogach i ciągach pieszych, z generalizacją wyniku 5 m; nie jest kołem ani otoczką wypukłą przez bariery. To przybliżony korytarz dostępności po sieci, nie dowód dostępności każdego terenu w otoczeniu dróg. „Dalej niż” pokazuje dopełnienie wewnątrz analizowanego obszaru; obejmuje też miejsca bez wyznaczonego dojścia. Liczba lokalizacji przypiętych do sieci jest podana, braki nie są zastępowane odległością prostą.
+Dane `p/{tile}.bin` przechowują lokalizacje i aktywność; `d/{network}/{tile}.bin` ma kod dla każdego oryginalnego indeksu budynku. Filtrowanie nie zmienia kolejności przed złączeniem. Odległość jest skwantowana co 20 m do 2 km, co 100 m do 10 km i co 500 m dalej. Kod 254 oznacza co najmniej 47 km, 255 brak danych. Filtry „do” i „dalej niż” wykluczają brak danych; dostępne progi to 5, 10, 15, 20, 25, 30, 40, 50 i 60 min. Domyślny widok pokazuje wszystkie budynki, w tym jawnie oznaczone braki.
 
-Pobierany graf obejmuje widok powiększony o maksymalny dystans marszu i margines. Dzięki temu obiekt poza ekranem, który może wpłynąć na widok, nie jest pominięty. Geometria jest przycinana do analizowanego widoku; niewyliczony obszar poza nim nie jest kolorowany jako „dalej niż”. Po przesunięciu mapy stare wyniki są czyszczone i przeliczane. Analiza korzysta z odsłoniętej części mapy, a nie z obszaru schowanego za kartą telefonu.
+Źródła są wstępnie przeliczone do najbliższego obiektu kategorii, także poza ekranem. To nie jest odległość tylko od klikniętego obiektu. Widok działa od z=13, ma limit 50 tys. punktów i prosi o przybliżenie po przekroczeniu. Nie pobiera całego kraju. Zmiana widoku lub kategorii unieważnia starszą odpowiedź. Nieudane pobranie jest błędem, a nie pustą dostępnością.
 
-Ochrona pracy serwera: maksymalny obszar 2000 km², bok 60 km, do 200 tys. krawędzi i 5000 kandydatów w żądaniu. Przy przekroczeniu aplikacja prosi o przybliżenie; nie publikuje wyniku z pominiętymi źródłami. Nie wyznacza całej Polski jednym żądaniem. Jeden job jest wykonywany naraz, wyniki mają ograniczony cache, zapytania są tylko do odczytu i mają limit czasu. Zmiana widoku/kategorii/czasu unieważnia stare odpowiedzi. W próbie czterech szkół Ustki obliczenie trwało około 0,4–0,55 s.
+Dla wybranego adresu, działki, punktu lub budynku można osobno pobrać trzy najbliższe dojścia z macierzy pieszej Valhalla/OSM. Ranking używa czasu po drogach; przerywane proste pokazują wyłącznie kierunek. Limit wyszukiwania i niepełny wynik są jawne. Wynik i punkt usług mają odnośnik do Google Maps pod właściwymi współrzędnymi. Macierz na żywo oraz wcześniejsze dane BDOT10k mogą się różnić aktualnością i siecią.
 
-## Kontroler i pozostałe warstwy
+## Kontroler i wskaźniki
 
-Kontroler ma dwa widoki: „Mapa” i „Obiekty i dojście”. Pierwszy zawiera podkłady i cztery zwijane grupy: granice/działki/adresy, planowanie, ceny, wygląd/informacje. Drugi skupia jedną kategorię, punkty, wspólny zasięg, tryb i czasy. Źródła są zwijane. Plakietka na mapie pozwala wrócić do sterowania analizą lub ją wyłączyć; rozróżnia liczenie, potrzebę przybliżenia i błąd od gotowego wyniku.
+Kontroler warstw zawiera trzy podkłady i trzy zwijane grupy: planowanie, ceny oraz wygląd/informacje. Działki, adresy i granice wybranej gminy są domyślnie włączone, zależnie od skali i trybu. Ustawienia techniczne pozostają w ostatniej grupie. Usługi i dojścia mają własny moduł. Oddzielny przycisk kolorów działek przełącza neutralne granice i grupy rejestrowe; legenda znajduje się przy tym wyborze.
 
-MPZP, POG uchwalone i projekty są osobne. Kliknięcie pustego punktu sprawdza usługi i pokazuje oczyszczone listy informacji. Brak odpowiedzi nie potwierdza braku planu. RCN pozostaje medianą cen lokali w siatce z co najmniej 5 transakcjami, nie wyceną budynku.
+Przegląd gminy grupuje sześć głównych wskaźników w ludność/demografię, finanse oraz mieszkanie/infrastrukturę. Każdy wskaźnik i kategoria mają lokalną ikonę Phosphor. Dalsze wskaźniki, źródła i roczniki pozostają w tematycznych zakładkach. Zasady 20/60/20 i braków danych opisano wyżej. Animacje respektują ustawienie ograniczenia ruchu.
 
-Ikony: Phosphor regular 2.1.1, lokalne SVG, MIT. Operacje poligonowe: polygon-clipping 0.15.7, MIT. Licencje są w katalogach `docs/icons/` i `docs/vendor/`.
+## Weryfikacja
 
-## Weryfikacja i źródła techniczne
+Testy jednostkowe obejmują m.in. progi kodowania odległości, brak połączenia, zgodność indeksów budynków, powierzchnie działek, TERYT, rankingi i roczniki GUS. Testy przeglądarkowe sprawdzają zmianę skali, kartę działki z punktowymi planami, niezależność modułu, rzeczywiste pliki budynków, filtry, trzy dojścia, Google Maps, kolory, grupy wskaźników, kontekst gmin i wyszukiwanie. Testy API granic i punktu wykonują wyłącznie odczyt bazy.
 
-37 testów jednostkowych JavaScript oraz 5 testów Python API/danych. Testy przeglądarkowe obejmują cztery szerokości, oba motywy, wyszukiwanie i wyścigi odpowiedzi, geometrię paneli, granice gmin i miast, adresy, herby, plany, punkty i RCN, zmianę podkładu oraz PWA offline. Testy bazy wyłącznie odczytują dane. Porównanie wieloźródłowego wyniku z pojedynczym źródłem potwierdza zawieranie, obsługę źródła spoza ekranu i brak fałszywego koła dla punktu bez połączenia.
-
-- https://access.crunchydata.com/documentation/pgrouting/latest/pgr_drivingDistance.html
-- https://valhalla.github.io/valhalla/api/matrix/
-- https://eteryt.stat.gov.pl/eTeryt/rejestr_teryt/udostepnianie_danych/zasady_implementacji_slownikow/zasady_implementacji_slownikow.aspx
-
-Źródła sprawdzone 01.11.2026. Cofnięcie wdrożenia wymaga odtworzenia zarówno plików `docs/`, jak i wszystkich trzech modułów `server/public_api.py`, `server/admin_api.py`, `server/category_access.py`, oraz zmiany wersji cache PWA.
+Źródła techniczne: https://valhalla.github.io/valhalla/api/matrix/ oraz https://eteryt.stat.gov.pl/ . Ikony: Phosphor regular 2.1.1, lokalne SVG, MIT. Poprzedni generator poligonowych korytarzy i jego endpoint usunięto. Wdrożenie obejmuje `docs/`, `server/public_api.py` i `server/admin_api.py`; zmiana wersji cache aktualizuje PWA.
