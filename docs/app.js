@@ -113,10 +113,10 @@
   let curTab = "info";
   function openLayers(legend) {
     window.PlaceUI?.closePalette();document.body.classList.add("layers-open");
-    $("#layerPanel").hidden = false; $("#layersFab").setAttribute("aria-expanded", "true");
+    window.UIHistory?.open("layers",closeLayers);$("#layerPanel").hidden = false; $("#layersFab").setAttribute("aria-expanded", "true");
     if (legend) { window.LayerControls?.show("map");$("#legendDetails").open = true; const parent=$("#legendDetails").closest(".layer-section");if(parent)parent.open=true; $("#legendDetails").scrollIntoView({ block: "nearest" }); }
   }
-  function closeLayers() { document.body.classList.remove("layers-open"); $("#layerPanel").hidden = true; $("#layersFab").setAttribute("aria-expanded", "false"); }
+  function closeLayers() { window.UIHistory?.dismiss("layers"); document.body.classList.remove("layers-open"); $("#layerPanel").hidden = true; $("#layersFab").setAttribute("aria-expanded", "false"); }
   function tab(name) {
     if (name === "layers" || name === "legend") { openLayers(name === "legend"); return; }
     curTab = name;
@@ -272,8 +272,10 @@
       <details class="place-section" open><summary>${Icons.svg('ruler')}Działka pod adresem</summary><div id="adrParcel"><p class="muted small">Wczytuję działkę…</p></div></details><details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details><button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`;
   }
   const card = $("#card");
+  function clearPlace(){addressRequest++;selectedParcelId=null;currentPlace=null;highlight(null);if(selMarker){selMarker.remove();selMarker=null;}card.innerHTML='<div class="emptymsg"><h1>Wybierz miejsce</h1><p>Wskaż punkt na mapie lub użyj wyszukiwarki.</p></div>';card.classList.add("empty");document.dispatchEvent(new Event("plots:selection"));snap("hidden");document.body.classList.add("collapsed");}
   function showCard(html) {
-    window.DistanceModule?.close();closeLayers();
+    const distanceOpen=window.DistanceModule?.isOpen();if(distanceOpen)window.DistanceModule.close({history:false});window.UIHistory?.open("place",clearPlace,distanceOpen);
+    closeLayers();
     document.dispatchEvent(new Event("plots:selection"));
     card.classList.remove("empty"); card.innerHTML = html;card.classList.remove("card-enter");void card.offsetWidth;card.classList.add("card-enter"); tab("info");
     if (isMobile()) snap("half");
@@ -300,7 +302,7 @@
   document.addEventListener('plots:selection',()=>focusMap(false));
   let currentPlace=null;
   let selectedParcelId = null;
-  function selectParcel(p,point=null) { selectedParcelId = p.id_dzialki; highlight(p.id_dzialki); showCard(parcelCard(p)); document.dispatchEvent(new CustomEvent("plots:parcel", { detail: p }));currentPlace=point|| (p.bbox?{lon:(p.bbox[0][0]+p.bbox[1][0])/2,lat:(p.bbox[0][1]+p.bbox[1][1])/2}:currentPlace);if(currentPlace)window.PLOTS_PLANNING?.loadInto(currentPlace,document.getElementById('placePlans')); }
+  function selectParcel(p,point=null) { if(window.DistanceModule?.isOpen()){const at=point||(p.bbox?{lon:(p.bbox[0][0]+p.bbox[1][0])/2,lat:(p.bbox[0][1]+p.bbox[1][1])/2}:null);if(at)window.DistanceModule.setOrigin({...at,label:"Działka "+p.numer_dzialki});return;}selectedParcelId = p.id_dzialki; highlight(p.id_dzialki); showCard(parcelCard(p)); document.dispatchEvent(new CustomEvent("plots:parcel", { detail: p }));currentPlace=point|| (p.bbox?{lon:(p.bbox[0][0]+p.bbox[1][0])/2,lat:(p.bbox[0][1]+p.bbox[1][1])/2}:currentPlace);if(currentPlace)window.PLOTS_PLANNING?.loadInto(currentPlace,document.getElementById('placePlans')); }
 
   /* ---------- API ---------- */
   async function api(path,options={}) {
@@ -314,11 +316,12 @@
     if (!selMarker) { const el = document.createElement("div"); el.className="selected-location-marker"; selMarker = new maplibregl.Marker({ element: el }); }
     selMarker.setLngLat(lnglat).addTo(map);
   }
-  function padding() { return isMobile() ? { top: 140, bottom: (window.DistanceModule?.isOpen()?window.DistanceModule.height():visibleSheet())+80, left: 24, right: 65 } : { top: 90, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 380, right: 70 }; }
+  function padding() { const distance=window.DistanceModule?.isOpen();return isMobile() ? { top: distance?150:140, bottom: distance?window.DistanceModule.height()+35:visibleSheet()+80, left:24,right:65 } : { top:90,bottom:40,left:distance?380:document.body.classList.contains("collapsed")?40:380,right:70 }; }
 
   function frame(bounds,maxZoom=18) {if(isMobile()&&visibleSheet()>window.innerHeight*.6)snap('peek');map.stop();map.setPadding({top:0,bottom:0,left:0,right:0});map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]],{padding:padding(),maxZoom,duration:650,retainPadding:false});}
   function framePoint(lon,lat,zoom=18){frame([lon-.00003,lat-.00003,lon+.00003,lat+.00003],zoom);}
   async function showAddress(p) {
+    if(window.DistanceModule?.isOpen()){window.DistanceModule.setOrigin({...p,label:adrText(p)});framePoint(+p.lon,+p.lat,16);return;}
     const requestId = ++addressRequest; selectedParcelId = null;
     const lon = +p.lon, lat = +p.lat;currentPlace={lon,lat};
     mark([lon, lat]);
@@ -415,7 +418,7 @@
     if (!navigator.geolocation) return toast("Geolokalizacja niedostępna");
     toast("Ustalam położenie…");
     navigator.geolocation.getCurrentPosition(
-      (pos) => { const c = [pos.coords.longitude, pos.coords.latitude]; mark(c); document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon:c[0],lat:c[1]}})); framePoint(c[0],c[1],17); },
+      (pos) => { const c = [pos.coords.longitude, pos.coords.latitude]; if(window.DistanceModule?.isOpen()){window.DistanceModule.setOrigin({lon:c[0],lat:c[1],label:"Moja lokalizacja"});framePoint(c[0],c[1],17);return;}mark(c); document.dispatchEvent(new CustomEvent("plots:point",{detail:{lon:c[0],lat:c[1]}})); framePoint(c[0],c[1],17); },
       () => toast("Brak zgody na lokalizację"), { enableHighAccuracy: true, timeout: 10000 });
   };
 
@@ -488,7 +491,7 @@
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
   dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();},
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, clearPlace, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();},
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
     showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };

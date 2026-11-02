@@ -329,7 +329,7 @@ _EXTRA_ASSETS = {
     "planning.js", "surroundings-model.js", "surroundings.js", "gus-client.js", "mobile.js", "sw.js", "parcel-model.js", "indicator-model.js", "access-model.js", "address-access.js",
     "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable.png",
     "data/map-services.json", "data/surroundings.json", "data/gus-catalog.json", "data/bdl-units.json", "data/gus-population.json",
-    "address-picking.js", "municipal-boundaries.js", "building-distance-model.js", "distance-module.js", "place-ui.js", "icons.js", "icons/phosphor.svg", "icons/PHOSPHOR-LICENSE.txt", "municipality-model.js", "municipality-context.js", "municipality-crests.js",
+    "address-picking.js", "municipal-boundaries.js", "building-distance-model.js", "distance-module.js", "place-ui.js", "ui-history.js", "icons.js", "icons/phosphor.svg", "icons/PHOSPHOR-LICENSE.txt", "municipality-model.js", "municipality-context.js", "municipality-crests.js",
     "service-places.js", "layer-ui.js",
     "data/municipality-crests.json", "data/municipalities.topojson",
 

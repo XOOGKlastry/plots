@@ -53,6 +53,7 @@
     document.dispatchEvent(new CustomEvent("plots:gmina",{detail:{id:selected.k}}));
   }
   async function select(id, fly) {
+    if(window.DistanceModule?.isOpen()){window.DistanceModule.close({history:false});window.UIHistory?.open("gmina",()=>app.clearPlace(),true);}
     const context=++contextRevision;document.dispatchEvent(new Event("plots:manual-gmina"));
     try {
       await load();if(context!==contextRevision)return; const g = data.gminy.find((item) => item.k === id);
@@ -92,8 +93,16 @@
       body = `<h2>Dane i ich aktualność</h2><div class="source-description">Zestaw bazowy: ${esc(data.baseBuilt)}. Dane uzupełniające pobrano: ${esc(data.cardsFetched?.slice(0, 10))}. Daty pobrania nie są rokiem obserwacji. Każdy wskaźnik pokazuje własny rok; brak roku w źródle jest oznaczony wprost.</div><div class="metric-list"><div class="metric-row"><div>Identyfikator jednostki</div><div>${esc(selected.k)}<small>${esc(selected.typ)}</small></div></div><div class="metric-row"><div>Zestaw źródłowy</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL i dane referencyjne</a></div></div><div class="metric-row"><div>Oficjalne statystyki</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL</a></div></div><div class="metric-row"><div>Usługi i otoczenie</div><div><a href="https://xoogklastry.github.io/jakdaleko/" target="_blank" rel="noopener noreferrer">Jakdaleko ${icon("arrow")}</a><small>Obiekty i ceny RCN w warstwach; dojścia piesze w karcie adresu</small></div></div></div><h2>Źródła wskaźników</h2>${rows(m)}<p class="source-description">Powierzchnia pochodzi w pierwszej kolejności z karty GUS z podanym rokiem. Starsza wartość z bazy jest używana tylko przy braku tej karty. Brak danych nie jest zerem. Zestaw zawiera również dane opisowe z Wikidata.</p>`;
     } else body = `<h2>${esc(category)}</h2>` + rows(m.filter((x) => x.category === category));
     $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><div class="municipality-title">${window.MunicipalityCrests.render(selected)}<h1 id="gminaDialogTitle">${esc(selected.n)}</h1></div><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header><div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>${body}`;
-    $("#gminaDetails").scrollTop = 0;
+    $("#gminaDetails").scrollTop = 0;const active=$("#dataCategories [aria-current=true]");if(active&&app.isMobile())$("#dataCategories").scrollTo({left:Math.max(0,active.offsetLeft-20),behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});
   }
+  function changeCategory(value){if(!categories.includes(value)||value===category)return;category=value;renderDetails();const content=$('#gminaDetails');content.classList.remove('category-arrive');void content.offsetWidth;content.classList.add('category-arrive');}
+  let swipe=null;
+  const content=$('#gminaDetails');
+  content.addEventListener('touchstart',e=>{if(!app.isMobile()||e.touches.length!==1||e.target.closest('input,select,textarea,button,a,summary')){swipe=null;return;}const t=e.touches[0];swipe=t.clientX>24&&t.clientX<innerWidth-24?{x:t.clientX,y:t.clientY,at:Date.now(),horizontal:false}:null;},{passive:true});
+  content.addEventListener('touchmove',e=>{if(!swipe)return;if(e.touches.length!==1){swipe=null;return;}const t=e.touches[0],dx=t.clientX-swipe.x,dy=t.clientY-swipe.y;if(!swipe.horizontal&&Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){swipe=null;return;}if(Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.5){swipe.horizontal=true;if(e.cancelable)e.preventDefault();}},{passive:false});
+  content.addEventListener('touchend',e=>{if(!swipe)return;const start=swipe;swipe=null;const t=e.changedTouches[0];if(!t)return;const dx=t.clientX-start.x,dy=t.clientY-start.y;if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-start.at>1000)return;const next=categories[categories.indexOf(category)+(dx<0?1:-1)];if(next)changeCategory(next);},{passive:true});
+  content.addEventListener('touchcancel',()=>swipe=null,{passive:true});
+  $('#dataCategories').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const next=categories[categories.indexOf(category)+(e.key==='ArrowRight'?1:-1)];if(next){changeCategory(next);$('#dataCategories [aria-current=true]').focus();}});
   function failure(error) {
     console.warn("Municipality data:", error.message);
     $("#gminaCard").innerHTML = `<div class="inline-error">Dane gmin są chwilowo niedostępne.<br><button type="button" class="retry" data-gmina-retry>Spróbuj ponownie</button></div>`;
@@ -111,6 +120,7 @@
   }
   window.PLOTS_GMINY = {
     select,
+    openDetails(replace=false){if(!selected)return;renderDetails();dialog.showModal();window.UIHistory?.open("gmina-details",()=>dialog.close(),replace);},
     async setContext(id,message='') {
       const context=++contextRevision;await load();if(context!==contextRevision)return;const g=id?data.gminy.find(item=>item.k===id):null;
       const changed=selected?.k!==g?.k;selected=g||null;selectedYear=null;
@@ -125,10 +135,11 @@
     const button = e.target.closest("button"); if (!button) return;
     if (button.dataset.gmina) select(button.dataset.gmina, true);
     if (button.hasAttribute("data-choose-gmina")) chooser();
-    if (button.hasAttribute("data-gmina-details")) { renderDetails(); dialog.showModal(); }
+    if (button.hasAttribute("data-gmina-details")) { window.PLOTS_GMINY.openDetails(); }
     if (button.hasAttribute("data-gmina-retry")) initialize();
   });
-  $("#dataCategories").addEventListener("click", (e) => { const b = e.target.closest("[data-category]"); if (b) { category = b.dataset.category; renderDetails(); } });
+  $("#dataCategories").addEventListener("click", (e) => { const b = e.target.closest("[data-category]"); if (b) { changeCategory(b.dataset.category); } });
+  dialog.addEventListener("close",()=>window.UIHistory?.dismiss("gmina-details"));
   $("#closeGmina").onclick = () => dialog.close();
   $("#gminaDetails").addEventListener("click", (e) => { if (e.target.closest("[data-gmina-map]")) { dialog.close(); select(selected.k, true); } });
   $("#gminaDetails").addEventListener("click", async e=>{const b=e.target.closest("[data-refresh-gus]");if(b){b.disabled=true;b.textContent="Pobieram…";try{await loadGus(selected,true);}finally{if(b.isConnected){b.disabled=false;b.textContent="Odśwież z GUS";}}}});
