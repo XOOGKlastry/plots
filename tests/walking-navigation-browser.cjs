@@ -1,0 +1,34 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
+(async()=>{
+ const browser=await chromium.launch({channel:'msedge',headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+ const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const parcel={id_dzialki:'221201_1.0001.538/6',numer_dzialki:'538/6',powierzchnia_geom_m2:5232.28,bbox:[[16.8544,54.5878],[16.8547,54.5881]]};
+ await page.route('**/tiles/**/*.pbf',r=>r.fulfill({status:200,body:Buffer.alloc(0)}));await require('./browser-admin-fixture.cjs')(page);
+ await page.route('**/api/gmina-punkt?*',r=>r.fulfill({json:{id:'2212011'}}));await page.route('**/api/dzialka?*',r=>r.fulfill({json:parcel}));
+ await page.route('**/api/adres?*',r=>r.fulfill({json:{wyniki:[{lon:16.8619,lat:54.5803,ulica:'Testowa',numer:'10',TERYT_GMI:'2212011'}]}}));
+ await page.route('https://bdl.stat.gov.pl/api/v1/data/by-unit/**',r=>r.fulfill({json:require('./fixtures/gus-ustka.json')}));
+ await page.route('https://valhalla1.openstreetmap.de/sources_to_targets?*',r=>{const q=JSON.parse(new URL(r.request().url()).searchParams.get('json'));r.fulfill({json:{units:'kilometers',sources_to_targets:[q.targets.map((_,i)=>({to_index:i,distance:1+i/10,time:600+i*50}))]}});});
+ await page.goto('http://127.0.0.1:8091/?id=221201_1.0001.538%2F6',{waitUntil:'domcontentloaded'});await page.locator('#card h2').waitFor();await page.waitForFunction(()=>!!DistanceModule&&!!document.getElementById('networkSelect')&&!PLOTS.map.isMoving());
+ await page.evaluate(()=>DistanceModule.open(PLOTS.currentPlace(),'szkola'));await page.waitForFunction(()=>!PLOTS.map.isMoving());
+ assert.equal(await page.evaluate(()=>UIHistory.current()),'distance');assert.equal(await page.evaluate(()=>PLOTS.currentPlace()),null);
+ const marker=await page.locator('.analysis-origin-marker').boundingBox(),panel=await page.locator('#distancePanel').boundingBox();assert.ok(marker.y>65&&marker.y+marker.height<panel.y,JSON.stringify({marker,panel}));
+ await page.locator('#q').fill('Testowa 10');await page.locator('#q').press('Enter');await page.waitForFunction(()=>DistanceModule.getOrigin()?.label==='Testowa 10');assert.equal(await page.evaluate(()=>DistanceModule.isOpen()),true);
+ await page.locator('#walkingMinutes').fill('22');assert.equal(await page.locator('#walkingTimeValue').innerText(),'22 min');await page.waitForFunction(()=>document.getElementById('buildingStatus').textContent.includes('do 22 min'));
+ await page.locator('[data-distance-mode="all"]').click();await page.locator('#showNearest').click();await page.locator('[data-facility]').first().waitFor();assert.equal(await page.locator('.access-kind').count(),3);
+ const labels=await page.evaluate(()=>PLOTS.map.getSource('address-directions')._data.features.filter(f=>f.geometry.type==='Point').map(f=>f.properties));assert.equal(labels.length,3);assert.ok(labels.every(p=>p.name&&p.category));
+ await page.waitForFunction(()=>!PLOTS.map.isMoving());await page.waitForTimeout(400);await page.screenshot({path:path.join(__dirname,'../../../outputs/odleglosci-etykiety.png')});
+ await page.locator('#changeAnalysisOrigin').click();assert.equal(await page.locator('#distancePickHint').isVisible(),true);
+ const newPoint=await page.evaluate(()=>{const p=PLOTS.map.unproject([175,190]);return {lon:p.lng,lat:p.lat};});await page.mouse.click(175,190);await page.waitForFunction(c=>Math.abs(DistanceModule.getOrigin().lon-c.lon)<1e-6,newPoint);assert.equal(await page.locator('[data-facility]').count(),0);assert.equal(await page.locator('#distancePickHint').isVisible(),false);
+ await page.locator('#layersFab').click();await page.goBack();await page.waitForFunction(()=>document.getElementById('layerPanel').hidden);assert.equal(await page.evaluate(()=>DistanceModule.isOpen()),true);
+ const camera=await page.evaluate(()=>PLOTS.map.getCenter().toArray());await page.goBack();await page.waitForFunction(()=>!DistanceModule.isOpen());assert.equal(await page.evaluate(()=>PLOTS.currentPlace()),null);assert.equal(await page.locator('.analysis-origin-marker').count(),0);assert.equal(await page.evaluate(()=>document.getElementById('panel').dataset.snap),'hidden');assert.deepEqual(await page.evaluate(()=>PLOTS.map.getCenter().toArray()),camera);
+ await page.evaluate(()=>DistanceModule.open({lon:16.8619,lat:54.5803},'szkola'));await page.locator('[data-distance-gmina]').click();await page.waitForFunction(()=>document.getElementById('gminaDialog').open);assert.equal(await page.evaluate(()=>DistanceModule.isOpen()),false);
+ const cdp=await context.newCDPSession(page);
+ async function swipe(x1,y1,x2,y2){await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x1,y:y1}]});for(let i=1;i<=5;i++)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x1+(x2-x1)*i/5,y:y1+(y2-y1)*i/5}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
+ await swipe(300,500,90,500);await page.waitForFunction(()=>document.querySelector('#dataCategories [aria-current=true]').dataset.category==='Ludność');await swipe(300,500,90,500);await page.waitForFunction(()=>document.querySelector('#dataCategories [aria-current=true]').dataset.category==='Finanse i firmy');await swipe(90,500,300,500);await page.waitForFunction(()=>document.querySelector('#dataCategories [aria-current=true]').dataset.category==='Ludność');
+ await swipe(240,600,230,350);assert.equal(await page.locator('#dataCategories [aria-current=true]').getAttribute('data-category'),'Ludność');
+ await page.goBack();await page.waitForFunction(()=>!document.getElementById('gminaDialog').open);assert.match(page.url(),/127.0.0.1:8091/);
+ await page.evaluate(()=>DistanceModule.open({lon:16.8619,lat:54.5803},'szkola'));await page.waitForFunction(()=>!PLOTS.map.isMoving());await page.waitForTimeout(350);await page.screenshot({path:path.join(__dirname,'../../../outputs/odleglosci-suwak.png')});
+ for(const theme of ['light','dark'])for(const size of [[320,568],[390,844],[1440,950]]){await page.emulateMedia({colorScheme:theme});await page.setViewportSize({width:size[0],height:size[1]});await page.waitForTimeout(250);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(await page.locator('[data-distance-back]').isVisible(),true);assert.equal(await page.locator('#changeAnalysisOrigin').isVisible(),true);}
+ assert.deepEqual(errors,[]);console.log('Walking slider, persistent origin, search/reselect, three named/type labels, Android/browser Back, nested panels, independent exit and real touch swipes: passed');await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

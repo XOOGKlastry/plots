@@ -4,11 +4,12 @@
   const endpoint=window.PLOTS_CONFIG?.routingUrl||'https://valhalla1.openstreetmap.de/sources_to_targets';
   const resultCache=new Map();let currentResults=[];let origin=null,revision=0,controller=null;
   const empty=()=>({type:'FeatureCollection',features:[]});
-  function clear(){revision++;controller?.abort();origin=null;document.getElementById('card').classList.remove('access-focused');map.getSource('address-directions')?.setData(empty());}
+  function clear(){currentResults=[];revision++;controller?.abort();origin=null;document.getElementById('card').classList.remove('access-focused');map.getSource('address-directions')?.setData(empty());}
   function initialize(){
     app.registerOverlaySource('address-directions');map.addSource('address-directions',{type:'geojson',data:empty(),attribution:'© OpenStreetMap · Valhalla'});
     map.addLayer({id:'address-direction-lines',type:'line',source:'address-directions',filter:['==',['geometry-type'],'LineString'],paint:{'line-color':'#007aff','line-width':2.5,'line-dasharray':[2,3],'line-opacity':.85}});
     map.addLayer({id:'address-direction-points',type:'circle',source:'address-directions',filter:['==',['geometry-type'],'Point'],paint:{'circle-radius':13,'circle-color':'#007aff','circle-stroke-color':'#fff','circle-stroke-width':3}});
+    map.addLayer({id:'address-direction-names',type:'symbol',source:'address-directions',filter:['==',['geometry-type'],'Point'],layout:{'text-field':['concat',['to-string',['get','rank']],' · ',['get','label']],'text-font':['Noto Sans Regular'],'text-size':10,'text-max-width':24,'text-anchor':['match',['get','rank'],1,'bottom','top'],'text-offset':['match',['get','rank'],1,['literal',[0,-1.9]],['literal',[0,1.9]]],'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#182636','text-halo-color':'#fff','text-halo-width':2.5}});
     map.addLayer({id:'address-direction-labels',type:'symbol',source:'address-directions',filter:['==',['geometry-type'],'Point'],layout:{'text-field':['to-string',['get','rank']],'text-font':['Noto Sans Regular'],'text-size':12,'text-allow-overlap':true},paint:{'text-color':'#fff'}});
   }
   if(map.loaded())initialize();else map.once('load',initialize);
@@ -42,14 +43,14 @@
     el.innerHTML='<p class="muted small">Sprawdzam dojścia piesze po drogach…</p>';map.getSource('address-directions')?.setData(empty());
     try{
       const result=await nearest(at,id,controller.signal,current);if(current!==revision||!el.isConnected)return;
-      currentResults=result.top;app.focusMap(result.top.length>0);
-      const features=result.top.flatMap((p,i)=>[{type:'Feature',geometry:{type:'LineString',coordinates:[[at.lon,at.lat],[p.lon,p.lat]]},properties:{rank:i+1}},{type:'Feature',geometry:{type:'Point',coordinates:[p.lon,p.lat]},properties:{rank:i+1}}]);
+      const category=document.querySelector('#networkSelect option:checked')?.textContent||'Obiekt';currentResults=result.top;app.focusMap(result.top.length>0);
+      const features=result.top.flatMap((p,i)=>[{type:'Feature',geometry:{type:'LineString',coordinates:[[at.lon,at.lat],[p.lon,p.lat]]},properties:{rank:i+1}},{type:'Feature',geometry:{type:'Point',coordinates:[p.lon,p.lat]},properties:{rank:i+1,name:p.name||category,category,label:category.replace(/\s*\(.*/, '').slice(0,30)}}]);
       map.getSource('address-directions')?.setData({type:'FeatureCollection',features});
-      el.innerHTML=result.top.length?`<ol class="access-results">${result.top.map((p,i)=>`<li><button class="access-result" type="button" data-facility="${i}" title="${esc(p.name)}"><span class="access-number">${i+1}</span><span class="access-place">${esc(p.name)}</span><span class="access-cost"><strong>${Math.max(1,Math.round(p.seconds/60))}<small>min</small></strong><span>≈ ${p.metres<1000?Math.round(p.metres/10)*10+' m':(p.metres/1000).toLocaleString('pl-PL',{maximumFractionDigits:2})+' km'}</span></span>${Icons.svg('caret-right','result-chevron')}</button></li>`).join('')}</ol><p class="source-note">${result.complete?'Najbliższe dostępne dojścia w promieniu 25 km.':'Wyniki wśród '+result.checked+' sprawdzonych obiektów — wyszukiwanie ograniczone.'} Przerywane linie wskazują kierunek; liczby oznaczają dojście po drogach. OSM · Valhalla.</p>`:'<p class="muted small">Nie znaleziono dostępnych dojść do obiektów w promieniu 25 km.</p>';
-      app.closeLayers();window.DistanceModule?.sync();
+      el.innerHTML=result.top.length?`<ol class="access-results">${result.top.map((p,i)=>`<li><button class="access-result" type="button" data-facility="${i}" title="${esc(p.name)}"><span class="access-number">${i+1}</span><span class="access-place"><span>${esc(p.name)}</span><small class="access-kind">${esc(category)}</small></span><span class="access-cost"><strong>${Math.max(1,Math.round(p.seconds/60))}<small>min</small></strong><span>≈ ${p.metres<1000?Math.round(p.metres/10)*10+' m':(p.metres/1000).toLocaleString('pl-PL',{maximumFractionDigits:2})+' km'}</span></span>${Icons.svg('caret-right','result-chevron')}</button></li>`).join('')}</ol><p class="source-note">${result.complete?'Najbliższe dostępne dojścia w promieniu 25 km.':'Wyniki wśród '+result.checked+' sprawdzonych obiektów — wyszukiwanie ograniczone.'} Przerywane linie wskazują kierunek; liczby oznaczają dojście po drogach. OSM · Valhalla.</p>`:'<p class="muted small">Nie znaleziono dostępnych dojść do obiektów w promieniu 25 km.</p>';
+      app.closeLayers();window.DistanceModule?.showResults();window.DistanceModule?.sync();
       if(result.top.length){const bounds=new maplibregl.LngLatBounds([at.lon,at.lat],[at.lon,at.lat]);result.top.forEach(p=>bounds.extend([p.lon,p.lat]));app.frame([...bounds.getSouthWest().toArray(),...bounds.getNorthEast().toArray()],16);}
     }catch(error){if(current===revision&&el.isConnected)el.innerHTML=`<p class="inline-error">${esc(error.name==='AbortError'?'Dojście jest chwilowo niedostępne. Wybierz kategorię, aby spróbować ponownie.':error.message)}</p>`;}finally{clearTimeout(timeout);}
   }
   document.addEventListener('click',e=>{const facility=e.target.closest('[data-facility]');if(facility){const point=currentResults[Number(facility.dataset.facility)];if(point)window.DistanceModule?.showService(point);}});
-  window.AddressAccess={choose,clear,setOrigin:p=>{origin={lon:+p.lon,lat:+p.lat};}};
+  window.AddressAccess={choose,clear,handleClick(e){const hit=map.getLayer('address-direction-points')?map.queryRenderedFeatures([[e.point.x-14,e.point.y-14],[e.point.x+14,e.point.y+14]],{layers:['address-direction-points']})[0]:null;const point=hit&&currentResults[Number(hit.properties.rank)-1];if(!point)return false;window.DistanceModule?.showService(point);return true;},setOrigin:p=>{origin={lon:+p.lon,lat:+p.lat};}};
 })();
