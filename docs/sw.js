@@ -1,5 +1,5 @@
 "use strict";
-const CACHE="mapa-shell-20261110-1";
+const CACHE="mapa-shell-20261110-2";
 const ROOT=new URL("./",self.location.href);
 const ASSETS=["./","index.html","style.css","design.css","config.js","grupy.js","gminy-model.js","gus-client.js","parcel-model.js","app.js","ui-history.js","indicator-model.js","gminy.js","access-model.js","address-access.js","planning.js","surroundings-model.js","surroundings.js","mobile.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/icon-maskable.png","icons.js","address-picking.js","municipal-boundaries.js","building-distance-model.js","distance-module.js","place-ui.js","icons/phosphor.svg","municipality-model.js","municipality-context.js","municipality-crests.js","service-places.js","layer-ui.js","data/municipality-crests.json","data/municipalities.topojson","data/gminy.json","data/gus-catalog.json","data/bdl-units.json","data/gus-population.json","data/surroundings.json","styles/map-light.json"];
 const LIBRARIES=["https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"];
