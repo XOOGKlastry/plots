@@ -269,6 +269,29 @@ def api_adres():
     return Response(json.dumps({"wyniki": rows}, default=str, ensure_ascii=False),
                     mimetype="application/json; charset=utf-8")
 
+@app.get("/api/adres-punkt")
+def api_adres_punkt():
+    try:
+        lon, lat = float(request.args["lon"]), float(request.args["lat"])
+        if not (-180 <= lon <= 180 and -85 <= lat <= 85):
+            abort(400)
+    except (KeyError, ValueError):
+        abort(400)
+    meta = _adr_meta()
+    geom = _sql.Identifier(meta["geom"])
+    g2180 = _adr_geom(meta, 2180)
+    stmt = _sql.SQL("""WITH p AS (SELECT ST_Transform(ST_SetSRID(ST_MakePoint(%s,%s),4326),2180) g)
+        SELECT {sel}, ST_X({out}) lon, ST_Y({out}) lat
+        FROM {table},p WHERE {geom} && ST_Transform(ST_Expand(p.g,3),{srid})
+        AND ST_DWithin({g2180},p.g,3) ORDER BY ST_Distance({g2180},p.g) LIMIT 1""").format(
+        sel=_adr_select_list(meta),out=_adr_geom(meta,4326),table=_sql.Identifier(ADR_SCHEMA,ADR_TABLE),
+        geom=geom,srid=_sql.Literal(meta["srid"]),g2180=g2180)
+    with POOL.connection() as c:
+        cursor=c.execute(stmt,(lon,lat));row=cursor.fetchone()
+        value=dict(zip([col.name for col in cursor.description],row)) if row else None
+    address=", ".join(filter(None,[" ".join(str(value.get(k) or "") for k in ("ulica","numer")).strip(),str(value.get("miejscowosc") or "")])) if value else None
+    return Response(json.dumps({"address":address,"point":value},default=str,ensure_ascii=False),mimetype="application/json")
+
 @app.get("/api/adresy/meta")
 def api_adresy_meta():
     try:
@@ -335,6 +358,7 @@ _EXTRA_ASSETS = {
 
 }
 
+_EXTRA_ASSETS.update({"data/crests-extra-20261110.bin","data/crest-verification.json"})
 _EXTRA_ASSETS.update("data/crests-" + code + ".bin" for code in ["02","04","06","08","10","12","14","16","18","20","22","24","26","28","30","32"])
 
 @app.get("/<path:asset_path>")

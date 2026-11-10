@@ -10,7 +10,6 @@
   const GR = window.GRUPY_REJ || {};
   const COL = window.GRUPY_COLORS || {};
   const isMobile = () => matchMedia("(max-width:767px)").matches;
-  const dark = matchMedia("(prefers-color-scheme: dark)");
   const store = {
     get: (k, d) => { try { const v = localStorage.getItem("plots." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set: (k, v) => { try { localStorage.setItem("plots." + k, JSON.stringify(v)); } catch (e) {} }
@@ -19,21 +18,14 @@
 
   /* ---------- Basemaps (verified EPSG:3857 endpoints) ---------- */
   const GP = "https://mapy.geoportal.gov.pl/wss/service";
-  const wms = (u, lyr, fmt) => `${u}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${lyr}&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=${fmt}`;
   const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
   const BASEMAPS = [
     { id: "map", name: "Mapa", style: true, url: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
     { id: "gp-orto", name: "Ortofoto", url: `${GP}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`, max: 19, attr: "© GUGiK geoportal.gov.pl" },
-    { id: "gp-topo", name: "Topo", topo: true, max: 20, attr: "© GUGiK · BDOT10k" }
   ];
   const overlaySourceIds = new Set(["dzialki", "adresy"]);
-  function tileUrl(t, z, x, y) {
-    const R = 20037508.342789244, s = (2 * R) / Math.pow(2, z);
-    const bb = [-R + x * s, R - (y + 1) * s, -R + (x + 1) * s, R - y * s].join(",");
-    return t.replace("{z}", z).replace("{x}", x).replace("{y}", y).replace("{bbox-epsg-3857}", bb);
-  }
   let bmId = store.get("basemap", "map");
-  if (!BASEMAPS.some((b) => b.id === bmId)) bmId = /img|orto|hr/.test(bmId) ? "gp-orto" : /topo/.test(bmId) ? "gp-topo" : "map";
+  if (!BASEMAPS.some((b) => b.id === bmId)) bmId = /img|orto|hr/.test(bmId) ? "gp-orto" : "map";
 
   /* ---------- Map ---------- */
   const view = store.get("view", { center: [19.2, 52.1], zoom: 6 });
@@ -55,18 +47,12 @@
     const requestId = ++basemapRequest;
     const b = BASEMAPS.find((x) => x.id === id) || BASEMAPS[0];
     let baseStyle;
-    if (b.style || b.topo) {
+    if (b.style) {
       try {
-        const response = await fetch(`styles/map-${dark.matches ? "dark" : "light"}.json`, { signal: AbortSignal.timeout(10000) });
+        const response = await fetch("styles/map-light.json", { signal: AbortSignal.timeout(10000) });
         if (!response.ok) throw new Error("Map style unavailable");
         baseStyle = await response.json();
-        if (b.topo) {
-          const response = await fetch("data/map-services.json");
-          if (!response.ok) throw new Error("Topographic catalog unavailable");
-          const services = await response.json();
-          baseStyle.sources["topo-current"] = { type: "raster", tiles: [wms(services.topo.url, services.topo.layers, "image/png")], tileSize: 256, maxzoom: 20, attribution: b.attr };
-          baseStyle.layers.push({ id: "topo-current", type: "raster", source: "topo-current", minzoom: 11, paint: { "raster-fade-duration": 150 } });
-        }
+
       } catch (error) {
         if (requestId !== basemapRequest) return;
         toast("Wczytano zapasowy podkład mapy. Spróbuj ponownie później.");
@@ -75,7 +61,7 @@
     if (requestId !== basemapRequest) return;
     if (!baseStyle) baseStyle = {
       version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
-      sources: { base: { type: "raster", tiles: [b.url || BASEMAPS[0].url], tileSize: 256, maxzoom: b.topo ? 19 : b.max, attribution: b.topo ? BASEMAPS[0].attr : b.attr } },
+      sources: { base: { type: "raster", tiles: [b.url || BASEMAPS[0].url], tileSize: 256, maxzoom: b.max, attribution: b.attr } },
       layers: [{ id: "base", type: "raster", source: "base", paint: { "raster-fade-duration": 200 } }]
     };
     const current = map.getStyle(), overlaySources = {};
@@ -246,13 +232,13 @@
     const skip = new Set(["bbox", "grupy", "g1"]);
     const all = Object.keys(p).filter((k) => !skip.has(k) && p[k] != null && p[k] !== "").map((k) => `<dt>${esc(k)}</dt><dd class="num">${esc(p[k])}</dd>`).join("");
     return `<div class="phead"><div><h2>Działka ${esc(p.numer_dzialki || "—")}</h2><code>${esc(p.id_dzialki || "")}</code></div>${p.id_dzialki ? copyBtn(p.id_dzialki) : ""}</div>
-      <details class="place-section" open><summary>${Icons.svg('ruler')}Dane działki</summary><div class="grid4">
+      <div class="parcel-register">${chips}</div><details class="place-section" open><summary>${Icons.svg('ruler')}Dane działki</summary><div class="grid4">
         ${cell(IC.map, "Obręb", `${esc(p.obreb || "—")}${p.nazwa_obrebu ? " · " + esc(String(p.nazwa_obrebu).replace(/-\d+$/, "")) : ""}`)}
         ${cell(IC.leaf, "Użytki", esc(p.klasouzytki || "—"))}
         ${cell(IC.area, "Powierzchnia · " + area.source.toLowerCase(), esc(window.ParcelModel.format(area.m2, "m²")) + `<span class="area-secondary">${esc(window.ParcelModel.format(area.ha, "ha"))}</span>`)}
         ${cell(IC.clock, "Aktualność", fmtDate(p.data_zrodla))}
       </div>
-      </details>${embedded?'':`<details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details>`}<details class="place-section"><summary>${Icons.svg('users')}Ewidencja i własność</summary>${chips}
+      </details>${embedded?'':`<details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details>`}<details class="place-section"><summary>${Icons.svg('users')}Ewidencja i własność</summary>
       <button class="more" type="button" data-more>${IC.doc}<span>Pełne informacje</span>${IC.chev}</button>
       <div class="full" hidden><h4>Wszystkie atrybuty</h4><dl class="kv">${all}</dl></div></details>${embedded?'':`<button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`}`;
   }
@@ -297,7 +283,7 @@
   let mapFocused=false;
   function applyParcelColors(){if(map.getLayer('dz-fill')){map.setPaintProperty('dz-fill','fill-color',parcelColors==='groups'?matchExpr:'#8da1b5');map.setPaintProperty('dz-fill','fill-opacity',parcelColors==='groups'?(mapFocused?Math.min(store.get('opac',45)/100,.09):store.get('opac',45)/100):.025);}}
   function focusMap(active){mapFocused=active;applyParcelColors();}
-  function setDistanceMode(on){document.body.classList.toggle('distance-mode',on);for(const [ids,checked]of [[['dz-fill','dz-line','dz-sel'],$('#lyrDz').checked],[['adr-pt','adr-lbl','adr-hit'],$('#lyrAdr').checked]])ids.forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',!on&&checked?'visible':'none');});if(!on)snap(panel.dataset.snap||'half');document.dispatchEvent(new CustomEvent('plots:mode',{detail:on?'distance':'place'}));}
+  function setDistanceMode(on){document.body.classList.toggle('distance-mode',on);for(const [ids,checked]of [[['dz-fill','dz-line','dz-sel'],$('#lyrDz').checked],[['adr-pt','adr-lbl','adr-hit'],$('#lyrAdr').checked]])ids.forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',checked&&(!on||id.startsWith('adr-'))?'visible':'none');});if(!on)snap(panel.dataset.snap||'half');document.dispatchEvent(new CustomEvent('plots:mode',{detail:on?'distance':'place'}));}
 
   document.addEventListener('plots:selection',()=>focusMap(false));
   let currentPlace=null;
@@ -316,6 +302,7 @@
     if (!selMarker) { const el = document.createElement("div"); el.className="selected-location-marker"; selMarker = new maplibregl.Marker({ element: el }); }
     selMarker.setLngLat(lnglat).addTo(map);
   }
+  function addressAt(e){const r=isMobile()?18:9,box=[[e.point.x-r,e.point.y-r],[e.point.x+r,e.point.y+r]],layers=['adr-pt','adr-hit','adr-lbl'].filter(id=>map.getLayer(id));if(!layers.length)return null;const hit=AddressPicking.closest(map.queryRenderedFeatures(box,{layers}),e.point,c=>map.project(c));if(!hit)return null;const p={...hit.properties,lon:hit.geometry.coordinates[0],lat:hit.geometry.coordinates[1]};return {...p,label:adrText(p)};}
   function padding() { const distance=window.DistanceModule?.isOpen();return isMobile() ? { top: distance?150:140, bottom: distance?window.DistanceModule.height()+35:visibleSheet()+80, left:24,right:65 } : { top:90,bottom:40,left:distance?380:document.body.classList.contains("collapsed")?40:380,right:70 }; }
 
   function frame(bounds,maxZoom=18) {if(isMobile()&&visibleSheet()>window.innerHeight*.6)snap('peek');map.stop();map.setPadding({top:0,bottom:0,left:0,right:0});map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]],{padding:padding(),maxZoom,duration:650,retainPadding:false});}
@@ -490,8 +477,7 @@
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
-  dark.addEventListener("change", () => { if ((bmId === "map" || bmId === "gp-topo") && map.isStyleLoaded()) setBasemap(bmId, false); });
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, clearPlace, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();},
+  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, clearPlace, addressAt, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();document.dispatchEvent(new CustomEvent('plots:parcel-colors',{detail:mode}));},
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
     showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };

@@ -12,3 +12,11 @@ Kontrola 31.10.2026: rozdzielenie miasta Ustka (`2212011`) i gminy wiejskiej Ust
 ## Wyświetlane granice od 01.11.2026
 
 Granice wybranej gminy są pobierane bezpośrednio z `administracja.gminypolskie`, a obszar miasta w gminie miejsko-wiejskiej z `administracja.miastapolskie`. Obie warstwy są w EPSG:2180. Wyświetlenie używa pełnej geometrii bez uproszczenia, po transformacji do WGS84. Test punktu również używa `administracja.gminypolskie` z indeksem GiST; zapisany krajowy TopoJSON pozostaje jedynie awaryjnym kontekstem offline. Wszystkie zapytania są do odczytu.
+
+## Uzupełnienie 10.11.2026
+
+Sprawdzono wszystkie 440 dotychczasowych braków. Dodano 246 obrazów; łącznie manifest zawiera 2285 gmin, z czego 1225 ma lokalny obraz. Pozostało 194 bez zatwierdzonego przypisania. Każdy nowy wpis łączy dokładny siedmiocyfrowy TERYT z infoboksu jednostki z jej typem, powiatem i województwem. Wykorzystano herb z tego infoboksu albo obraz z powiązanej strony urzędu/BIP. Dla gmin wiejskich odrzucono pliki miejskie dobrane tylko nazwą; obrazy poddano przeglądowi wizualnemu. Odrzucono 11 kandydatów, m.in. logotypy, projekt, pieczęć oraz symbol sołectwa Meszna zamiast gminy Wilkowice.
+
+Bircza ma dodatkowe potwierdzenie w statucie miasta i gminy (Dz. Urz. Woj. Podkarpackiego 2024/1015); nietypowy zestaw herbów Buczkowic zweryfikowano także w serwisie eUrzad gminy. Brąszewice publikują uchwałę XX/122/2025 w BIP: https://braszewice.bip.net.pl/?a=4234 .
+
+Pełna ścieżka każdego nowego przypisania: `crest-verification.json`. Obrazy zachowują treść źródła, są skalowane do maks. 160×180 i zapisane bezstratnie w WebP w osobnym pakiecie. To weryfikacja identyfikacji i źródłowego obrazu, nie poświadczenie obowiązywania każdej uchwały. Braki nie oznaczają, że jednostka prawnie nie ma herbu.

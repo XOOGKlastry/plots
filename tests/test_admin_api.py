@@ -5,6 +5,12 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'server'))
 import public_api
 
 class AdministrationTests(unittest.TestCase):
+    def test_exact_address_and_unrelated_point(self):
+        client=public_api.app.test_client()
+        self.assertEqual(client.get('/api/adres-punkt?lon=16.8545485&lat=54.5879904').get_json()['address'],'Marynarki Polskiej 1, Ustka')
+        self.assertIsNone(client.get('/api/adres-punkt?lon=0&lat=0').get_json()['address'])
+        self.assertEqual(client.get('/api/adres-punkt?lon=nan&lat=0').status_code,400)
+
     def test_full_municipality_and_city_sources(self):
         response=public_api.app.test_client().get('/api/gmina-granice?id=1007013')
         self.assertEqual(response.status_code,200)

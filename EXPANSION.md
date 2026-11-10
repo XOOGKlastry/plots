@@ -46,3 +46,5 @@ Service worker zapisuje interfejs, katalogi i dane referencyjne. Zapisane profil
 GitHub Pages nadal publikuje `docs/`. Przy wdrożeniu lokalnego API skopiuj wszystkie nowe pliki z `docs/` oraz `server/public_api.py` i uruchom ponownie proces API. Nie podmieniaj aktualnego `config.js`. Cofnięcie commita odtwarza poprzedni interfejs; service worker ma wersjonowany cache i powinien zostać zaktualizowany przy rollbacku.
 
 Aktualna organizacja karty miejsca, osobnego modułu odległości i dostępności na budynkach jest opisana w `INTERACTIONS.md`; zastępuje wcześniejszy panel dojść i poligony zasięgu.
+
+Aktualizacja 10.11.2026: Topo usunięto; pozostają Mapa/Ortofoto i nakładki działek. Kolorystyka jest zawsze jasna. Moduł obsługuje automatyczne trzy dojścia/dojazdy pieszo, samochodem i rowerem; szczegóły oraz zakres danych w INTERACTIONS.md.

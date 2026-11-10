@@ -48,7 +48,7 @@ Dla wybranego adresu, działki, punktu lub budynku można osobno pobrać trzy na
 
 ## Kontroler i wskaźniki
 
-Kontroler warstw zawiera trzy podkłady i trzy zwijane grupy: planowanie, ceny oraz wygląd/informacje. Działki, adresy i granice wybranej gminy są domyślnie włączone, zależnie od skali i trybu. Ustawienia techniczne pozostają w ostatniej grupie. Usługi i dojścia mają własny moduł. Oddzielny przycisk kolorów działek przełącza neutralne granice i grupy rejestrowe; legenda znajduje się przy tym wyborze.
+Kontroler warstw zawiera dwa podkłady (Mapa i Ortofoto), jawne nakładki działek/adresów/granic/kolorów oraz i trzy zwijane grupy: planowanie, ceny oraz wygląd/informacje. Działki, adresy i granice wybranej gminy są domyślnie włączone, zależnie od skali i trybu. Ustawienia techniczne pozostają w ostatniej grupie. Usługi i dojścia mają własny moduł. Oddzielny przycisk kolorów działek przełącza neutralne granice i grupy rejestrowe; legenda znajduje się przy tym wyborze.
 
 Przegląd gminy grupuje sześć głównych wskaźników w ludność/demografię, finanse oraz mieszkanie/infrastrukturę. Każdy wskaźnik i kategoria mają lokalną ikonę Phosphor. Dalsze wskaźniki, źródła i roczniki pozostają w tematycznych zakładkach. Zasady 20/60/20 i braków danych opisano wyżej. Animacje respektują ustawienie ograniczenia ruchu.
 
@@ -63,3 +63,13 @@ Testy jednostkowe obejmują m.in. progi kodowania odległości, brak połączeni
 `ui-history.js` zapisuje otwarte panele w historii tej samej strony. Przycisk Wstecz zamyka najpierw panel warstw/kolorów, następnie moduł lub profil gminy; nie opuszcza od razu aplikacji. Wejście do odległości z działki zastępuje wpis działki, więc cofnięcie nie odtwarza jej zaznaczenia. Przełączenie z odległości do danych gminy zastępuje moduł profilem. Programowe zamknięcia nie dodają pustych wpisów historii.
 
 W telefonie poziomy gest na treści profilu przechodzi do sąsiedniej kategorii. Pionowe przewijanie, formularze, linki, wielodotyk i gesty od krawędzi ekranu pozostają niezależne. Pasek kategorii przewija się do aktywnego przycisku; działa również klawiatura. Gest nie zmienia rocznika ani gminy. Animacje respektują ograniczenie ruchu.
+
+## Dojazdy i panel od 10.11.2026
+
+Trzy najbliższe obiekty są pobierane automatycznie po zmianie punktu, kategorii albo sposobu podróży. Routing używa osobnych modeli `pedestrian`, `auto` i `bicycle`; cache zawiera także sposób podróży, a zmiana unieważnia starsze odpowiedzi. Ranking dotyczy odległości po wybranej sieci w promieniu 25 km; limit sprawdzonych kandydatów nadal jest jawny. Nie uwzględnia ruchu drogowego na żywo. Kolory budynków, suwak i wcześniejsze dane dostępności dotyczą wyłącznie pieszych i są ukryte przy samochodzie/rowerze, gdzie prezentowane są dojazdy od punktu. Sprawdzono rzeczywiste odpowiedzi wszystkich trzech modeli dla Ustki.
+
+Adres klikniętego punktu PRG jest pokazany od razu z kafla. Dla współrzędnych API `/api/adres-punkt` sprawdza punkt adresowy w promieniu 3 m, z filtrem przestrzennym w CRS źródła i pomiarem w EPSG:2180. Błąd nie usuwa poprawnych współrzędnych, a stara odpowiedź nie zmienia etykiety nowego punktu. Grupy rejestrowe są widoczne w głównej karcie działki.
+
+Panel telefonu można przeciągać za uchwyt/nagłówek między trzema wysokościami. Przesuwanie zmienia wysokość na bieżąco; puszczenie wybiera pozycję według położenia i prędkości. Formularze i suwak mają własną obsługę, wielodotyk anuluje przeciąganie. Zwijanie nie anuluje danych ani punktu analizy.
+
+Topo usunięto także z odtwarzania zapisanej preferencji. Domyślny podkład i interfejs są jasne na każdym urządzeniu; wcześniejszy automatyczny wybór według systemowego motywu powodował ciemną mapę telefonu.

@@ -34,8 +34,8 @@ const parcel = { id_dzialki: '221201_1.0001.123/4', numer_dzialki: '123/4', obre
   await page.screenshot({path:path.join(output,'desktop-data.png')});
   await page.keyboard.press('Escape');
   await page.locator('#layersFab').click();
-  assert.equal(await page.locator('#basemaps .bm').count(),3);
-  for(const id of ['gp-orto','gp-topo','map']) {
+  assert.equal(await page.locator('#basemaps .bm').count(),2);
+  for(const id of ['gp-orto','map']) {
     await page.locator(`.bm[data-id="${id}"]`).click();
     await page.waitForFunction(()=>window.PLOTS.map.isStyleLoaded());
     assert.ok(await page.evaluate(()=>!!PLOTS.map.getLayer('dz-fill')&&!!PLOTS.map.getSource('adresy')));

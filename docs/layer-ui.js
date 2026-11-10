@@ -16,7 +16,7 @@
   const prices=document.createElement('div');prices.id='priceLayers';prices.className='layer-group';services.after(prices);prices.append(priceEntry,legend);
   group(prices,'Ceny nieruchomości','buildings');
   const settings=document.createElement('div');settings.className='layer-settings';panel.querySelector('#noLayers').after(settings);
-  settings.append(document.getElementById('cadastralLayers'));
+  const cadastral=document.getElementById('cadastralLayers');cadastral.querySelector('h3').textContent='Nakładki';document.querySelector('#basemaps').after(cadastral);const colors=document.createElement('div');colors.className='layer-entry';colors.dataset.keywords='kolory działek grupy rejestrowe';colors.innerHTML='<label class="sw"><input type="checkbox" id="lyrParcelColors"><span></span><div>Kolory grup rejestrowych<small>Wypełnienie działek według ewidencji</small></div></label>';cadastral.append(colors);const colorToggle=colors.querySelector('input');colorToggle.checked=PLOTS.store.get('parcelColors','outline')==='groups';colorToggle.onchange=()=>{if(colorToggle.checked&&!document.getElementById('lyrDz').checked){document.getElementById('lyrDz').checked=true;document.getElementById('lyrDz').dispatchEvent(new Event('change'));}PLOTS.setParcelColors(colorToggle.checked?'groups':'outline');};document.addEventListener('plots:parcel-colors',e=>colorToggle.checked=e.detail==='groups');
   const range=document.querySelector('#cadastralLayers .range');if(range)settings.append(range);
   for(const el of [...panel.children])if(el.id==='legendDetails'||el.id==='installApp'||el.matches('p.source-note'))settings.append(el);
   group(settings,'Wygląd i informacje','sliders-horizontal');

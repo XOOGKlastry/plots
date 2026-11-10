@@ -13,7 +13,7 @@
  async function hydrate(el){
   if(el.dataset.loaded)return;el.dataset.loaded='true';
   try{const meta=await ready(),entry=meta.entries[el.dataset.crest];if(!entry){el.title='Brak zweryfikowanego herbu w źródle';return;}
-   const url=await load(entry);if(!el.isConnected)return;const a=document.createElement('a');a.href='https://commons.wikimedia.org/wiki/File:'+encodeURIComponent(entry.file);a.target='_blank';a.rel='noopener noreferrer';a.title='Herb · źródło: Wikimedia Commons';const img=document.createElement('img');img.alt='Herb gminy '+el.dataset.name;img.width=56;img.height=64;img.decoding='async';img.src=url;img.onerror=()=>{a.remove();el.title='Nie udało się wczytać herbu';};img.onload=()=>{el.querySelector('svg')?.remove();};a.append(img);el.append(a);
+   const url=await load(entry);if(!el.isConnected)return;const a=document.createElement('a');a.href=entry.source&&/^https?:\/\//.test(entry.source)?entry.source:'https://commons.wikimedia.org/wiki/File:'+encodeURIComponent(entry.file);a.target='_blank';a.rel='noopener noreferrer';a.title='Herb · otwórz źródło i weryfikację';const img=document.createElement('img');img.alt='Herb gminy '+el.dataset.name;img.width=56;img.height=64;img.decoding='async';img.src=url;img.onerror=()=>{a.remove();el.title='Nie udało się wczytać herbu';};img.onload=()=>{el.querySelector('svg')?.remove();};a.append(img);el.append(a);
   }catch{el.title='Herb chwilowo niedostępny';}
  }
  function scan(){document.querySelectorAll('[data-crest]:not([data-loaded])').forEach(hydrate);}
