@@ -6,6 +6,5 @@
  button.onclick=()=>{if(!palette.hidden){closePalette();return;}app.closeLayers();palette.hidden=false;window.UIHistory?.open('palette',closePalette);document.body.classList.add('colors-open');palette.querySelectorAll('[data-parcel-colors]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.parcelColors===app.store.get('parcelColors','outline'))));};
  palette.onclick=e=>{if(e.target.closest('[data-close-palette]'))closePalette();const b=e.target.closest('[data-parcel-colors]');if(b){app.setParcelColors(b.dataset.parcelColors);palette.querySelectorAll('[data-parcel-colors]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));document.getElementById('paletteLegend').hidden=b.dataset.parcelColors!=='groups';}};
  const legend=document.getElementById('legendDetails');if(legend){document.getElementById('paletteLegend').append(legend);document.getElementById('paletteLegend').hidden=app.store.get('parcelColors','outline')!=='groups';}
- const distance=document.createElement('button');distance.id='distanceFab';distance.className='fab distance-fab';distance.dataset.openDistance='';distance.innerHTML=icon('person-simple-walk')+'<span>Odległości</span>';document.body.append(distance);
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closePalette();});window.PlaceUI={closePalette};
 })();

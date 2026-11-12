@@ -23,3 +23,5 @@
   }
   if(new URLSearchParams(location.search).get("view")==="gminy")app.showGmina();
 })();
+/* MapLibre opens the compact attribution expanded; on a phone it then covers the map, so start it collapsed. */
+(function(){const app=window.PLOTS;if(!app?.map)return;const fold=()=>{if(app.isMobile())document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show').forEach(el=>{el.classList.remove('maplibregl-compact-show');el.removeAttribute('open');});};if(app.map.loaded())fold();else app.map.once('load',()=>setTimeout(fold,50));})();

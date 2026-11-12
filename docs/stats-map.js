@@ -99,11 +99,13 @@
     const sorted = [...current.values.entries()].sort((a, b) => b[1].value - a[1].value);
     const yrs = current.usedYears, yearText = !yrs.length ? "" : yrs.length === 1 ? String(yrs[0]) : `${yrs[0]}–${yrs[yrs.length - 1]}`;
     const missing = gminy.length - current.values.size;
-    $("#statsCurrent").innerHTML = `<small>${icon("chart-bar")}${esc(def.category)}</small><strong>${esc(def.label)}</strong><span>${esc(unit())}${yearText ? " · " + yearText : ""}</span>${icon("caret-down", "stats-caret")}`;
+    $("#statsCurrent").innerHTML = `<small style="--cat:${window.IndicatorIcons.of(def).color}">${icon(window.IndicatorIcons.of(def).icon)}${esc(def.category)} · ${esc(window.IndicatorIcons.of(def).group)}</small><strong>${esc(def.label)}</strong><span>${esc(unit())}${yearText ? " · " + yearText : ""}</span>${icon("caret-down", "stats-caret")}`;
     $("#statsYear").innerHTML = `<option value="">Najnowszy</option>` + current.years.slice(0, 6).map(y => `<option value="${y}" ${state.year === y ? "selected" : ""}>${y}</option>`).join("");
     $("#statsMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === state.mode));
     $("#statsMethod").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.method === state.method));
-    $("#statsPalettes").innerHTML = Object.entries(S.palettes).map(([id, p]) => `<button type="button" data-palette="${id}" title="${esc(p.label)}" aria-label="Paleta ${esc(p.label)}" aria-pressed="${id === current.palette}" style="background:linear-gradient(90deg,${(state.reverse ? p.colors.slice().reverse() : p.colors).join(",")})"></button>`).join("") + `<button type="button" class="stats-reverse" data-reverse aria-pressed="${state.reverse}" title="Odwróć kolory">${icon("arrows-down-up")}</button>`;
+    const grad = p => `linear-gradient(90deg,${(state.reverse ? p.colors.slice().reverse() : p.colors).join(",")})`;
+    $("#statsPalettes").innerHTML = `<button type="button" data-palette="auto" aria-pressed="${!state.palette}"><i style="background:${grad(S.palettes[current.palette])}"></i><span>Automatycznie<small>dobrana do tematu</small></span></button>` + Object.entries(S.palettes).map(([id, p]) => `<button type="button" data-palette="${id}" aria-pressed="${!!state.palette && id === current.palette}"><i style="background:${grad(p)}"></i><span>${esc(p.label)}${p.diverging ? "<small>dla wartości ±</small>" : ""}</span></button>`).join("");
+    $("#statsReverse").checked = state.reverse;
     $("#statsLegend").innerHTML = `<div class="stats-bar">${items.map(i => `<i style="background:${i.color}"></i>`).join("")}</div><div class="stats-bar-axis"><span>${esc(S.format(scheme.min, def.digits))}</span><span>${esc(unit())}</span><span>${esc(S.format(scheme.max, def.digits))}</span></div><ol>${items.map(i => `<li><i style="background:${i.color}"></i><span>${esc(i.label)}</span><small>${i.count.toLocaleString("pl-PL")}</small></li>`).join("")}${missing ? `<li class="nodata"><i></i><span>Brak danych</span><small>${missing.toLocaleString("pl-PL")}</small></li>` : ""}</ol>`;
     $("#statsHist").innerHTML = hist.length ? `<svg viewBox="0 0 ${hist.length * 10} 46" preserveAspectRatio="none" aria-hidden="true">${hist.map((b, i) => { const h = Math.max(1, (b.count / peak) * 44); return `<rect x="${i * 10 + 1}" y="${46 - h}" width="8" height="${h}" rx="1.5" fill="${S.colorOf((b.from + b.to) / 2, scheme)}"/>`; }).join("")}</svg><div class="stats-hist-axis"><span>${esc(S.format(hist[0].from, def.digits))}</span><span>rozkład gmin</span><span>${esc(S.format(hist.at(-1).to, def.digits))}</span></div>` : "";
     $("#statsSelected").innerHTML = selectedHtml();
@@ -113,20 +115,21 @@
     syncUrl();
   }
 
+  const ORDER = ["Ludność", "Finanse i firmy", "Warunki życia", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Przegląd"];
+  let pickCat = "";
   function pickerList(q) {
-    const needle = model.normalize(q || "");
-    const groups = new Map();
-    for (const d of defs) {
-      if (needle && !model.normalize(d.label + " " + d.category + " " + (d.unit || "")).includes(needle)) continue;
-      if (!groups.has(d.category)) groups.set(d.category, []);
-      groups.get(d.category).push(d);
-    }
-    $("#statsList").innerHTML = [...groups].map(([cat, list]) => `<h3>${esc(cat)}</h3><ul>${list.map(d => `<li><button type="button" data-stat="${esc(d.key)}" aria-current="${d.key === state.key}"><span class="stats-swatch" style="background:linear-gradient(90deg,${S.palettes[S.categoryPalette[d.category] || "viridis"].colors.join(",")})"></span><span>${esc(d.label)}<small>${esc(d.unit || "")}${d.level === 5 ? " · powiat" : ""}</small></span></button></li>`).join("")}</ul>`).join("") || `<p class="muted small">Brak pasujących wskaźników.</p>`;
+    const I = window.IndicatorIcons, needle = model.normalize(q || "");
+    const all = I.group(defs, ORDER);
+    $("#statsCats").innerHTML = `<button type="button" role="tab" data-pick-cat="" aria-selected="${!pickCat}">${icon("squares-four")}<span>Wszystkie</span></button>` + all.map(c => `<button type="button" role="tab" data-pick-cat="${esc(c.category)}" aria-selected="${pickCat === c.category}" style="--cat:${c.color}">${icon(c.icon)}<span>${esc(c.category)}</span></button>`).join("");
+    const chip = $("#statsCats [aria-selected=true]"), bar = $("#statsCats"); if (chip) requestAnimationFrame(() => { bar.scrollLeft += chip.getBoundingClientRect().left - bar.getBoundingClientRect().left - 40; });
+    const match = d => !needle || model.normalize(d.label + " " + d.category + " " + I.of(d).group + " " + (d.unit || "")).includes(needle);
+    const cats = I.group(defs.filter(d => match(d) && (needle || !pickCat || d.category === pickCat)), ORDER);
+    $("#statsList").innerHTML = cats.map(c => `<h3 style="--cat:${c.color}">${icon(c.icon)}${esc(c.category)}</h3>${c.groups.map(g => `${c.groups.length > 1 ? `<h4>${esc(g.label)}</h4>` : ""}<ul>${g.items.map(d => `<li><button type="button" data-stat="${esc(d.key)}" aria-current="${d.key === state.key}"><span class="stats-ico" style="--cat:${c.color}">${icon(I.of(d).icon)}</span><span>${esc(d.label)}<small>${esc(d.unit || "")}${d.level === 5 ? " · dane powiatu" : ""}</small></span></button></li>`).join("")}</ul>`).join("")}`).join("") || `<p class="muted small">Brak pasujących wskaźników.</p>`;
   }
   function togglePicker(open) {
     const picker = $("#statsPicker"), show = open ?? picker.hidden;
     picker.hidden = !show; $("#statsCurrent").setAttribute("aria-expanded", show);
-    if (show) { pickerList($("#statsSearch").value); if (!app.isMobile()) $("#statsSearch").focus(); else { sheet(true); panel.scrollTop = 0; } }
+    if (show) { pickCat = current?.def?.category || ""; pickerList($("#statsSearch").value); if (!app.isMobile()) $("#statsSearch").focus(); else { sheet(true); panel.scrollTop = 0; } }
   }
   function update() { compute(); render(); paint(); }
   /* Phone: the panel is a bottom sheet with a compact state (indicator, colour bar, chosen gmina) and an expanded one. */
@@ -209,8 +212,8 @@
     else if (b.id === "statsHandle") sheet(document.body.classList.contains("stats-mini"));
     else if (b.dataset.mode) { state.mode = b.dataset.mode; state.palette = null; update(); }
     else if (b.dataset.method) { state.method = b.dataset.method; update(); }
-    else if (b.dataset.palette) { state.palette = b.dataset.palette; update(); }
-    else if (b.hasAttribute("data-reverse")) { state.reverse = !state.reverse; update(); }
+    else if (b.dataset.palette) { state.palette = b.dataset.palette === "auto" ? null : b.dataset.palette; update(); }
+    else if (b.hasAttribute("data-pick-cat")) { pickCat = b.dataset.pickCat; pickerList($("#statsSearch").value); }
     else if (b.dataset.statsGmina) { const id = b.dataset.statsGmina, f = geo.features.find(x => x.properties.k === id); choose(id); if (f) { const pts = f.geometry.coordinates.flat(2); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: app.isMobile() ? { top: 90, bottom: 250, left: 30, right: 30 } : 80, maxZoom: 10, duration: 800 }); if (app.isMobile()) sheet(false); } }
   });
   let swipeY = null, swiped = 0;
@@ -219,6 +222,7 @@
     if (swipeY === null) return; const dy = e.clientY - swipeY; swipeY = null;
     if (Math.abs(dy) > 25) { sheet(dy < 0); swiped = Date.now(); }
   });
+  $("#statsReverse").addEventListener("change", e => { state.reverse = e.target.checked; update(); });
   $("#statsYear").addEventListener("change", e => { state.year = e.target.value ? Number(e.target.value) : null; update(); });
   $("#statsSearch").addEventListener("input", e => pickerList(e.target.value));
   document.addEventListener("click", e => {
