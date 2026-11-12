@@ -53,3 +53,4 @@ test('parcel TERYT parsing keeps leading zeroes and rejects incomplete IDs', () 
   assert.equal(model.parcelTeryt('221201_1.0001.1'), '2212011');
   assert.equal(model.parcelTeryt('123/4'), null);
 });
+test('external provider supplies values when no live GUS value exists',()=>{const m=require('../docs/gminy-model.js');m.addDefinitions([{key:'x_test',label:'X',unit:'%',category:'Planowanie',digits:1,lowerBetter:true}]);m.setExternal((k,d)=>k==='1'&&d.key==='x_test'?{value:5,year:2024,history:[{value:5,year:2024}],source:'GUS BDL'}:null);const r=m.metric({k:'1'},m.definitions.find(d=>d.key==='x_test'));require('node:assert/strict').equal(r.value,5);require('node:assert/strict').equal(r.lowerBetter,true);m.setExternal(null);});

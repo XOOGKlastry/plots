@@ -7,9 +7,9 @@
     if(!Number.isFinite(item.value)||!item.year)return {tone:'missing',label:'Brak porównywalnego rocznika',rank:null,n:0};
     const values=peers.filter(p=>p.year===item.year&&Number.isFinite(p.value)).map(p=>p.value);
     if(values.length<30)return {tone:'missing',label:'Za mało porównywalnych danych',rank:null,n:values.length};
-    const direction=lower.has(item.key)?-1:1,better=values.filter(v=>(v-item.value)*direction>0).length,ties=Math.max(1,values.filter(v=>v===item.value).length),n=values.length;
-    const tone=descriptive.has(item.key)?'neutral':(better+ties)/n<=.2?'good':better/n>=.8?'bad':'neutral';
-    return {tone,label:descriptive.has(item.key)?'Wskaźnik opisowy':tone==='good'?'Najlepsze 20%':tone==='bad'?'Najsłabsze 20%':(better/n<.2||(better+ties)/n>.8)?'Remis na granicy':'Środkowe 60%',rank:better+1,n,direction};
+    const isDescriptive=item.descriptive||descriptive.has(item.key),direction=item.lowerBetter||lower.has(item.key)?-1:1,better=values.filter(v=>(v-item.value)*direction>0).length,ties=Math.max(1,values.filter(v=>v===item.value).length),n=values.length;
+    const tone=isDescriptive?'neutral':(better+ties)/n<=.2?'good':better/n>=.8?'bad':'neutral';
+    return {tone,label:isDescriptive?'Wskaźnik opisowy':tone==='good'?'Najlepsze 20%':tone==='bad'?'Najsłabsze 20%':(better/n<.2||(better+ties)/n>.8)?'Remis na granicy':'Środkowe 60%',rank:better+1,n,direction};
   }
   function trend(item){
     const previous=item.history?.find(p=>p.year===item.year-1&&Number.isFinite(p.value));

@@ -37,7 +37,7 @@
     }).filter(Boolean).sort((a, b) => a.rank - b.rank || a.g.n.localeCompare(b.g.n, "pl") || a.g.k.localeCompare(b.g.k)).slice(0, limit).map((item) => item.g);
   }
   function metric(gmina, definition) {
-    const direct = gmina._gus?.[definition.key];
+    const direct = gmina._gus?.[definition.key] || (external && external(gmina.k, definition));
     if (direct) {
       const observation = gmina._selectedYear ? direct.history?.find(v => v.year === gmina._selectedYear) : direct;
       return { ...definition, value: observation && Number.isFinite(observation.value) ? observation.value : null, year: observation?.year || gmina._selectedYear || null, source: direct.source, sourceUrl: direct.sourceUrl, variableId: direct.variableId, history: direct.history || [] };
@@ -54,6 +54,7 @@
   function addDefinitions(items) {
     for (const item of items) {
       const definition = { key:item.key, label:item.label, unit:item.unit, category:item.category, digits:item.digits };
+      for (const flag of ["descriptive","lowerBetter","level"]) if (item[flag] !== undefined) definition[flag] = item[flag];
       const existing = definitions.find(d=>d.key===item.key);
       if(existing)Object.assign(existing,definition);else definitions.push(definition);
     }
@@ -64,7 +65,9 @@
     const value = item.value.toLocaleString("pl-PL", { maximumFractionDigits: item.digits });
     return value + (withUnit && item.unit ? " " + item.unit : "");
   }
-  const api = { definitions, normalize, parcelTeryt, search, metric, metrics, formatValue, addDefinitions };
+  let external = null;
+  function setExternal(fn) { external = typeof fn === "function" ? fn : null; }
+  const api = { definitions, normalize, parcelTeryt, search, metric, metrics, formatValue, addDefinitions, setExternal };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.GminyModel = api;
 })(typeof window !== "undefined" ? window : globalThis);

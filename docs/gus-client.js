@@ -36,11 +36,27 @@
     }).catch(e=>{pendingLocal=null;throw e;});
     return pendingLocal;
   }
+  let energyData=null,pendingEnergy=null;
+  function energy(){
+    if(!pendingEnergy)pendingEnergy=fetch("data/gus-energia.json",{signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw Error("Nie udało się wczytać danych energetycznych GUS");return r.json();}).then(doc=>{
+      if(doc.version!==1||!Array.isArray(doc.units)||!Array.isArray(doc.variables))throw Error("Nieobsługiwany format danych energetycznych");
+      const index=new Map(doc.units.map((k,i)=>[k,i])),byKey=new Map(doc.variables.map(v=>[v.key,v]));
+      root.GminyModel.addDefinitions(doc.variables.map(v=>({...v,label:v.label})));
+      root.GminyModel.setExternal((k,definition)=>{
+        const v=byKey.get(definition.key),i=index.get(k);if(!v||i===undefined)return null;
+        const history=v.years.map((year,j)=>({year,value:v.values[j][i]})).filter(o=>typeof o.value==="number"&&Number.isFinite(o.value));
+        if(!history.length)return null;
+        return {...history[0],history,source:v.level===5?"GUS BDL · dane powiatu":"GUS BDL",variableId:v.id,sourceUrl:`https://bdl.stat.gov.pl/api/v1/variables/${v.id}`};
+      });
+      energyData={built:doc.built,retrievedAt:doc.retrievedAt,count:doc.variables.length};return energyData;
+    }).catch(e=>{pendingEnergy=null;throw e;});
+    return pendingEnergy;
+  }
   function readCache(id){try{const v=JSON.parse(localStorage.getItem("plots.gus."+id)||"null");return v?.version===1&&v.values&&typeof v.at==="number"?v:null;}catch{return null;}}
   function saveCache(id,value){try{localStorage.setItem("plots.gus."+id,JSON.stringify(value));let ids=JSON.parse(localStorage.getItem("plots.gusRecent")||"[]");if(!Array.isArray(ids))ids=[];const next=[id,...ids.filter(x=>x!==id)];next.slice(20).forEach(x=>localStorage.removeItem("plots.gus."+x));localStorage.setItem("plots.gusRecent",JSON.stringify(next.slice(0,20)));}catch{/* Browsing without storage still works. */}}
   async function seed(g){await ready();const p=local.population.values[g.k];if(p)g._gus={...(g._gus||{}),ludnosc:{...p,source:"GUS BDL",variableId:72305,history:[p]}};}
   async function enrich(g,force=false){
-    await seed(g);
+    await seed(g);await energy().catch(e=>console.warn(e.message));
     const cached=memory.get(g.k)||readCache(g.k);
     if(cached){g._gus={...g._gus,...cached.values};g._gusFetched=cached.at;g._gusStatus="Zapisane dane GUS";}
     if(cached&&!force&&Date.now()-cached.at<7*86400000)return g;
@@ -61,5 +77,5 @@
     catch(error){g._gusStatus=(cached?"Pokazano zapisane dane. ":"")+error.message;}
     return g;
   }
-  root.GusClient={ready,seed,enrich,parseObservations,years:()=>local?.catalog.years||[2025,2024,2023]};
+  root.GusClient={ready,seed,enrich,energy,energyInfo:()=>energyData,parseObservations,years:()=>local?.catalog.years||[2025,2024,2023]};
 })(typeof window!=="undefined"?window:globalThis);
