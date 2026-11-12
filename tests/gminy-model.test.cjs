@@ -54,3 +54,10 @@ test('parcel TERYT parsing keeps leading zeroes and rejects incomplete IDs', () 
   assert.equal(model.parcelTeryt('123/4'), null);
 });
 test('external provider supplies values when no live GUS value exists',()=>{const m=require('../docs/gminy-model.js');m.addDefinitions([{key:'x_test',label:'X',unit:'%',category:'Planowanie',digits:1,lowerBetter:true}]);m.setExternal((k,d)=>k==='1'&&d.key==='x_test'?{value:5,year:2024,history:[{value:5,year:2024}],source:'GUS BDL'}:null);const r=m.metric({k:'1'},m.definitions.find(d=>d.key==='x_test'));require('node:assert/strict').equal(r.value,5);require('node:assert/strict').equal(r.lowerBetter,true);m.setExternal(null);});
+test('national file wins over a shorter live series of the same year, newer live data wins', () => {
+  const def = model.definitions.find(d => d.key === 'ludnosc');
+  model.setExternal(() => ({ value: 100, year: 2025, history: [{ value: 100, year: 2025 }, { value: 98, year: 2024 }], source: 'plik' }));
+  assert.equal(model.metric({ k: '1', _gus: { ludnosc: { value: 101, year: 2025, history: [{ value: 101, year: 2025 }] } } }, def).history.length, 2);
+  assert.equal(model.metric({ k: '1', _gus: { ludnosc: { value: 103, year: 2026, history: [{ value: 103, year: 2026 }] } } }, def).value, 103);
+  model.setExternal(null);
+});

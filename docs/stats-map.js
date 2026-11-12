@@ -104,7 +104,7 @@
     $("#statsMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === state.mode));
     $("#statsMethod").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.method === state.method));
     $("#statsPalettes").innerHTML = Object.entries(S.palettes).map(([id, p]) => `<button type="button" data-palette="${id}" title="${esc(p.label)}" aria-label="Paleta ${esc(p.label)}" aria-pressed="${id === current.palette}" style="background:linear-gradient(90deg,${(state.reverse ? p.colors.slice().reverse() : p.colors).join(",")})"></button>`).join("") + `<button type="button" class="stats-reverse" data-reverse aria-pressed="${state.reverse}" title="Odwróć kolory">${icon("arrows-down-up")}</button>`;
-    $("#statsLegend").innerHTML = `<div class="stats-bar">${items.map(i => `<i style="background:${i.color}"></i>`).join("")}</div><ol>${items.map(i => `<li><i style="background:${i.color}"></i><span>${esc(i.label)}</span><small>${i.count.toLocaleString("pl-PL")}</small></li>`).join("")}${missing ? `<li class="nodata"><i></i><span>Brak danych</span><small>${missing.toLocaleString("pl-PL")}</small></li>` : ""}</ol>`;
+    $("#statsLegend").innerHTML = `<div class="stats-bar">${items.map(i => `<i style="background:${i.color}"></i>`).join("")}</div><div class="stats-bar-axis"><span>${esc(S.format(scheme.min, def.digits))}</span><span>${esc(unit())}</span><span>${esc(S.format(scheme.max, def.digits))}</span></div><ol>${items.map(i => `<li><i style="background:${i.color}"></i><span>${esc(i.label)}</span><small>${i.count.toLocaleString("pl-PL")}</small></li>`).join("")}${missing ? `<li class="nodata"><i></i><span>Brak danych</span><small>${missing.toLocaleString("pl-PL")}</small></li>` : ""}</ol>`;
     $("#statsHist").innerHTML = hist.length ? `<svg viewBox="0 0 ${hist.length * 10} 46" preserveAspectRatio="none" aria-hidden="true">${hist.map((b, i) => { const h = Math.max(1, (b.count / peak) * 44); return `<rect x="${i * 10 + 1}" y="${46 - h}" width="8" height="${h}" rx="1.5" fill="${S.colorOf((b.from + b.to) / 2, scheme)}"/>`; }).join("")}</svg><div class="stats-hist-axis"><span>${esc(S.format(hist[0].from, def.digits))}</span><span>rozkład gmin</span><span>${esc(S.format(hist.at(-1).to, def.digits))}</span></div>` : "";
     $("#statsSelected").innerHTML = selectedHtml();
     $("#statsTop").innerHTML = rankList(sorted.slice(0, 5));
@@ -126,9 +126,16 @@
   function togglePicker(open) {
     const picker = $("#statsPicker"), show = open ?? picker.hidden;
     picker.hidden = !show; $("#statsCurrent").setAttribute("aria-expanded", show);
-    if (show) { pickerList($("#statsSearch").value); if (!app.isMobile()) $("#statsSearch").focus(); }
+    if (show) { pickerList($("#statsSearch").value); if (!app.isMobile()) $("#statsSearch").focus(); else { sheet(true); panel.scrollTop = 0; } }
   }
   function update() { compute(); render(); paint(); }
+  /* Phone: the panel is a bottom sheet with a compact state (indicator, colour bar, chosen gmina) and an expanded one. */
+  function sheet(expanded) {
+    const on = !!expanded;
+    document.body.classList.toggle("stats-mini", !on);
+    const h = $("#statsHandle"); h.setAttribute("aria-expanded", on); h.setAttribute("aria-label", on ? "Zwiń panel statystyk" : "Rozwiń panel statystyk");
+    if (!on) { panel.scrollTop = 0; if (!$("#statsPicker").hidden) togglePicker(false); }
+  }
 
   function syncUrl() {
     try {
@@ -151,12 +158,12 @@
     const wasActive = active; active = true; setVisible(true);
     selectedId = window.PLOTS_GMINY.current();
     update();
-    if (!wasActive) { window.UIHistory?.open("stats", () => close()); if (!options.keepView) map.fitBounds(POLAND, { padding: app.isMobile() ? { top: 80, bottom: Math.round(innerHeight * 0.47), left: 12, right: 12 } : { top: 40, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 400, right: 410 }, duration: 900 }); }
-    if (app.isMobile()) app.snap("hidden");
+    if (!wasActive) { window.UIHistory?.open("stats", () => close()); if (!options.keepView) map.fitBounds(POLAND, { padding: app.isMobile() ? { top: 84, bottom: 236, left: 10, right: 10 } : { top: 40, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 400, right: 410 }, duration: 900 }); }
+    if (app.isMobile()) { app.snap("hidden"); sheet(false); document.querySelectorAll(".maplibregl-compact-show").forEach(el => el.classList.remove("maplibregl-compact-show")); }
     if (!key && !options.keepView) togglePicker(true);
   }
   function close() {
-    active = false; panel.hidden = true; document.body.classList.remove("stats-open"); setVisible(false); popup?.remove(); togglePicker(false); syncUrl();
+    active = false; panel.hidden = true; document.body.classList.remove("stats-open", "stats-mini"); setVisible(false); popup?.remove(); togglePicker(false); syncUrl();
     window.UIHistory?.dismiss("stats");
     if (app.isMobile()) app.snap("peek");
   }
@@ -195,15 +202,22 @@
 
   // --- panel events ---
   panel.addEventListener("click", e => {
-    const b = e.target.closest("button"); if (!b) return;
+    const b = e.target.closest("button"); if (!b || Date.now() - swiped < 400) return;
     if (b.hasAttribute("data-close-stats")) close();
     else if (b.id === "statsCurrent") togglePicker();
-    else if (b.dataset.stat) { state.key = b.dataset.stat; state.palette = null; state.year = null; togglePicker(false); update(); }
+    else if (b.dataset.stat) { state.key = b.dataset.stat; state.palette = null; state.year = null; togglePicker(false); update(); if (app.isMobile()) sheet(false); }
+    else if (b.id === "statsHandle") sheet(document.body.classList.contains("stats-mini"));
     else if (b.dataset.mode) { state.mode = b.dataset.mode; state.palette = null; update(); }
     else if (b.dataset.method) { state.method = b.dataset.method; update(); }
     else if (b.dataset.palette) { state.palette = b.dataset.palette; update(); }
     else if (b.hasAttribute("data-reverse")) { state.reverse = !state.reverse; update(); }
-    else if (b.dataset.statsGmina) { const id = b.dataset.statsGmina, f = geo.features.find(x => x.properties.k === id); choose(id); if (f) { const pts = f.geometry.coordinates.flat(2); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: 80, maxZoom: 10, duration: 800 }); } }
+    else if (b.dataset.statsGmina) { const id = b.dataset.statsGmina, f = geo.features.find(x => x.properties.k === id); choose(id); if (f) { const pts = f.geometry.coordinates.flat(2); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: app.isMobile() ? { top: 90, bottom: 250, left: 30, right: 30 } : 80, maxZoom: 10, duration: 800 }); if (app.isMobile()) sheet(false); } }
+  });
+  let swipeY = null, swiped = 0;
+  panel.addEventListener("pointerdown", e => { if (app.isMobile() && (document.body.classList.contains("stats-mini") || e.target.closest("#statsHandle,.section-head"))) swipeY = e.clientY; });
+  window.addEventListener("pointerup", e => {
+    if (swipeY === null) return; const dy = e.clientY - swipeY; swipeY = null;
+    if (Math.abs(dy) > 25) { sheet(dy < 0); swiped = Date.now(); }
   });
   $("#statsYear").addEventListener("change", e => { state.year = e.target.value ? Number(e.target.value) : null; update(); });
   $("#statsSearch").addEventListener("input", e => pickerList(e.target.value));

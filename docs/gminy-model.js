@@ -37,7 +37,10 @@
     }).filter(Boolean).sort((a, b) => a.rank - b.rank || a.g.n.localeCompare(b.g.n, "pl") || a.g.k.localeCompare(b.g.k)).slice(0, limit).map((item) => item.g);
   }
   function metric(gmina, definition) {
-    const direct = gmina._gus?.[definition.key] || (external && external(gmina.k, definition));
+    // Live API data wins only when it is newer or has a longer series than the bundled national file.
+    const own = gmina._gus?.[definition.key], ext = external && external(gmina.k, definition);
+    const newer = (a, b) => (a.year || 0) > (b.year || 0) || ((a.year || 0) === (b.year || 0) && (a.history?.length || 0) > (b.history?.length || 0));
+    const direct = own && ext ? (newer(own, ext) ? own : ext) : own || ext;
     if (direct) {
       const observation = gmina._selectedYear ? direct.history?.find(v => v.year === gmina._selectedYear) : direct;
       return { ...definition, value: observation && Number.isFinite(observation.value) ? observation.value : null, year: observation?.year || gmina._selectedYear || null, source: direct.source, sourceUrl: direct.sourceUrl, variableId: direct.variableId, history: direct.history || [] };
