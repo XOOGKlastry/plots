@@ -17,11 +17,11 @@
     "Ludność": [[/gestosc/, "Liczba i gęstość", "users-three"], [/ludnosc/, "Liczba i gęstość", "users"], [/urodzenia/, "Ruch naturalny i migracje", "baby"], [/zgony/, "Ruch naturalny i migracje", "heartbeat"], [/przyrost/, "Ruch naturalny i migracje", "trend-up"], [/saldo|migr/, "Ruch naturalny i migracje", "arrows-left-right"], [/obciazenie|wiek/, "Struktura wieku", "wheelchair"]],
     "Finanse i firmy": [[/pit|dochod/, "Dochody", "money"], [/firmy|regon/, "Przedsiębiorczość", "storefront"], [/bezroboc|prac/, "Rynek pracy", "briefcase"]],
     "Warunki życia": [[/kanal|wodoc/, "Woda i kanalizacja", "drop"], [/mieszk/, "Mieszkania", "house"]],
-    "Energia i ciepło": [[/^gaz|_gaz/, "Gaz", "flame"], [/ciepl|kotlown|_co_/, "Ciepło", "thermometer-hot"], [/prad/, "Prąd", "lightning"], [/^ep_/, "Energooszczędność budynków", "leaf"]],
+    "Energia i ciepło": [[/^gaz|_gaz/, "Gaz", "flame"], [/ciepl|kotlown|_co_/, "Ciepło", "thermometer-hot"], [/prad/, "Prąd", "lightning"], [/turbin|wiatr/, "OZE i elektromobilność", "wind"], [/ladowar/, "OZE i elektromobilność", "charging-station"], [/^ep_/, "Energooszczędność budynków", "leaf"]],
     "Infrastruktura": [[/kanal|wodoc/, "Woda i kanalizacja", "drop"], [/drogi/, "Drogi", "road-horizon"], [/przem/, "Zagospodarowanie terenu", "factory"], [/tereny|zabud|zurban/, "Zagospodarowanie terenu", "buildings"]],
     "Planowanie": [[/odroln|rolne/, "Plany miejscowe", "plant"], [/mpzp|studium/, "Plany miejscowe", "map-trifold"], [/decyzj|wz/, "Decyzje lokalizacyjne", "stamp"], [/nowe_bud/, "Budownictwo", "crane"]],
-    "Edukacja i kultura": [[/zlob/, "Opieka nad dziećmi", "baby-carriage"], [/przedszk/, "Opieka nad dziećmi", "backpack"], [/czytel|bibliot/, "Kultura", "books"]],
-    "Środowisko": [[/zielen/, "Lasy i zieleń", "park"], [/las|lesn|lesist/, "Lasy i zieleń", "tree"], [/chron/, "Ochrona przyrody", "shield-check"], [/odpad/, "Odpady", "recycle"], [/wody|oczyszcz/, "Woda", "waves"], [/orne|rolne|nieuzyt/, "Rolnictwo i grunty", "plant"]],
+    "Edukacja i kultura": [[/zlob/, "Opieka nad dziećmi", "baby-carriage"], [/przedszk/, "Opieka nad dziećmi", "backpack"], [/czytel|bibliot/, "Kultura", "books"], [/muzea/, "Zabytki i muzea", "bank"], [/zabytk|twierdz/, "Zabytki i muzea", "castle-turret"]],
+    "Środowisko": [[/zielen/, "Lasy i zieleń", "park"], [/las|lesn|lesist/, "Lasy i zieleń", "tree"], [/chron|natura|rezerw|ochk|parki_proc|ochrona/, "Ochrona przyrody", "shield-check"], [/odpad/, "Odpady", "recycle"], [/wody|oczyszcz/, "Woda", "waves"], [/orne|rolne|nieuzyt/, "Rolnictwo i grunty", "plant"]],
     "Przegląd": [[/powierzch/, "Podstawowe", "ruler"]]
   };
   function of(def) {

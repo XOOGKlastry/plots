@@ -111,7 +111,7 @@
     $("#statsSelected").innerHTML = selectedHtml();
     $("#statsTop").innerHTML = rankList(sorted.slice(0, 5));
     $("#statsBottom").innerHTML = rankList(sorted.slice(-5).reverse());
-    $("#statsSource").textContent = `${def.level === 5 ? "Dane powiatów przypisane gminom. " : ""}Źródło: GUS BDL${def.variableId ? "" : ""}. ${current.values.size.toLocaleString("pl-PL")} gmin z danymi${state.year ? "" : "; każda gmina pokazuje najnowszy dostępny rok"}. Podział: ${state.method === "equal" ? "równe przedziały" : scheme.diverging ? "kwantyle osobno poniżej i powyżej zera" : "kwantyle (podobna liczba gmin w klasie)"}.`;
+    $("#statsSource").textContent = `${def.level === 5 ? "Dane powiatów przypisane gminom. " : ""}Źródło: ${def.source || "GUS BDL"}. ${current.values.size.toLocaleString("pl-PL")} gmin z danymi${state.year ? "" : "; każda gmina pokazuje najnowszy dostępny rok"}. Podział: ${state.method === "equal" ? "równe przedziały" : scheme.diverging ? "kwantyle osobno poniżej i powyżej zera" : "kwantyle (podobna liczba gmin w klasie)"}.`;
     syncUrl();
   }
 

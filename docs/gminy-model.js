@@ -57,7 +57,7 @@
   function addDefinitions(items) {
     for (const item of items) {
       const definition = { key:item.key, label:item.label, unit:item.unit, category:item.category, digits:item.digits };
-      for (const flag of ["descriptive","lowerBetter","level"]) if (item[flag] !== undefined) definition[flag] = item[flag];
+      for (const flag of ["descriptive","lowerBetter","level","source"]) if (item[flag] !== undefined) definition[flag] = item[flag];
       const existing = definitions.find(d=>d.key===item.key);
       if(existing)Object.assign(existing,definition);else definitions.push(definition);
     }

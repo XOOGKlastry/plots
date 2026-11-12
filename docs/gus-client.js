@@ -46,7 +46,7 @@
         const v=byKey.get(definition.key),i=index.get(k);if(!v||i===undefined)return null;
         const history=v.years.map((year,j)=>({year,value:v.values[j][i]})).filter(o=>typeof o.value==="number"&&Number.isFinite(o.value));
         if(!history.length)return null;
-        return {...history[0],history,source:v.level===5?"GUS BDL · dane powiatu":"GUS BDL",variableId:v.id,sourceUrl:`https://bdl.stat.gov.pl/api/v1/variables/${v.id}`};
+        return {...history[0],history,source:v.source||(v.level===5?"GUS BDL · dane powiatu":"GUS BDL"),variableId:v.id,sourceUrl:v.sourceUrl||(v.id?`https://bdl.stat.gov.pl/api/v1/variables/${v.id}`:undefined)};
       });
       energyData={built:doc.built,retrievedAt:doc.retrievedAt,count:doc.variables.length};return energyData;
     }).catch(e=>{pendingEnergy=null;throw e;});
