@@ -77,7 +77,7 @@
   }
   function metricCard(item) {
     const a=assessment(item);
-    return `<article class="indicator-card score-${a.tone}"><header><span class="metric-caption">${Icons.svg(categoryIcons[item.category]||'buildings','metric-symbol')}<span>${esc(item.label)}</span></span><span class="score-pill">${Icons.svg(a.tone==='good'?'check-circle':a.tone==='bad'?'warning-circle':'minus-circle')} ${esc(a.label)}</span></header><div class="indicator-value">${esc(model.formatValue(item,false))}<small>${esc(item.unit)}</small></div><div class="indicator-context"><span>${a.rank?`Pozycja <b>${a.rank.toLocaleString('pl-PL')}</b> / ${a.n.toLocaleString('pl-PL')}`:'Pozycja —'}</span><span>${a.trend.direction?Icons.svg(a.trend.direction==='up'?'trend-up':a.trend.direction==='down'?'trend-down':'minus'):""}${esc(a.trend.text)}</span></div><footer>${item.year||'Rok niepodany'} · ${esc(item.source)}</footer></article>`;
+    return `<article class="indicator-card score-${a.tone}"><header><span class="metric-caption">${Icons.svg(categoryIcons[item.category]||'buildings','metric-symbol')}<span>${esc(item.label)}</span></span><span class="score-pill">${Icons.svg(a.tone==='good'?'check-circle':a.tone==='bad'?'warning-circle':'minus-circle')} ${esc(a.label)}</span></header><div class="indicator-value">${esc(model.formatValue(item,false))}<small>${esc(item.unit)}</small></div><div class="indicator-context"><span>${a.rank?`Pozycja <b>${a.rank.toLocaleString('pl-PL')}</b> / ${a.n.toLocaleString('pl-PL')}`:'Pozycja —'}</span><span>${a.trend.direction?Icons.svg(a.trend.direction==='up'?'trend-up':a.trend.direction==='down'?'trend-down':'minus'):""}${esc(a.trend.text)}</span></div><footer><span>${item.year||'Rok niepodany'} · ${esc(item.source)}</span>${window.StatsMap&&Number.isFinite(item.value)?`<button type="button" class="stat-map-link" data-stat-map="${esc(item.key)}">${Icons.svg('map-trifold')}Mapa Polski</button>`:''}</footer></article>`;
   }
   function rows(items) {return `<div class="indicator-grid">${items.map(metricCard).join('')}</div>`;}
   function renderDetails() {
@@ -129,6 +129,7 @@
       if(dialog.open&&selected)renderDetails();
     },
     current: () => selected?.k || null,
+    async all() { await load(); return data.gminy; },
     async search(query) { await load(); return model.search(data.gminy, query).map((g) => ({ kind: "gmina", data: g, title: g.n, sub: `${g.typ || "Gmina"} · ${region(g)} · TERYT ${g.k}` })); }
   };
   $("#gminaCard").addEventListener("click", (e) => {

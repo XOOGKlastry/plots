@@ -13,7 +13,7 @@
  }
  async function select(id,fit=false){
   if(current!==id){current=id;revision++;data=null;render();}const run=revision;if(!id)return false;
-  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit&&app.currentTab()==='gmina'){app.frame(value.bbox,16);return true;}return true;}
+  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){app.frame(value.bbox,16);return true;}return true;}
   catch(error){if(run===revision&&fit)app.toast('Granice gminy są chwilowo niedostępne');return false;}
  }
  function initialize(){
