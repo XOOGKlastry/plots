@@ -7,6 +7,7 @@
     "Finanse i firmy": { icon: "coins", color: "#2f8f6f" },
     "Warunki życia": { icon: "house", color: "#1c8fb0" },
     "Energia i ciepło": { icon: "lightning", color: "#e0573e" },
+    "Usługi": { icon: "storefront", color: "#c2185b" },
     "Infrastruktura": { icon: "road-horizon", color: "#1a7f99" },
     "Planowanie": { icon: "map-trifold", color: "#e8803a" },
     "Edukacja i kultura": { icon: "books", color: "#a24bb8" },
@@ -26,6 +27,7 @@
   };
   function of(def) {
     const cat = categories[def.category] || categories["Przegląd"];
+    if (def.group) return { group: def.group, icon: def.icon || cat.icon, color: cat.color };
     for (const [re, group, icon] of rules[def.category] || []) if (re.test(def.key)) return { group, icon, color: cat.color };
     return { group: "Inne", icon: cat.icon, color: cat.color };
   }

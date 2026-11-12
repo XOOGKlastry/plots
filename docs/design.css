@@ -176,3 +176,20 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 
 /* Phone: lists inside sheets must not be their own (empty) scroll areas, or overscroll-behavior swallows the swipe. */
 @media(max-width:767px){.stats-picker,.distance-catalog{overflow:visible;overscroll-behavior:auto;max-height:none}}
+
+/* Gmina compendium: Wikipedia section and national highlights. */
+.wiki-card{background:var(--solid);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flow-root}
+.wiki-photo{float:right;width:min(42%,260px);aspect-ratio:4/3;object-fit:cover;border-radius:10px;margin:0 0 8px 12px;background:var(--line)}
+.wiki-text{font-size:13.5px;line-height:1.55;max-height:7.6em;overflow:hidden;position:relative}.wiki-text p{margin:0 0 .6em}
+.wiki-card:not(.open) .wiki-text:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.4em;background:linear-gradient(transparent,var(--solid))}
+.wiki-card.open .wiki-text{max-height:none}
+.wiki-more{border:0;background:none;color:var(--acc);font-weight:600;padding:4px 0;cursor:pointer;font-size:13px}
+.wiki-facts{clear:both;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:10px 0 6px}
+.wiki-fact{border-top:1px solid var(--line);padding-top:6px}.wiki-fact dt{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}.wiki-fact dd{margin:2px 0 0;font-size:13px;overflow-wrap:anywhere}
+.wiki-license{font-size:11px;color:var(--mut);margin:6px 0 0}.wiki-license a{color:inherit}
+.highlight-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.highlight-list li{display:flex;align-items:center;gap:10px;background:var(--solid);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.hl-rank{flex:0 0 auto;min-width:36px;font-weight:700;font-size:18px;color:#2f9461}
+.hl-body{flex:1;display:flex;align-items:center;gap:8px;min-width:0;font-size:13.5px}.hl-body .ic{flex:none;width:18px;height:18px;color:var(--mut)}.hl-body small{display:block;color:var(--mut);font-size:11.5px}
+.highlight-list .stat-map-link{flex:none;min-width:40px;min-height:40px;justify-content:center}
+@media(max-width:767px){.wiki-photo{float:none;width:100%;margin:0 0 10px}.wiki-facts{grid-template-columns:1fr 1fr}}
