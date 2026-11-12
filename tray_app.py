@@ -148,6 +148,52 @@ def _write_config(url: str) -> None:
     CONFIG_JS.write_text(n, encoding="utf-8")
 
 
+def _publish_config(url: str) -> None:
+    """Wypchnij nowy adres tunelu do GitHub Pages (adres trycloudflare zmienia się po każdym starcie)."""
+    git = ["git", "-C", str(ROOT), "-c", "user.name=XOOGKlastry",
+           "-c", "user.email=213090894+XOOGKlastry@users.noreply.github.com"]
+    run = lambda *a, **k: subprocess.run(git + list(a), capture_output=True, text=True, timeout=120,
+                                          creationflags=_no_window(), **k)
+    try:
+        if not run("status", "--porcelain", "docs/config.js").stdout.strip():
+            return
+        run("pull", "--rebase", "--autostash", "origin", "main")
+        run("commit", "-m", f"chore: tunnel URL {url}", "--", "docs/config.js")
+        r = run("push", "origin", "HEAD:main")
+        _notify("Nowy adres tunelu wypchnięty do GitHub Pages" if r.returncode == 0 else "Nie udało się wypchnąć config.js")
+    except Exception as e:  # brak gita / sieci - mapa lokalna nadal działa
+        _notify(f"Push config.js: {e}")
+
+
+def _tunnel_ok() -> bool:
+    if not _tunnel_url or not _tunnel_proc or _tunnel_proc.poll() is not None:
+        return False
+    try:
+        import urllib.request
+        with urllib.request.urlopen(f"{_tunnel_url}/health", timeout=15) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def watchdog() -> None:
+    """Co 2 minuty sprawdza API i tunel; po awarii (uśpienie, zerwane łącze) podnosi je ponownie."""
+    failures = 0
+    while True:
+        time.sleep(120)
+        try:
+            if not _health():
+                start_api()
+            failures = 0 if _tunnel_ok() else failures + 1
+            if failures >= 2:
+                failures = 0
+                url = start_tunnel()
+                if url:
+                    _publish_config(url)
+        except Exception:
+            pass
+
+
 def start_tunnel() -> str | None:
     global _tunnel_proc, _tunnel_url
     with _lock:
@@ -297,6 +343,7 @@ def _on_restart(icon, item):
         url = start_tunnel()
         if url:
             _notify(f"Tunel: {url}")
+            _publish_config(url)
         else:
             _notify("Nie udalo sie uruchomic tunelu")
 
@@ -313,6 +360,7 @@ def bootstrap():
     url = start_tunnel()
     if url:
         _notify(f"Gotowe: {url}")
+        _publish_config(url)
     else:
         _notify("API OK, ale tunel nie wstal - Restartuj tunel")
 
@@ -338,6 +386,7 @@ def main():
     _icon = pystray.Icon("dzialki_egib", image, "Dzialki EGiB", menu)
 
     threading.Thread(target=bootstrap, daemon=True).start()
+    threading.Thread(target=watchdog, daemon=True).start()
     _icon.run()
 
 
