@@ -173,3 +173,6 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .stats-switch span:after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .15s}
 .stats-switch input:checked+span{background:var(--acc)}.stats-switch input:checked+span:after{transform:translateX(15px)}.stats-switch input:focus-visible+span{outline:2px solid var(--acc);outline-offset:2px}
 @media(max-width:767px){.stats-cats{top:44px}.stats-palettes button{min-height:44px}}
+
+/* Phone: lists inside sheets must not be their own (empty) scroll areas, or overscroll-behavior swallows the swipe. */
+@media(max-width:767px){.stats-picker,.distance-catalog{overflow:visible;overscroll-behavior:auto;max-height:none}}

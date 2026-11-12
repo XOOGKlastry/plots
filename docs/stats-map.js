@@ -136,7 +136,7 @@
   function sheet(expanded) {
     const on = !!expanded;
     document.body.classList.toggle("stats-mini", !on);
-    const h = $("#statsHandle"); h.setAttribute("aria-expanded", on); h.setAttribute("aria-label", on ? "Zwiń panel statystyk" : "Rozwiń panel statystyk");
+    const h = $("#statsHandle"); h.setAttribute("aria-expanded", on); h.setAttribute("aria-label", on ? "Zwiń panel" : "Rozwiń panel");
     if (!on) { panel.scrollTop = 0; if (!$("#statsPicker").hidden) togglePicker(false); }
   }
 
@@ -150,6 +150,8 @@
   }
 
   async function open(key, options = {}) {
+    // Map, distances and the national view are separate modes: opening this one ends the distance module.
+    if (window.DistanceModule?.isOpen()) window.DistanceModule.close();
     panel.hidden = false; app.closeLayers(); document.body.classList.add("stats-open");
     $("#statsCurrent").innerHTML = `<strong>Wczytuję dane gmin…</strong>`;
     try { await load(); } catch (e) { $("#statsCurrent").innerHTML = `<strong>Dane są chwilowo niedostępne</strong>`; app.toast(e.message); return; }

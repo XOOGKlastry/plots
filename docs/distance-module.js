@@ -70,7 +70,7 @@
   document.getElementById('analysisOriginLabel').textContent=origin?(origin.label||`${origin.lat.toFixed(5)}, ${origin.lon.toFixed(5)}`):'Wskaż na mapie';drawOrigin();sync();if(changed){originRevision++;if(origin&&!origin.label)resolveOriginAddress({...origin},originRevision);scheduleNearest();}
  }
  function open(value=null,network=null){
-  attach();const place=value||app.currentPlace();
+  if(window.StatsMap?.isOpen())window.StatsMap.close();attach();const place=value||app.currentPlace();
   if(!opened){previousPoi=document.getElementById('surPoi')?.checked||false;opened=true;panel.hidden=false;document.body.classList.toggle('distance-compact',innerHeight<700);app.setDistanceMode(true);app.clearPlace();window.UIHistory?.open('distance',()=>close({history:false}),window.UIHistory?.current()==='place');}
   setOrigin(place||origin);
   const select=document.getElementById('networkSelect');if(select&&network){select.value=network;select.dispatchEvent(new Event('change'));}renderPicker();
