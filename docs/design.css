@@ -232,19 +232,28 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .overview-hero{display:grid;gap:14px;margin:6px 0 18px}
 @media(min-width:900px){.overview-hero{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start}}
 .key-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.key-tile{background:var(--solid);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.key-tile .kt-label{font-size:11.5px;color:var(--mut)}
-.key-tile strong{font-size:21px;font-weight:700;letter-spacing:-.01em;line-height:1.2}.key-tile strong small{font-size:12px;font-weight:500;color:var(--mut);margin-left:4px}
-.key-tile .kt-sub{font-size:11px;color:var(--mut)}
 .kt-trend{font-size:11px;font-weight:600}.kt-up{color:#1a7f4b}.kt-down{color:#c0392b}.kt-flat{color:var(--mut)}
 .quick-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:12px 2px 0}.quick-facts:empty{display:none}
 .quick-facts dt{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}.quick-facts dd{margin:1px 0 0;font-size:13.5px;font-weight:600}
-.locmap{position:relative;margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--minimap-bg)}
-.locmap-main{display:block;width:100%;height:auto}
-.locmap-inset{position:absolute;top:8px;right:8px;width:30%;max-width:150px;height:auto;background:rgba(255,255,255,.92);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:2px}
-.locmap figcaption{padding:5px 10px 6px;font-size:10.5px;color:var(--mut);text-align:right;background:var(--solid);border-top:1px solid var(--line)}
-.lg-woj,.lg-pow{display:inline-block;width:16px;height:0;vertical-align:middle;margin:0 4px 0 8px;border-top:2.2px solid #4a5262}.lg-pow{border-top:1.4px dashed #4a5262;opacity:.7}
 .neighbor-list{display:flex;flex-wrap:wrap;gap:6px}
 .neighbor{border:1px solid var(--line);background:var(--solid);border-radius:12px;padding:7px 11px;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:block;color:inherit;max-width:100%}.neighbor small{display:block}
 .neighbor:hover{border-color:var(--acc);color:var(--acc)}.neighbor small{font-weight:400;color:var(--mut);font-size:11px}.neighbor .gmina-pop{font-size:.85em}
 @media(min-width:768px){.wiki-photo{width:min(34%,200px)}}
+/* Key tiles (iOS widget look) with light pictograms. */
+.key-tiles{gap:10px}
+.key-tile{background:#fff;border:0;border-radius:18px;padding:12px 13px 11px;display:flex;flex-direction:column;gap:3px;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(20,30,50,.06)}
+.kt-head{display:flex;align-items:center;gap:8px;min-height:30px}
+.kt-ico{flex:none;width:30px;height:30px;padding:5px;border-radius:9px;color:var(--kc);background:var(--kb)}
+.key-tile .kt-label{font-size:12px;font-weight:600;color:#6e6e73;line-height:1.2}
+.key-tile strong{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-top:4px;color:#1c1c1e}.key-tile strong small{font-size:12px;font-weight:500;color:#8e8e93;margin-left:4px;letter-spacing:0}
+.key-tile .kt-sub{font-size:11px;color:#8e8e93}.key-tile .kt-sub b{font-weight:600;color:#3a3a3c}
+/* Location map (Apple Maps look). */
+.locmap{position:relative;margin:0;border-radius:20px;overflow:hidden;background:#efede7;box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(20,30,50,.08)}
+.locmap-main{display:block;width:100%;height:auto}
+.locmap-inset{position:absolute;top:10px;right:10px;width:30%;max-width:150px;height:auto;background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(14px) saturate(1.6);backdrop-filter:blur(14px) saturate(1.6);border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.12);border:.5px solid rgba(255,255,255,.8)}
+.locmap figcaption{position:absolute;right:10px;bottom:9px;font-size:9.5px;color:#8e8e93;background:rgba(255,255,255,.75);padding:2px 7px;border-radius:8px}
+/* Indicator finder on the overview. */
+.ind-search{position:relative;margin:0 0 10px}.ind-search .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#8e8e93;pointer-events:none}
+.ind-search input{width:100%;box-sizing:border-box;border:0;border-radius:12px;background:rgba(118,118,128,.12);padding:11px 12px 11px 36px;font:inherit;font-size:15px;color:#1c1c1e;outline:none}
+.ind-search input:focus{background:rgba(118,118,128,.16);box-shadow:0 0 0 3px rgba(10,132,255,.25)}
+.ind-results:empty{display:none}.ind-results{margin-bottom:16px}.ind-results>p{margin:0 2px 8px}

@@ -125,50 +125,72 @@
     ctx.font = `${bold ? 700 : 500} ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.lineWidth = 3; ctx.strokeStyle = col.halo; ctx.lineJoin = "round"; ctx.strokeText(text, x, y); ctx.fillStyle = col.text; ctx.fillText(text, x, y);
   }
+  // Apple Maps-like look: warm land, soft admin lines, translucent blue area with a glow, callout label, frosted inset.
+  const MAP = { land: "#efede7", near: "#faf9f6", edge: "rgba(150,146,160,.28)", powiat: "#bfb3cf", woj: "#a68fc8", text: "#8a8a90", ink: "#1c1c1e",
+    halo: "rgba(255,255,255,.95)", blue: "#0a84ff", blueFill: "rgba(10,132,255,.16)", pl: "#e2e2e7", plEdge: "#c9c9cf" };
+  const FONT = `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif`;
+  function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function callout(ctx, text, x, y) {
+    ctx.font = `700 13px ${FONT}`; const w = ctx.measureText(text).width + 22, h = 26;
+    ctx.save(); ctx.shadowColor = "rgba(0,0,0,.18)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 2;
+    roundRect(ctx, x - w / 2, y - h / 2, w, h, h / 2); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
+    ctx.fillStyle = MAP.blue; ctx.beginPath(); ctx.arc(x - w / 2 + 11, y, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = MAP.ink; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(text, x - w / 2 + 18, y + .5);
+  }
   async function minimap(el, k, names = {}) {
     if (!el || !window.MunicipalityContext) return;
     const shapes = await window.MunicipalityContext.ready(), f = shapes.find(x => x.id === k), t = topology();
     if (!f || !t || !el.isConnected) { if (el) el.hidden = true; return; }
     el.hidden = false;
-    const [cMain, cInset] = el.querySelectorAll("canvas"), col = palette(el);
+    const [cMain, cInset] = el.querySelectorAll("canvas");
     const W = Math.max(280, Math.min(620, el.clientWidth || 360)), H = Math.round(W * 0.74);
-    // Area: the gmina with all its neighbours, padded.
     const near = new Set([k, ...(t.neighbours.get(k) || [])]);
     let bb = [Infinity, Infinity, -Infinity, -Infinity];
     for (const x of shapes) if (near.has(x.id)) bb = [Math.min(bb[0], x.bbox[0]), Math.min(bb[1], x.bbox[1]), Math.max(bb[2], x.bbox[2]), Math.max(bb[3], x.bbox[3])];
-    const px = (bb[2] - bb[0]) * 0.04, py = (bb[3] - bb[1]) * 0.04; bb = [bb[0] - px, bb[1] - py, bb[2] + px, bb[3] + py];
+    const px = (bb[2] - bb[0]) * 0.05, py = (bb[3] - bb[1]) * 0.05; bb = [bb[0] - px, bb[1] - py, bb[2] + px, bb[3] + py];
     const pr = project(bb, W, H, 0);
-    let ctx = canvas(cMain, W, H); ctx.fillStyle = col.sea; ctx.fillRect(0, 0, W, H); ctx.lineJoin = "round";
+    let ctx = canvas(cMain, W, H); ctx.fillStyle = MAP.land; ctx.fillRect(0, 0, W, H); ctx.lineJoin = "round"; ctx.lineCap = "round";
     const inView = shapes.filter(x => !(x.bbox[2] < bb[0] || x.bbox[0] > bb[2] || x.bbox[3] < bb[1] || x.bbox[1] > bb[3]));
-    for (const x of inView) { trace(ctx, x, pr); ctx.fillStyle = x === f ? col.acc : near.has(x.id) ? col.near : col.land; ctx.fill(); ctx.strokeStyle = col.edge; ctx.lineWidth = 1; ctx.stroke(); }
-    ctx.strokeStyle = col.border; ctx.globalAlpha = .6; ctx.lineWidth = 1.4; ctx.setLineDash([5, 3]); strokeArcs(ctx, t, t.kinds.powiat, pr);
-    ctx.setLineDash([]); ctx.globalAlpha = .9; ctx.lineWidth = 2.2; strokeArcs(ctx, t, t.kinds.woj, pr); strokeArcs(ctx, t, t.kinds.outline, pr); ctx.globalAlpha = 1;
-    // Names: neighbours (regular), then the gmina itself (bold, on top).
-    for (const x of inView) if (near.has(x.id) && x !== f) { const [lx, ly] = pr(labelPoint(x)); const underInset = lx > W - Math.min(150, W * 0.3) - 40 && ly < Math.min(150, W * 0.3) + 24; if (!underInset && lx > 24 && lx < W - 24 && ly > 8 && ly < H - 8) label(ctx, names[x.id] || "", lx, ly, col, false, 11); }
-    const [fx, fy] = pr(labelPoint(f)); label(ctx, names[k] || "", fx, fy, col, true, 13);
-    // Scale bar: a round length of about a fifth of the width.
-    const kmPx = pr.kmPerPx, target = W / 5 * kmPx, step = [1, 2, 5, 10, 20, 50].find(s => s >= target / 1.5) || 50, len = step / kmPx, y0 = H - 12;
-    ctx.strokeStyle = col.halo; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(10, y0); ctx.lineTo(10 + len, y0); ctx.stroke();
-    ctx.strokeStyle = col.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(10, y0); ctx.lineTo(10 + len, y0); ctx.moveTo(10, y0 - 4); ctx.lineTo(10, y0 + 4); ctx.moveTo(10 + len, y0 - 4); ctx.lineTo(10 + len, y0 + 4); ctx.stroke();
-    ctx.font = "600 11px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = col.halo; ctx.strokeText(`${step} km`, 16 + len, y0); ctx.fillStyle = col.text; ctx.fillText(`${step} km`, 16 + len, y0);
-    // Poland locator: land, voivodeships, main cities, the gmina.
+    for (const x of inView) { trace(ctx, x, pr); ctx.fillStyle = near.has(x.id) ? MAP.near : MAP.land; ctx.fill(); ctx.strokeStyle = MAP.edge; ctx.lineWidth = .8; ctx.stroke(); }
+    ctx.strokeStyle = MAP.powiat; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]); strokeArcs(ctx, t, t.kinds.powiat, pr); ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 5; strokeArcs(ctx, t, [...t.kinds.woj, ...t.kinds.outline], pr);
+    ctx.strokeStyle = MAP.woj; ctx.lineWidth = 2; ctx.setLineDash([7, 3, 1.5, 3]); strokeArcs(ctx, t, [...t.kinds.woj, ...t.kinds.outline], pr); ctx.setLineDash([]);
+    // The gmina: glow, translucent fill, crisp outline.
+    ctx.save(); ctx.shadowColor = "rgba(10,132,255,.45)"; ctx.shadowBlur = 14; trace(ctx, f, pr); ctx.fillStyle = MAP.blueFill; ctx.fill(); ctx.restore();
+    trace(ctx, f, pr); ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.stroke(); ctx.strokeStyle = MAP.blue; ctx.lineWidth = 2.6; ctx.stroke();
+    // Neighbour names (skipped under the inset and at the edges), then the callout.
     const IW = Math.round(Math.min(150, W * 0.3)), IH = Math.round(IW * 0.94);
+    ctx.font = `600 10.5px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3.5; ctx.strokeStyle = MAP.halo; ctx.fillStyle = MAP.text;
+    for (const x of inView) if (near.has(x.id) && x !== f) {
+      const [lx, ly] = pr(labelPoint(x)), txt = names[x.id] || "", hw = ctx.measureText(txt).width / 2;
+      if (lx + hw > W - IW - 18 && ly < IH + 26) continue;
+      if (lx - hw < 4 || lx + hw > W - 4 || ly < 10 || ly > H - 34) continue;
+      ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly);
+    }
+    const [fx, fy] = pr(labelPoint(f)); callout(ctx, names[k] || "", Math.max(70, Math.min(W - 70, fx)), fy);
+    // Scale: frosted pill with a two-tone bar.
+    const kmPx = pr.kmPerPx, target = W / 5 * kmPx, step = [1, 2, 5, 10, 20, 50].find(s => s >= target / 1.5) || 50, len = step / kmPx;
+    ctx.font = `600 10.5px ${FONT}`; const lab = `${step} km`, lw = ctx.measureText(lab).width, bw = len + lw + 26, by = H - 30;
+    ctx.save(); ctx.shadowColor = "rgba(0,0,0,.1)"; ctx.shadowBlur = 6; roundRect(ctx, 10, by, bw, 20, 10); ctx.fillStyle = "rgba(255,255,255,.88)"; ctx.fill(); ctx.restore();
+    ctx.fillStyle = MAP.ink; roundRect(ctx, 20, by + 8.5, len, 3, 1.5); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillRect(20 + len / 2, by + 9.3, len / 2 - 1, 1.4);
+    ctx.fillStyle = MAP.ink; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(lab, 26 + len, by + 10.5);
+    // Poland locator with an iOS location dot.
     const all = shapes.reduce((b, x) => [Math.min(b[0], x.bbox[0]), Math.min(b[1], x.bbox[1]), Math.max(b[2], x.bbox[2]), Math.max(b[3], x.bbox[3])], [Infinity, Infinity, -Infinity, -Infinity]);
-    const pl = project(all, IW, IH, 5);
+    const pl = project(all, IW, IH, 6);
     ctx = canvas(cInset, IW, IH); ctx.lineJoin = "round";
-    ctx.fillStyle = col.land; ctx.strokeStyle = col.land; ctx.lineWidth = .8;
+    ctx.fillStyle = MAP.pl; ctx.strokeStyle = MAP.pl; ctx.lineWidth = .8;
     for (const x of shapes) { trace(ctx, x, pl); ctx.fill(); ctx.stroke(); }
-    ctx.strokeStyle = col.edge; ctx.lineWidth = .9; strokeArcs(ctx, t, t.kinds.woj, pl);
-    ctx.strokeStyle = col.border; ctx.lineWidth = 1; strokeArcs(ctx, t, t.kinds.outline, pl);
-    ctx.fillStyle = col.border; for (const [, lon, lat] of CITIES) { const [x, y] = pl([lon, lat]); ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fill(); }
-    ctx.fillStyle = col.acc; trace(ctx, f, pl); ctx.fill();
-    const [cx, cy] = pl([(f.bbox[0] + f.bbox[2]) / 2, (f.bbox[1] + f.bbox[3]) / 2]);
-    ctx.strokeStyle = col.acc; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; strokeArcs(ctx, t, t.kinds.woj, pl);
+    ctx.strokeStyle = MAP.plEdge; ctx.lineWidth = 1; strokeArcs(ctx, t, t.kinds.outline, pl);
+    const [cx, cy] = pl(labelPoint(f));
+    ctx.fillStyle = "rgba(10,132,255,.2)"; ctx.beginPath(); ctx.arc(cx, cy, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 4; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.fillStyle = MAP.blue; ctx.beginPath(); ctx.arc(cx, cy, 4.2, 0, Math.PI * 2); ctx.fill();
   }
   function minimapHtml(name) {
     return `<figure class="locmap" id="gminaMinimap" hidden><canvas class="locmap-main" role="img" aria-label="${esc(name)} i sąsiednie gminy z granicami powiatów i województw"></canvas>
       <canvas class="locmap-inset" role="img" aria-label="${esc(name)} na mapie Polski"></canvas>
-      <figcaption><span class="lg-woj"></span>granica województwa <span class="lg-pow"></span>granica powiatu · © GUGiK PRG</figcaption></figure>`;
+      <figcaption>© GUGiK PRG</figcaption></figure>`;
   }
   /* Photo gallery (data/foto/<woj>.json, Wikimedia Commons): thumbnail strip + lightbox with author and licence. */
   const photoCache = new Map();
