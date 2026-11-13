@@ -12,7 +12,7 @@
   const categoryTone = name => ({"Ludność":"blue","Finanse i firmy":"purple","Warunki życia":"orange","Usługi":"pink","Infrastruktura":"cyan","Energia i ciepło":"orange","Planowanie":"purple","Edukacja i kultura":"pink","Środowisko":"green"}[name] || "blue");
   async function loadGus(g, force) {
     await window.GusClient.enrich(g, force);
-    if(selected?.k===g.k){drawCard();if(dialog.open)renderDetails();}
+    if(selected?.k===g.k){drawCard();if(dialog.open)renderDetails({keep:true});}
   }
   function load() {
     if (data) return Promise.resolve(data);
@@ -80,8 +80,10 @@
     return `<article class="indicator-card score-${a.tone}"><header><span class="metric-caption">${Icons.svg(window.IndicatorIcons?window.IndicatorIcons.of(item).icon:(categoryIcons[item.category]||'buildings'),'metric-symbol')}<span>${esc(item.label)}</span></span><span class="score-pill">${Icons.svg(a.tone==='good'?'check-circle':a.tone==='bad'?'warning-circle':'minus-circle')} ${esc(a.label)}</span></header><div class="indicator-value">${esc(model.formatValue(item,false))}<small>${esc(item.unit)}</small></div><div class="indicator-context"><span>${a.rank?`Pozycja <b>${a.rank.toLocaleString('pl-PL')}</b> / ${a.n.toLocaleString('pl-PL')}`:'Pozycja —'}</span><span>${a.trend.direction?Icons.svg(a.trend.direction==='up'?'trend-up':a.trend.direction==='down'?'trend-down':'minus'):""}${esc(a.trend.text)}</span></div><footer><span>${item.year||'Rok niepodany'} · ${esc(item.source)}</span>${window.StatsMap&&Number.isFinite(item.value)?`<button type="button" class="stat-map-link" data-stat-map="${esc(item.key)}">${Icons.svg('map-trifold')}Na tle kraju</button>`:''}</footer></article>`;
   }
   function rows(items) {return `<div class="indicator-grid">${items.map(metricCard).join('')}</div>`;}
-  function renderDetails() {
+  // keep: background refresh (e.g. GUS data arriving) keeps the scroll position and the expanded Wikipedia text.
+  function renderDetails(opts = {}) {
     if (!selected) return;
+    const box = $("#gminaDetails"), keepTop = opts.keep ? box.scrollTop : 0, wikiOpen = opts.keep && !!box.querySelector(".wiki-card.open");
     selected._selectedYear = selectedYear;
     $("#dataCategories").innerHTML = categories.map((c) => `<button type="button" data-category="${esc(c)}" aria-current="${c === category}">${Icons.svg(categoryIcons[c])}<span>${esc(c)}</span></button>`).join("");
     const m = model.metrics(selected);
@@ -97,8 +99,8 @@
       body=grouped.length>1?grouped.map(g=>`<section class="metric-section"><h2>${Icons.svg(window.IndicatorIcons.of(g.items[0]).icon)}${esc(g.label)}</h2>${rows(g.items)}</section>`).join(''):`<h2>${esc(category)}</h2>`+rows(items);
     }
     $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><div class="municipality-title">${window.MunicipalityCrests.render(selected)}<h1 id="gminaDialogTitle">${esc(selected.n)}</h1></div><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header><div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>${body}`;
-    if (category === "Przegląd") fillCompendium(selected);
-    $("#gminaDetails").scrollTop = 0;const active=$("#dataCategories [aria-current=true]");if(active&&app.isMobile())$("#dataCategories").scrollTo({left:Math.max(0,active.offsetLeft-20),behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});
+    if (category === "Przegląd") fillCompendium(selected, wikiOpen, keepTop);
+    $("#gminaDetails").scrollTop = keepTop;const active=$("#dataCategories [aria-current=true]");if(active&&app.isMobile())$("#dataCategories").scrollTo({left:Math.max(0,active.offsetLeft-20),behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});
   }
   function changeCategory(value){if(!categories.includes(value)||value===category)return;category=value;renderDetails();const content=$('#gminaDetails');content.classList.remove('category-arrive');void content.offsetWidth;content.classList.add('category-arrive');}
   let swipe=null;
@@ -109,11 +111,13 @@
   content.addEventListener('touchcancel',()=>swipe=null,{passive:true});
   $('#dataCategories').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const next=categories[categories.indexOf(category)+(e.key==='ArrowRight'?1:-1)];if(next){changeCategory(next);$('#dataCategories [aria-current=true]').focus();}});
   // Compendium: Wikipedia section and national highlights, filled after the overview renders.
-  function fillCompendium(g){
+  const hlCache=new Map();
+  function fillCompendium(g, wikiOpen = false, keepTop = 0){
     const W=window.GminaWiki;if(!W)return;
-    W.load(g.k).then(w=>{const el=$("#gminaWiki");if(el&&selected===g)el.innerHTML=W.render(w,g.n);}).catch(()=>{const el=$("#gminaWiki");if(el)el.innerHTML="";});
-    setTimeout(()=>{if(selected!==g||category!=="Przegląd")return;const el=$("#gminaHighlights");if(!el)return;const h=W.highlights(model,data.gminy,g);
-      el.innerHTML=h.length?`<section class="metric-section"><h2>${Icons.svg('trend-up')}Wyróżnia się na tle kraju</h2><ol class="highlight-list">${h.map(x=>`<li><span class="hl-rank">${x.rank.toLocaleString('pl-PL')}.</span><span class="hl-body">${Icons.svg(window.IndicatorIcons.of(x.def).icon)}<span>${esc(x.def.label)}<small>${esc(model.formatValue({...x.def,value:x.v},false))} ${esc(x.def.unit||'')} · ${x.rank.toLocaleString('pl-PL')}. miejsce z ${x.n.toLocaleString('pl-PL')} gmin</small></span></span><button type="button" class="stat-map-link" data-stat-map="${esc(x.def.key)}" aria-label="Pokaż ${esc(x.def.label)} na tle kraju">${Icons.svg('map-trifold')}</button></li>`).join('')}</ol></section>`:'';},30);
+    W.load(g.k).then(w=>{const el=$("#gminaWiki");if(!el||selected!==g)return;el.innerHTML=W.render(w,g.n);if(wikiOpen){el.querySelector(".wiki-card")?.classList.add("open");const b=el.querySelector("[data-wiki-more]");if(b){b.setAttribute("aria-expanded","true");b.textContent="Zwiń";}}if(keepTop)$("#gminaDetails").scrollTop=keepTop;}).catch(()=>{const el=$("#gminaWiki");if(el)el.innerHTML="";});
+    const drawHl=()=>{if(selected!==g||category!=="Przegląd")return;const el=$("#gminaHighlights");if(!el)return;const key=g.k+":"+model.definitions.length;if(!hlCache.has(key))hlCache.set(key,W.highlights(model,data.gminy,g));const h=hlCache.get(key);
+      el.innerHTML=h.length?`<section class="metric-section"><h2>${Icons.svg('trend-up')}Wyróżnia się na tle kraju</h2><ol class="highlight-list">${h.map(x=>`<li><span class="hl-rank">${x.rank.toLocaleString('pl-PL')}.</span><span class="hl-body">${Icons.svg(window.IndicatorIcons.of(x.def).icon)}<span>${esc(x.def.label)}<small>${esc(model.formatValue({...x.def,value:x.v},false))} ${esc(x.def.unit||'')} · ${x.rank.toLocaleString('pl-PL')}. miejsce z ${x.n.toLocaleString('pl-PL')} gmin</small></span></span><button type="button" class="stat-map-link" data-stat-map="${esc(x.def.key)}" aria-label="Pokaż ${esc(x.def.label)} na tle kraju">${Icons.svg('map-trifold')}</button></li>`).join('')}</ol></section>`:'';if(keepTop)$("#gminaDetails").scrollTop=keepTop;};
+    if(hlCache.has(g.k+":"+model.definitions.length))drawHl();else setTimeout(drawHl,30);
   }
   function failure(error) {
     console.warn("Municipality data:", error.message);

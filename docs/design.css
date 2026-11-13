@@ -193,3 +193,16 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .hl-body{flex:1;display:flex;align-items:center;gap:8px;min-width:0;font-size:13.5px}.hl-body .ic{flex:none;width:18px;height:18px;color:var(--mut)}.hl-body small{display:block;color:var(--mut);font-size:11.5px}
 .highlight-list .stat-map-link{flex:none;min-width:40px;min-height:40px;justify-content:center}
 @media(max-width:767px){.wiki-photo{float:none;width:100%;margin:0 0 10px}.wiki-facts{grid-template-columns:1fr 1fr}}
+
+/* Class controls: method, number of classes, zero class, manual breaks. */
+.stats-seg#statsMethod{display:grid;grid-template-columns:repeat(4,1fr)}
+.stats-seg#statsMethod button{padding-inline:4px;white-space:nowrap}
+.stats-classes{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 0}
+.stats-classes>label:first-child{display:flex;align-items:center;gap:8px;font-size:12px}
+.stats-classes select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--solid);color:var(--fg);font:inherit}
+.stats-manual{margin:4px 0 10px}.stats-manual label{display:block;font-size:12px;margin-bottom:4px}.stats-manual label small{color:var(--mut)}
+.stats-manual div{display:flex;gap:6px}.stats-manual input{flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;background:var(--solid);color:var(--fg)}
+.stats-manual button{border:0;border-radius:9px;padding:8px 12px;background:var(--acc);color:#fff;font-weight:600;cursor:pointer}
+.stats-manual-err{margin:4px 0 0;font-size:11.5px;color:#c0392b;min-height:0}
+/* Desktop: category chips wrap into tidy rows instead of a clipped scroller. */
+@media(min-width:768px){.stats-cats{flex-wrap:wrap;overflow:visible;row-gap:6px}.stats-cats button{padding:5px 9px}}

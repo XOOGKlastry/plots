@@ -6,7 +6,7 @@
   const POLAND = [[14.07, 48.99], [24.15, 54.84]];
   const panel = $("#statsPanel");
   let geo = null, gminy = null, loading = null, active = false, defs = [], hoverId = null, selectedId = null, popup = null;
-  const state = { key: null, year: null, mode: "value", method: "quantile", palette: null, reverse: false };
+  const state = { key: null, year: null, mode: "value", method: "quantile", palette: null, reverse: false, classes: 7, zero: true, manual: {} };
   let current = null; // {def, values: Map(k -> value), years:[], scheme}
 
   function load() {
@@ -73,7 +73,8 @@
     const raw = [...values.values()].map(o => o.value);
     const signed = state.mode === "change" || /saldo|przyrost/.test(def.key);
     const palette = state.palette || (signed ? "kontrast" : S.categoryPalette[def.category] || "viridis");
-    const scheme = S.classify(raw, { method: state.method, palette, reverse: state.reverse, diverging: signed });
+    const manual = state.manual[def.key + ":" + state.mode];
+    const scheme = S.classify(raw, { method: state.method === "manual" && !manual ? "quantile" : state.method, breaks: manual, classes: state.classes, zeroClass: state.zero, palette, reverse: state.reverse, diverging: signed && state.method !== "manual" });
     const usedYears = [...new Set([...values.values()].map(o => o.year).filter(Boolean))].sort((a, b) => a - b);
     current = { def, values, years, usedYears, scheme, palette, raw };
   }
@@ -103,6 +104,9 @@
     $("#statsYear").innerHTML = `<option value="">Najnowszy</option>` + current.years.slice(0, 6).map(y => `<option value="${y}" ${state.year === y ? "selected" : ""}>${y}</option>`).join("");
     $("#statsMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === state.mode));
     $("#statsMethod").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.method === state.method));
+    $("#statsClasses").value = String(state.classes); $("#statsClasses").disabled = state.method === "manual"; $("#statsZero").checked = state.zero;
+    $("#statsManual").hidden = state.method !== "manual";
+    if (state.method === "manual" && document.activeElement !== $("#statsBreaks")) $("#statsBreaks").value = scheme.breaks.filter(b => b > Number.MIN_VALUE).map(b => S.format(b, def.digits).replace(/\s/g, "")).join("; ");
     const grad = p => `linear-gradient(90deg,${(state.reverse ? p.colors.slice().reverse() : p.colors).join(",")})`;
     $("#statsPalettes").innerHTML = `<button type="button" data-palette="auto" aria-pressed="${!state.palette}"><i style="background:${grad(S.palettes[current.palette])}"></i><span>Automatycznie<small>dobrana do tematu</small></span></button>` + Object.entries(S.palettes).map(([id, p]) => `<button type="button" data-palette="${id}" aria-pressed="${!!state.palette && id === current.palette}"><i style="background:${grad(p)}"></i><span>${esc(p.label)}${p.diverging ? "<small>dla wartości ±</small>" : ""}</span></button>`).join("");
     $("#statsReverse").checked = state.reverse;
@@ -111,7 +115,7 @@
     $("#statsSelected").innerHTML = selectedHtml();
     $("#statsTop").innerHTML = rankList(sorted.slice(0, 5));
     $("#statsBottom").innerHTML = rankList(sorted.slice(-5).reverse());
-    $("#statsSource").textContent = `${def.level === 5 ? "Dane powiatów przypisane gminom. " : ""}Źródło: ${def.source || "GUS BDL"}. ${current.values.size.toLocaleString("pl-PL")} gmin z danymi${state.year ? "" : "; każda gmina pokazuje najnowszy dostępny rok"}. Podział: ${state.method === "equal" ? "równe przedziały" : scheme.diverging ? "kwantyle osobno poniżej i powyżej zera" : "kwantyle (podobna liczba gmin w klasie)"}.`;
+    $("#statsSource").textContent = `${def.level === 5 ? "Dane powiatów przypisane gminom. " : ""}Źródło: ${def.source || "GUS BDL"}. ${current.values.size.toLocaleString("pl-PL")} gmin z danymi${state.year ? "" : "; każda gmina pokazuje najnowszy dostępny rok"}. Podział: ${state.method === "manual" ? "własne granice" : state.method === "jenks" ? "naturalne przerwy (Jenks)" : state.method === "equal" ? "równe przedziały" : scheme.diverging ? "kwantyle osobno poniżej i powyżej zera" : "kwantyle (podobna liczba gmin w klasie)"}.`;
     syncUrl();
   }
 
@@ -225,6 +229,15 @@
     if (Math.abs(dy) > 25) { sheet(dy < 0); swiped = Date.now(); }
   });
   $("#statsReverse").addEventListener("change", e => { state.reverse = e.target.checked; update(); });
+  $("#statsClasses").addEventListener("change", e => { state.classes = Number(e.target.value) || 7; update(); });
+  $("#statsZero").addEventListener("change", e => { state.zero = e.target.checked; update(); });
+  $("#statsManual").addEventListener("submit", e => {
+    e.preventDefault();
+    const parts = $("#statsBreaks").value.split(/[;\n]+/).map(s => s.trim()).filter(Boolean), nums = parts.map(s => Number(s.replace(/\s/g, "").replace(",", ".")));
+    const err = $("#statsManual .stats-manual-err");
+    if (!nums.length || nums.some(n => !Number.isFinite(n))) { err.textContent = "Wpisz liczby oddzielone średnikiem, np. 1; 5; 10."; return; }
+    err.textContent = ""; state.manual[state.key + ":" + state.mode] = nums; update();
+  });
   $("#statsYear").addEventListener("change", e => { state.year = e.target.value ? Number(e.target.value) : null; update(); });
   $("#statsSearch").addEventListener("input", e => pickerList(e.target.value));
   document.addEventListener("click", e => {
