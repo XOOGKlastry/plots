@@ -108,17 +108,52 @@
   const thumb = (f, w = 360) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(f)}?width=${w}`;
   const commons = f => `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(f.replace(/ /g, "_"))}`;
   const typ = z => { const f = (z.f || "").replace(/^zesp[oó]ł\/\s*/i, "").replace(/\s*\/\s*/g, ", ").trim(); return f && !z.n.toLowerCase().includes(f.split(/[ ,]/)[0].toLowerCase()) ? f : ""; };
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   function heritage(dz) {
     if (!dz?.z?.length) return "";
     return section("church", `Zabytki z rejestru${dz.zn ? ` (${fmt(dz.zn)})` : ""}`, `<ul class="heritage">${dz.z.map(z => `<li>${z.img ? `<a class="her-img" href="${commons(z.img)}" target="_blank" rel="noopener noreferrer"><img loading="lazy" src="${thumb(z.img, 240)}" alt="${esc(z.n)}"/></a>` : `<span class="her-img her-none">${Icons.svg("buildings")}</span>`}
-        <span class="her-t"><strong>${esc(z.n.charAt(0).toUpperCase() + z.n.slice(1))}</strong>${typ(z) ? `<small>${esc(typ(z))}</small>` : ""}<small>${esc([z.m, z.a].filter(Boolean).join(", "))}</small>${z.d ? `<small class="her-d">${esc(z.d)}</small>` : ""}</span></li>`).join("")}</ul>`,
+        <${z.c ? `button type="button" class="her-t goto" data-goto-pt="${z.c.join(",")}" data-goto-name="${esc(cap(z.n))}" title="Pokaż na mapie"` : `span class="her-t"`}><strong>${esc(cap(z.n))}</strong>${typ(z) ? `<small>${esc(typ(z))}</small>` : ""}<small>${esc([z.m, z.a].filter(Boolean).join(", "))}</small>${z.d ? `<small class="her-d">${esc(z.d)}</small>` : ""}</${z.c ? "button" : "span"}>${z.c ? `<span class="goto-ic" aria-hidden="true">${Icons.svg("map-pin")}</span>` : ""}</li>`).join("")}</ul>`,
       `Najważniejsze obiekty: układy urbanistyczne, zamki, kościoły, pałace, dwory. ${dz.zn > dz.z.length ? `Pokazano ${dz.z.length} z ${fmt(dz.zn)}. ` : ""}Rejestr zabytków nieruchomych NID. Zdjęcia: Wikimedia Commons.`);
   }
   function nature(dz) {
     if (!dz?.p?.length && !dz?.u) return "";
     const types = [...new Set((dz.p || []).map(x => x.t))];
-    return section("tree", "Przyroda chroniona", `${types.map(t => `<h3 class="nat-type">${esc(t)}</h3><ul class="nature">${dz.p.filter(x => x.t === t).map(x => `<li>${x.img ? `<a class="nat-img" href="${commons(x.img)}" target="_blank" rel="noopener noreferrer"><img loading="lazy" src="${thumb(x.img, 160)}" alt=""/></a>` : ""}<span class="nat-n">${esc(x.n)}</span><span class="nat-p"><span class="nat-bar"><i style="width:${Math.min(100, x.p)}%"></i></span>${fmt(x.p, x.p < 10 ? 1 : 0)}% gminy</span></li>`).join("")}</ul>`).join("")}
+    return section("tree", "Przyroda chroniona", `${types.map(t => `<h3 class="nat-type">${esc(t)}</h3><ul class="nature">${dz.p.filter(x => x.t === t).map(x => `<li>${x.img ? `<a class="nat-img" href="${commons(x.img)}" target="_blank" rel="noopener noreferrer"><img loading="lazy" src="${thumb(x.img, 160)}" alt=""/></a>` : ""}${x.b ? `<button type="button" class="nat-n goto" data-goto-box="${x.b.join(",")}" data-goto-type="${esc(x.t)}" data-goto-name="${esc(x.n)}" title="Pokaż na mapie">${esc(x.n)}${Icons.svg("map-pin")}</button>` : `<span class="nat-n">${esc(x.n)}</span>`}<span class="nat-p"><span class="nat-bar"><i style="width:${Math.min(100, x.p)}%"></i></span>${fmt(x.p, x.p < 10 ? 1 : 0)}% gminy</span></li>`).join("")}</ul>`).join("")}
       ${dz.u ? `<p class="nat-u">Użytki ekologiczne: <b>${fmt(dz.u)}</b></p>` : ""}`, "Udział w powierzchni gminy. GDOŚ, Centralny Rejestr Form Ochrony Przyrody, przez BDOT10k (GUGiK).");
   }
+  /* Go to a monument or protected area on the main map: close the gmina panel, frame it and label it; areas get the GDOŚ WMS outline. */
+  const GDOS = { "Park narodowy": "GDOS:ParkiNarodowe", "Park krajobrazowy": "GDOS:ParkiKrajobrazowe", "Rezerwat przyrody": "GDOS:Rezerwaty",
+    "Natura 2000": "GDOS:ObszarySpecjalnejOchrony,GDOS:SpecjalneObszaryOchrony", "Obszar chronionego krajobrazu": "GDOS:ObszaryChronionegoKrajobrazu",
+    "Zespół przyrodniczo-krajobrazowy": "GDOS:ZespolyPrzyrodniczoKrajobrazowe" };
+  let gotoMarker = null;
+  function clearGoto() {
+    const map = window.PLOTS?.map; if (gotoMarker) { gotoMarker.remove(); gotoMarker = null; }
+    if (map?.getLayer("gdos-wms")) map.removeLayer("gdos-wms"); if (map?.getSource("gdos-wms")) map.removeSource("gdos-wms");
+  }
+  function gotoPlace(b) {
+    const P = window.PLOTS, map = P?.map; if (!map) return;
+    document.getElementById("gminaDialog")?.close?.();
+    if (P.isMobile?.()) P.snap("peek");
+    clearGoto();
+    let at;
+    if (b.dataset.gotoPt) { at = b.dataset.gotoPt.split(",").map(Number); P.framePoint(at[0], at[1], 17); }
+    else {
+      const [w, s, e, n] = b.dataset.gotoBox.split(",").map(Number); at = [(w + e) / 2, (s + n) / 2];
+      P.frame([w, s, e, n], 15);
+      const layers = GDOS[b.dataset.gotoType];
+      if (layers) {
+        map.addSource("gdos-wms", { type: "raster", tileSize: 256, attribution: "GDOŚ",
+          tiles: [`https://sdi.gdos.gov.pl/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${layers}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`] });
+        const before = map.getStyle().layers.find(l => l.type === "symbol")?.id;
+        map.addLayer({ id: "gdos-wms", type: "raster", source: "gdos-wms", paint: { "raster-opacity": .7 } }, before);
+      }
+    }
+    const el = document.createElement("div");
+    el.className = "goto-label" + (b.dataset.gotoPt ? " pt" : "");
+    el.innerHTML = `<span>${esc(b.dataset.gotoName)}</span><button type="button" aria-label="Ukryj">×</button>`;
+    el.querySelector("button").onclick = ev => { ev.stopPropagation(); clearGoto(); };
+    gotoMarker = new maplibregl.Marker({ element: el, anchor: b.dataset.gotoPt ? "bottom" : "center" }).setLngLat(at).addTo(map);
+  }
+  document.addEventListener("click", e => { const b = e.target.closest?.("[data-goto-pt],[data-goto-box]"); if (b) { e.preventDefault(); gotoPlace(b); } });
   window.GminaProfile = { load, popChart, bindPop, pyramid, budget, elections, heritage, nature };
 })();

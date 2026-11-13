@@ -246,8 +246,6 @@
       ? gs.map((g) => { const c = COL[g] || "#888"; return `<div class="chip" style="--c:${c}">${IC.users}<span><b>Grupa ${esc(g)}</b> · ${esc(GR[g] || "")}</span></div>`; }).join("")
       : `<div class="chip" style="--c:#8b93a1">${IC.users}<span>Grupa rejestrowa · brak danych</span></div>`;
     const cell = (ic, k, v) => `<div class="cell">${ic}<div><small>${k}</small><b>${v}</b></div></div>`;
-    const skip = new Set(["bbox", "grupy", "g1"]);
-    const all = Object.keys(p).filter((k) => !skip.has(k) && p[k] != null && p[k] !== "").map((k) => `<dt>${esc(k)}</dt><dd class="num">${esc(p[k])}</dd>`).join("");
     return `<div class="phead"><div><h2>Działka ${esc(p.numer_dzialki || "—")}</h2><code>${esc(p.id_dzialki || "")}</code></div>${p.id_dzialki ? copyBtn(p.id_dzialki) : ""}</div>
       <div class="parcel-register">${chips}</div><details class="place-section" open><summary>${Icons.svg('ruler')}Dane działki</summary><div class="grid4">
         ${cell(IC.map, "Obręb", `${esc(p.obreb || "—")}${p.nazwa_obrebu ? " · " + esc(String(p.nazwa_obrebu).replace(/-\d+$/, "")) : ""}`)}
@@ -255,23 +253,25 @@
         ${cell(IC.area, "Powierzchnia · " + area.source.toLowerCase(), esc(window.ParcelModel.format(area.m2, "m²")) + `<span class="area-secondary">${esc(window.ParcelModel.format(area.ha, "ha"))}</span>`)}
         ${cell(IC.clock, "Aktualność", fmtDate(p.data_zrodla))}
       </div>
-      </details>${embedded?'':`<details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details>`}<details class="place-section"><summary>${Icons.svg('users')}Ewidencja i własność</summary>
-      <button class="more" type="button" data-more>${IC.doc}<span>Pełne informacje</span>${IC.chev}</button>
-      <div class="full" hidden><h4>Wszystkie atrybuty</h4><dl class="kv">${all}</dl></div></details>${embedded?'':`<button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`}`;
+      </details>${embedded?'':`<details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details>`}${embedded?'':`<button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`}`;
   }
   function adrText(p) {
     const a = [p.ulica, p.numer].filter(Boolean).join(" ");
     const b = [p.kod, p.miejscowosc].filter(Boolean).join(" ");
     return [a, b].filter(Boolean).join(", ") || p.adres || "(adres)";
   }
+  const GMAPS_LOGO='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.6c-4.2 0-7.6 3.3-7.6 7.5 0 5.4 6.3 12 7 12.7a.8.8 0 0 0 1.2 0c.7-.7 7-7.3 7-12.7 0-4.2-3.4-7.5-7.6-7.5z" fill="#34a853"/><path d="M5.2 5.6 9.3 9.9 12 7a2.4 2.4 0 0 1 3 .2l4.2-4.4A7.6 7.6 0 0 0 12 1.6a7.6 7.6 0 0 0-6.8 4z" fill="#1a73e8"/><path d="M4.4 9.1c0 1.4.4 2.8 1 4.2L9.3 9.9 5.2 5.6a7.4 7.4 0 0 0-.8 3.5z" fill="#ea4335"/><path d="M19.2 2.8 15 7.2c.4.4.6 1.1.6 1.7 0 .7-.3 1.3-.8 1.8l-9.4 2.6c.3.7.7 1.5 1.1 2.2l12.3-6.5c.3-.6.3-1.3.3-1.9a7.4 7.4 0 0 0-1.9-4.3z" fill="#fbbc04"/><circle cx="12" cy="9" r="2.6" fill="#fff"/></svg>';
+  const AMAPS_LOGO='<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="amg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a4e37a"/><stop offset=".55" stop-color="#6fcf62"/><stop offset="1" stop-color="#f4efe2"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="5.4" fill="url(#amg)"/><path d="M1 15.5 23 6.5V10L1 19z" fill="#fff" opacity=".95"/><path d="M14.5 1h3L9 23H6z" fill="#ffd34d" opacity=".95"/><circle cx="16.8" cy="16.2" r="4.4" fill="#0a84ff" stroke="#fff" stroke-width="1.4"/><path d="m16.8 13.6 2 4.7-2-1-2 1z" fill="#fff"/></svg>';
+  function navButtons(p){
+    const lat=+p.lat,lon=+p.lon,txt=adrText(p),ll=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(6)},${lon.toFixed(6)}`:"";
+    const g=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ll||txt)}`;
+    const a=`https://maps.apple.com/?q=${encodeURIComponent(txt)}${ll?`&ll=${ll}`:""}`;
+    return `<div class="nav-apps"><a class="nav-app" href="${g}" target="_blank" rel="noopener">${GMAPS_LOGO}<span><small>Otwórz w</small>Google Maps</span></a><a class="nav-app" href="${a}" target="_blank" rel="noopener">${AMAPS_LOGO}<span><small>Otwórz w</small>Apple Maps</span></a></div>`;
+  }
   function adrCard(p) {
-    const skip = new Set(["ulica", "numer", "kod", "miejscowosc", "lon", "lat", "adres", "gmina"]);
-    const rest = Object.keys(p).filter((k) => !skip.has(k) && p[k] !== null && p[k] !== "")
-      .map((k) => `<dt>${esc(k)}</dt><dd class="num">${esc(p[k])}</dd>`).join("");
     return `<div class="kicker"><i style="background:#d81b60;border-radius:50%"></i>Punkt adresowy</div>
       <div class="idrow"><code style="font-family:var(--ui);font-weight:700;font-size:17px;word-break:normal">${esc(adrText(p))}</code>${copyBtn(adrText(p))}</div>
-      <dl class="kv">${p.gmina ? `<dt>Gmina</dt><dd>${esc(p.gmina)}</dd>` : ""}</dl>
-      ${rest ? `<details><summary>Atrybuty PRG</summary><dl class="kv">${rest}</dl></details>` : ""}
+      ${navButtons(p)}
       <details class="place-section" open><summary>${Icons.svg('ruler')}Działka pod adresem</summary><div id="adrParcel"><p class="muted small">Wczytuję działkę…</p></div></details><details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details><button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`;
   }
   const card = $("#card");
@@ -444,7 +444,7 @@
     const setVis = (ids, on) => ids.forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", on ? "visible" : "none"));
     const bind = (el, key, ids, def) => { el.checked = store.get(key, def); setVis(ids, el.checked); el.onchange = () => { store.set(key, el.checked); setVis(ids, el.checked); }; };
     bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
-    bind($("#lyrAdr"), "adr", ["adr-pt", "adr-lbl", "adr-hit"], true);
+    bind($("#lyrAdr"), "adr2", ["adr-pt", "adr-lbl", "adr-hit"], true);
     const o = $("#opac"); o.value = store.get("opac", 45); $("#opacValue").textContent = o.value + "%";
     o.oninput = () => { store.set("opac", +o.value);applyParcelColors(); $("#opacValue").textContent = o.value + "%"; };
     const countLayers = () => { $("#layerCount").textContent = document.querySelectorAll("#layerPanel .layer-entry input[type=checkbox]:checked").length; };

@@ -69,6 +69,42 @@
     }
     return out.sort((a, b) => a.pct - b.pct).slice(0, limit);
   }
+  /* "Czym się wyróżnia": rank of the gmina in its powiat, voivodeship and the country, at either end of the scale.
+     Returns [{def, v, dir:"hi"|"lo", tone:"good"|"bad"|"", scopes:[{s,rank,n}], score}]. */
+  function standouts(model, gminy, g, limit = 8) {
+    const pow = gminy.filter(x => x.k.slice(0, 4) === g.k.slice(0, 4)), woj = gminy.filter(x => x.k.slice(0, 2) === g.k.slice(0, 2));
+    const out = [];
+    for (const def of model.definitions) {
+      if (!relative.test(def.key) && !/%|‰|\bna\b|\//i.test(def.unit || "") && !/\bna\b|średni|przeciętn/i.test(def.label)) continue;
+      const v = model.metric(g, def).value;
+      if (!Number.isFinite(v) || (/^usl_/.test(def.key) && !/^usl_grp_/.test(def.key))) continue; // single shop brands are trivia
+      const all = distribution(model, gminy, def);
+      if (all.length < 200) continue;
+      const ties = all.filter(x => x === v).length;
+      if (ties > 3) continue;
+      const rank = (list, dir) => { const vals = list === gminy ? all : list.map(x => model.metric(x, def).value).filter(Number.isFinite);
+        return { rank: (dir === "hi" ? vals.filter(x => x > v) : vals.filter(x => x < v)).length + 1, n: vals.length }; };
+      let best = null;
+      for (const dir of ["hi", "lo"]) {
+        if (dir === "lo" && v === 0) continue;
+        const k = rank(gminy, dir), w = rank(woj, dir), p = pow.length >= 4 ? rank(pow, dir) : null;
+        const scopes = [];
+        if (p && p.rank === 1) scopes.push({ s: "powiat", ...p });
+        if (w.rank <= 3 && w.n >= 30) scopes.push({ s: "woj", ...w });
+        if (k.rank <= Math.max(10, k.n * .01)) scopes.push({ s: "kraj", ...k });
+        if (!scopes.length) continue;
+        const score = Math.min(...scopes.map(x => x.rank / x.n * (x.s === "kraj" ? 1 : x.s === "woj" ? 3 : 8)));
+        if (!best || score < best.score) best = { def, v, dir, scopes, score };
+      }
+      if (!best) continue;
+      best.tone = def.descriptive ? "" : (best.dir === "hi") !== !!def.lowerBetter ? "good" : "bad";
+      out.push(best);
+    }
+    out.sort((a, b) => a.score - b.score);
+    const res = []; let pkw = 0;
+    for (const x of out) { if (x.def.key.startsWith("pkw_") && ++pkw > 2) continue; res.push(x); if (res.length >= limit) break; }
+    return res;
+  }
   /* Location map: the gmina among its neighbours (names, powiat and voivodeship borders, scale) with a Poland
      locator inset. Borders and neighbours come from shared arcs of the PRG topology (data/municipalities.topojson). */
   let topo = null;
@@ -237,6 +273,6 @@
     box._photos = photos; box._name = name; box._show(index);
     if (!box.open) box.showModal();
   }
-  const api = { load, render, quick, highlights, minimap, minimapHtml, neighbours, loadPhotos, galleryHtml, openPhoto };
+  const api = { load, render, quick, highlights, standouts, minimap, minimapHtml, neighbours, loadPhotos, galleryHtml, openPhoto };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.GminaWiki = api;
 })(typeof window !== "undefined" ? window : globalThis);
