@@ -4,11 +4,11 @@
   const $ = (selector) => document.querySelector(selector);
   const app = window.PLOTS, model = window.GminyModel, esc = app.esc;
   const icon = (name) => `<svg class="ic" aria-hidden="true"><use href="#i-${name}"/></svg>`;
-  const categories = ["Przegląd", "Ludność", "Finanse i firmy", "Warunki życia", "Usługi", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Źródła"];
+  const categories = ["Przegląd", "Ludność", "Finanse i firmy", "Warunki życia", "Usługi", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Wybory", "Porównanie", "Źródła"];
   const dialog = $("#gminaDialog");
   let contextRevision=0;
   let indQuery = "", data = null, loading = null, selected = null, category = "Przegląd", pendingParcel = null, selectedYear = null;
-  const categoryIcons={...Object.fromEntries(Object.entries(window.IndicatorIcons?.categories||{}).map(([k,v])=>[k,v.icon])),'Źródła':'file-text'};
+  const categoryIcons={...Object.fromEntries(Object.entries(window.IndicatorIcons?.categories||{}).map(([k,v])=>[k,v.icon])),'Źródła':'file-text','Wybory':'envelope','Porównanie':'chart-bar'};
   const categoryTone = name => ({"Ludność":"blue","Finanse i firmy":"purple","Warunki życia":"orange","Usługi":"pink","Infrastruktura":"cyan","Energia i ciepło":"orange","Planowanie":"purple","Edukacja i kultura":"pink","Środowisko":"green"}[name] || "blue");
   async function loadGus(g, force) {
     await window.GusClient.enrich(g, force);
@@ -90,15 +90,20 @@
     let body;
     if (category === "Przegląd") {
       const groups=[{label:'Ludność i demografia',icon:'users',keys:['ludnosc','przyrost_naturalny']},{label:'Finanse i przedsiębiorczość',icon:'trend-up',keys:['firmy_na_1000','pit_na_mieszk']},{label:'Mieszkanie i infrastruktura',icon:'house-line',keys:['mieszkanie_m2_os','kanalizacja_proc']},{label:'Energia i planowanie',icon:'lightning',keys:['gaz_proc','mpzp_proc']}];
-      body=`${indicatorSearchHtml()}<section class="overview-hero"><div class="overview-facts">${keyTiles(selected)}<dl id="gminaQuick" class="quick-facts"></dl></div>${window.GminaWiki?GminaWiki.minimapHtml(selected.n):""}</section><div id="gminaNeighbors"></div><div id="gminaWiki" class="wiki-slot"><p class="muted small">Wczytuję opis gminy z Wikipedii…</p></div><div id="gminaGallery"></div><div id="gminaHighlights"></div>`;
+      body=`${indicatorSearchHtml()}<section class="overview-hero"><div class="overview-facts">${keyTiles(selected)}<dl id="gminaQuick" class="quick-facts"></dl></div>${window.GminaWiki?GminaWiki.minimapHtml(selected.n):""}</section><div id="gminaNeighbors"></div><div id="gminaWiki" class="wiki-slot"><p class="muted small">Wczytuję opis gminy z Wikipedii…</p></div><div id="gminaGallery"></div><div id="gminaPopChart"></div><div id="gminaHeritage"></div><div id="gminaNature"></div><div id="gminaHighlights"></div>`;
     } else if (category === "Źródła") {
       body = `<h2>Dane i ich aktualność</h2><div class="source-description">Zestaw bazowy: ${esc(data.baseBuilt)}. Dane uzupełniające pobrano: ${esc(data.cardsFetched?.slice(0, 10))}. Daty pobrania nie są rokiem obserwacji.${window.GusClient.energyInfo()?` Wskaźniki energii, ciepła, planowania i środowiska: ${window.GusClient.energyInfo().count} zmiennych GUS BDL pobranych ${esc(String(window.GusClient.energyInfo().retrievedAt||"").slice(0,10))}. Wartości oznaczone „dane powiatu” dotyczą całego powiatu. Użytkowanie gruntów GUS publikował do 2014 r.`:""} Każdy wskaźnik pokazuje własny rok; brak roku w źródle jest oznaczony wprost.</div><div class="metric-list"><div class="metric-row"><div>Identyfikator jednostki</div><div>${esc(selected.k)}<small>${esc(selected.typ)}</small></div></div><div class="metric-row"><div>Zestaw źródłowy</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL i dane referencyjne</a></div></div><div class="metric-row"><div>Oficjalne statystyki</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL</a></div></div><div class="metric-row"><div>Usługi i otoczenie</div><div><a href="https://xoogklastry.github.io/jakdaleko/" target="_blank" rel="noopener noreferrer">Jakdaleko ${icon("arrow")}</a><small>Obiekty i ceny RCN w warstwach; dojścia piesze w karcie adresu</small></div></div></div><h2>Źródła wskaźników</h2>${rows(m)}<p class="source-description">Powierzchnia pochodzi w pierwszej kolejności z karty GUS z podanym rokiem. Starsza wartość z bazy jest używana tylko przy braku tej karty. Brak danych nie jest zerem. Zestaw zawiera również dane opisowe z Wikidata.</p>`;
+    } else if (category === "Wybory") {
+      body = `<div id="gminaElections"><p class="muted small">Wczytuję wyniki wyborów…</p></div>`;
+    } else if (category === "Porównanie") {
+      body = `<div id="gminaCompare"><p class="muted small">Przygotowuję porównanie…</p></div>`;
     } else {
       const items=m.filter((x)=>x.category===category),grouped=window.IndicatorIcons?window.IndicatorIcons.group(items)[0]?.groups||[]:[{label:category,items}];
       // Subgroups (e.g. Gaz / Ciepło / Prąd) keep long categories readable; a single group needs no extra heading.
-      body=grouped.length>1?grouped.map(g=>`<section class="metric-section"><h2>${Icons.svg(window.IndicatorIcons.of(g.items[0]).icon)}${esc(g.label)}</h2>${rows(g.items)}</section>`).join(''):`<h2>${esc(category)}</h2>`+rows(items);
+      body=(category==="Ludność"||category==="Finanse i firmy"?'<div id="gminaProfileTop"></div>':'')+(grouped.length>1?grouped.map(g=>`<section class="metric-section"><h2>${Icons.svg(window.IndicatorIcons.of(g.items[0]).icon)}${esc(g.label)}</h2>${rows(g.items)}</section>`).join(''):`<h2>${esc(category)}</h2>`+rows(items));
     }
-    $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><div class="municipality-title">${window.MunicipalityCrests.render(selected)}<h1 id="gminaDialogTitle">${esc(selected.n)}${popTag(selected)}</h1></div><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header>${category==="Przegląd"?"":`<div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>`}${body}`;
+    $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><div class="municipality-title">${window.MunicipalityCrests.render(selected)}<h1 id="gminaDialogTitle">${esc(selected.n)}${popTag(selected)}</h1></div><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header>${["Przegląd","Wybory","Porównanie"].includes(category)?"":`<div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>`}${body}`;
+    fillProfile(selected); if (category === "Porównanie") fillCompare(selected);
     if (category === "Przegląd") { fillCompendium(selected, wikiOpen, keepTop); if (indQuery) { $("#indSearch").value = indQuery; runIndicatorSearch(indQuery); } }
     $("#gminaDetails").scrollTop = keepTop;const active=$("#dataCategories [aria-current=true]");if(active&&app.isMobile())$("#dataCategories").scrollTo({left:Math.max(0,active.offsetLeft-20),behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});
   }
@@ -151,6 +156,66 @@
     const found=model.metrics(selected).filter(x=>{const hay=norm(`${x.label} ${x.category} ${x.unit||""} ${x.key}`);return words.every(w=>hay.includes(w));});
     const shown=found.filter(x=>Number.isFinite(x.value)).concat(found.filter(x=>!Number.isFinite(x.value))).slice(0,12);
     box.innerHTML=found.length?`<p class="muted small">${found.length===1?"1 wskaźnik":found.length+" wskaźników"}${found.length>shown.length?`, pokazuję ${shown.length}. Dopisz więcej słów, aby zawęzić`:""}</p>${rows(shown)}`:`<p class="muted small">Brak wskaźnika pasującego do „${esc(q)}”.</p>`;
+  }
+  /* Profile sections (charts, heritage, nature, elections) filled after render from data/profil, dziedzictwo, wybory. */
+  let electionPick=null;
+  function fillProfile(g){
+    const P=window.GminaProfile;if(!P)return;
+    P.load(g.k).then(d=>{
+      if(selected!==g)return;
+      const put=(id,html)=>{const el=$("#"+id);if(el){el.innerHTML=html;P.bindPop(el);}};
+      if(category==="Przegląd"){put("gminaPopChart",P.popChart(d.profil));put("gminaHeritage",P.heritage(d.dz));put("gminaNature",P.nature(d.dz));}
+      else if(category==="Ludność")put("gminaProfileTop",P.popChart(d.profil)+P.pyramid(d.profil,d.ages));
+      else if(category==="Finanse i firmy")put("gminaProfileTop",P.budget(d.profil));
+      else if(category==="Wybory"){const el=$("#gminaElections");if(el){const draw=()=>{el.innerHTML=P.elections(d.wyb,electionPick)||'<p class="muted">Brak wyników wyborów dla tej gminy.</p>';};draw();el.onclick=e=>{const b=e.target.closest("[data-election]");if(b){electionPick=b.dataset.election;draw();}};}}
+    }).catch(()=>{});
+  }
+  /* Comparison tab: the gmina, chosen gminas (default: the largest neighbours), powiat average and national median. */
+  const COMPARE_KEYS=["ludnosc","gestosc_ludnosci","saldo_migracji","przyrost_naturalny","poprod_proc","dochod_na_mieszk","dochody_wlasne_udzial","pit_na_mieszk","bezrobocie_proc","firmy_na_1000","mieszkanie_m2_os","wodociag_proc","kanalizacja_proc","gaz_proc","mpzp_proc","turysci_1000"];
+  let compareFor=null,comparePicks=[],compareKeys=null;
+  const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length?(s.length%2?s[m]:(s[m-1]+s[m])/2):NaN;};
+  async function compareDefaults(g){
+    if(compareFor===g.k)return;compareFor=g.k;
+    const ks=window.GminaWiki?await window.GminaWiki.neighbours(g.k).catch(()=>[]):[];
+    const pop=x=>model.metric(x,model.definitions.find(d=>d.key==="ludnosc")).value||0;
+    comparePicks=ks.map(k=>data.gminy.find(x=>x.k===k)).filter(Boolean).sort((a,b)=>pop(b)-pop(a)).slice(0,3).map(x=>x.k);
+  }
+  function compareKeyList(){if(!compareKeys){const saved=app.store.get("compareKeys",null);compareKeys=Array.isArray(saved)&&saved.length?saved:COMPARE_KEYS.slice();}return compareKeys.filter(k=>model.definitions.some(d=>d.key===k));}
+  function compareCard(def,units,pow,kraj){
+    const vals=units.map(u=>({u,v:model.metric(u,def).value}));
+    const all=data.gminy.map(x=>model.metric(x,def).value).filter(Number.isFinite);
+    const powVals=data.gminy.filter(x=>x.k.slice(0,4)===selected.k.slice(0,4)).map(x=>model.metric(x,def).value).filter(Number.isFinite);
+    const refs=[{n:"Średnia powiatu",v:powVals.length?powVals.reduce((a,b)=>a+b,0)/powVals.length:NaN},{n:"Mediana kraju",v:median(all)}];
+    const rows=[...vals.map(x=>({n:x.u.n,v:x.v,me:x.u===selected,k:x.u.k})),...refs.map(r=>({...r,ref:true}))];
+    const mx=Math.max(...rows.map(r=>Math.abs(r.v)).filter(Number.isFinite),1e-9);
+    const item=model.metric(selected,def),f=v=>Number.isFinite(v)?model.formatValue({...item,value:v},false):"brak";
+    return `<article class="cmp-card"><header><span>${Icons.svg(window.IndicatorIcons?window.IndicatorIcons.of(def).icon:"chart-bar")}${esc(def.label)}</span><small>${esc(def.unit||"")}${item.year?" · "+item.year:""}</small><button type="button" class="cmp-x" data-cmp-key-del="${esc(def.key)}" aria-label="Usuń wskaźnik ${esc(def.label)}">×</button></header>
+      <ul>${rows.map(r=>`<li class="${r.me?"me":r.ref?"ref":""}"><span class="cmp-n">${esc(r.n)}</span><span class="cmp-bar"><i class="${r.v<0?"neg":""}" style="width:${Number.isFinite(r.v)?(Math.abs(r.v)/mx*100).toFixed(1):0}%"></i></span><span class="cmp-v">${esc(f(r.v))}</span></li>`).join("")}</ul></article>`;
+  }
+  function compareHtml(){
+    const units=[selected,...comparePicks.map(k=>data.gminy.find(x=>x.k===k)).filter(Boolean)];
+    const defs=compareKeyList().map(k=>model.definitions.find(d=>d.key===k));
+    return `<section class="cmp"><div class="cmp-picks">${units.map(u=>`<span class="cmp-chip${u===selected?" me":""}">${esc(u.n)}${u===selected?"":`<button type="button" data-cmp-del="${esc(u.k)}" aria-label="Usuń ${esc(u.n)}">×</button>`}</span>`).join("")}
+      ${units.length<6?`<span class="cmp-add"><input id="cmpGmina" type="search" autocomplete="off" placeholder="Dodaj gminę" aria-label="Dodaj gminę do porównania"/><ul id="cmpGminaList" class="cmp-sugg"></ul></span>`:""}</div>
+      <div class="cmp-grid">${defs.map(d=>compareCard(d,units)).join("")}</div>
+      <div class="cmp-add cmp-add-ind"><input id="cmpInd" type="search" autocomplete="off" placeholder="Dodaj wskaźnik do porównania" aria-label="Dodaj wskaźnik"/><ul id="cmpIndList" class="cmp-sugg"></ul></div>
+      <p class="profile-note">Średnia powiatu to zwykła średnia gmin powiatu, mediana kraju to wartość środkowa z ${data.gminy.length.toLocaleString("pl-PL")} gmin. Rok jak przy wskaźniku gminy.</p></section>`;
+  }
+  async function fillCompare(g){
+    await compareDefaults(g);if(selected!==g||category!=="Porównanie")return;
+    const el=$("#gminaCompare");if(el)el.innerHTML=compareHtml();
+  }
+  function compareEvents(e){
+    const t=e.target;if(category!=="Porównanie")return;
+    if(e.type==="input"&&t.id==="cmpGmina"){const list=$("#cmpGminaList");const found=t.value.trim()?model.search(data.gminy,t.value,6).filter(x=>x!==selected&&!comparePicks.includes(x.k)):[];list.innerHTML=found.map(x=>`<li><button type="button" data-cmp-add="${esc(x.k)}">${esc(x.n)}<small>${esc(region(x))}</small></button></li>`).join("");return;}
+    if(e.type==="input"&&t.id==="cmpInd"){const list=$("#cmpIndList"),q=norm(t.value).split(/\s+/).filter(Boolean),have=compareKeyList();const found=q.length?model.definitions.filter(d=>!have.includes(d.key)&&q.every(w=>norm(`${d.label} ${d.category} ${d.unit||""}`).includes(w))).slice(0,8):[];list.innerHTML=found.map(d=>`<li><button type="button" data-cmp-key-add="${esc(d.key)}">${esc(d.label)}<small>${esc(d.category)}${d.unit?" · "+esc(d.unit):""}</small></button></li>`).join("");return;}
+    if(e.type!=="click")return;
+    const b=t.closest("[data-cmp-add],[data-cmp-del],[data-cmp-key-add],[data-cmp-key-del]");if(!b)return;
+    if(b.dataset.cmpAdd)comparePicks.push(b.dataset.cmpAdd);
+    if(b.dataset.cmpDel)comparePicks=comparePicks.filter(k=>k!==b.dataset.cmpDel);
+    if(b.dataset.cmpKeyAdd){compareKeys=[...compareKeyList(),b.dataset.cmpKeyAdd];app.store.set("compareKeys",compareKeys);}
+    if(b.dataset.cmpKeyDel){compareKeys=compareKeyList().filter(k=>k!==b.dataset.cmpKeyDel);app.store.set("compareKeys",compareKeys);}
+    const top=$("#gminaDetails").scrollTop;$("#gminaCompare").innerHTML=compareHtml();$("#gminaDetails").scrollTop=top;
   }
   async function fillNeighbours(g){
     const el=$("#gminaNeighbors");if(!el||!window.GminaWiki)return;
@@ -216,6 +281,7 @@
   $("#dataCategories").addEventListener("click", (e) => { const b = e.target.closest("[data-category]"); if (b) { changeCategory(b.dataset.category); } });
   dialog.addEventListener("close",()=>window.UIHistory?.dismiss("gmina-details"));
   $("#closeGmina").onclick = () => dialog.close();
+  $("#gminaDetails").addEventListener("input", compareEvents); $("#gminaDetails").addEventListener("click", compareEvents);
   $("#gminaDetails").addEventListener("gmina-pick", (e) => { select(e.detail, false).then(()=>{$("#gminaDetails").scrollTop=0;}); });
   $("#gminaDetails").addEventListener("input", (e) => { if (e.target.id === "indSearch") { indQuery = e.target.value; runIndicatorSearch(indQuery); } });
   $("#gminaDetails").addEventListener("click", (e) => { const more=e.target.closest("[data-wiki-more]");if(more){const open=more.getAttribute("aria-expanded")!=="true";more.setAttribute("aria-expanded",open);more.textContent=open?"Zwiń":"Czytaj dalej";more.closest(".wiki-card").classList.toggle("open",open);} });

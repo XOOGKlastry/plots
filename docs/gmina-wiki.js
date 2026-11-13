@@ -216,7 +216,7 @@
     if (!photos.length) return "";
     return `<section class="metric-section gallery-section"><h2><svg class="ic" aria-hidden="true"><use href="icons/phosphor.svg#image"></use></svg>Zdjęcia <span class="muted small">${photos.length}</span></h2>
       <div class="gallery" role="list">${photos.map((p, i) => `<button type="button" class="gallery-item" role="listitem" data-photo="${i}" style="--r:${Number(p.r) || 1.5}" aria-label="Powiększ zdjęcie ${i + 1}: ${esc(p.f.replace(/\.[^.]+$/, ""))}"><img src="${esc(safeUrl(p.t) || "")}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join("")}</div>
-      <p class="wiki-license">Zdjęcia: Wikimedia Commons, autorzy i licencje po powiększeniu.</p></section>`;
+      <p class="wiki-license">Zdjęcia: Wikimedia Commons, autorzy i licencje po powiększeniu. Więcej zdjęć, także dawnych: <a href="https://www.google.com/search?q=${encodeURIComponent("site:fotopolska.eu " + String(name || "").replace(/^gmina\s+/i, ""))}" target="_blank" rel="noopener noreferrer">fotopolska.eu</a>.</p></section>`;
   }
   function openPhoto(photos, index, name) {
     let box = document.getElementById("photoBox");
