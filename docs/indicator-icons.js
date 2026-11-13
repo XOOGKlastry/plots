@@ -3,6 +3,7 @@
   "use strict";
   const categories = {
     "Przegląd": { icon: "squares-four", color: "#5c6ac4" },
+    "Wybory": { icon: "envelope", color: "#1c1c1e" },
     "Ludność": { icon: "users", color: "#7c5cc4" },
     "Finanse i firmy": { icon: "coins", color: "#2f8f6f" },
     "Warunki życia": { icon: "house", color: "#1c8fb0" },

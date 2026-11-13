@@ -38,12 +38,15 @@
   }
   let energyData=null,pendingEnergy=null;
   function energy(){
-    if(!pendingEnergy)pendingEnergy=fetch("data/gus-energia.json",{signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw Error("Nie udało się wczytać danych energetycznych GUS");return r.json();}).then(doc=>{
-      if(doc.version!==1||!Array.isArray(doc.units)||!Array.isArray(doc.variables))throw Error("Nieobsługiwany format danych energetycznych");
-      const index=new Map(doc.units.map((k,i)=>[k,i])),byKey=new Map(doc.variables.map(v=>[v.key,v]));
-      root.GminyModel.addDefinitions(doc.variables.map(v=>({...v,label:v.label})));
+    // Main GUS file plus other official sources in the same format (PKW elections, NID heritage, GDOŚ nature).
+    const one=url=>fetch(url,{signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw Error("Nie udało się wczytać "+url);return r.json();}).then(doc=>{
+      if(doc.version!==1||!Array.isArray(doc.units)||!Array.isArray(doc.variables))throw Error("Nieobsługiwany format "+url);return doc;});
+    if(!pendingEnergy)pendingEnergy=Promise.all([one("data/gus-energia.json"),one("data/wskazniki-inne.json").catch(()=>null)]).then(([doc,other])=>{
+      const docs=[doc,other].filter(Boolean),byKey=new Map();
+      for(const d of docs){const index=new Map(d.units.map((k,i)=>[k,i]));for(const v of d.variables)byKey.set(v.key,{v,index});}
+      root.GminyModel.addDefinitions(docs.flatMap(d=>d.variables).map(v=>({...v,label:v.label})));
       root.GminyModel.setExternal((k,definition)=>{
-        const v=byKey.get(definition.key),i=index.get(k);if(!v||i===undefined)return null;
+        const e=byKey.get(definition.key);if(!e)return null;const v=e.v,i=e.index.get(k);if(i===undefined)return null;
         const history=v.years.map((year,j)=>({year,value:v.values[j][i]})).filter(o=>typeof o.value==="number"&&Number.isFinite(o.value));
         if(!history.length)return null;
         return {...history[0],history,source:v.source||(v.level===5?"GUS BDL · dane powiatu":"GUS BDL"),variableId:v.id,sourceUrl:v.sourceUrl||(v.id?`https://bdl.stat.gov.pl/api/v1/variables/${v.id}`:undefined)};

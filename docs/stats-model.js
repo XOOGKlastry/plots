@@ -12,7 +12,7 @@
     magma: { label: "Magma", colors: ["#fcfdbf", "#feb078", "#f1605d", "#b73779", "#721f81", "#2c115f", "#000004"] },
     kontrast: { label: "Kontrast (±)", diverging: true, colors: ["#009392", "#39b185", "#9ccb86", "#e9e29c", "#eeb479", "#e88471", "#cf597e"] }
   };
-  const categoryPalette = { "Ludność": "lawenda", "Finanse i firmy": "viridis", "Warunki życia": "ocean", "Energia i ciepło": "zachod", "Infrastruktura": "ocean", "Planowanie": "brzoskwinia", "Edukacja i kultura": "lawenda", "Środowisko": "las", "Przegląd": "viridis" };
+  const categoryPalette = { "Ludność": "lawenda", "Finanse i firmy": "viridis", "Warunki życia": "ocean", "Energia i ciepło": "zachod", "Infrastruktura": "ocean", "Planowanie": "brzoskwinia", "Edukacja i kultura": "lawenda", "Środowisko": "las", "Przegląd": "viridis", "Wybory": "ocean" };
   const NODATA = "#d9dae0", ZERO = "#e6dfcf";
 
   function quantiles(sorted, n) {

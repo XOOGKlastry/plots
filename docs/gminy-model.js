@@ -3,7 +3,7 @@
   "use strict";
   const definitions = [
     { key: "ludnosc", label: "Mieszkańcy", unit: "os.", category: "Ludność", digits: 0, base: true },
-    { key: "powierzchnia", label: "Powierzchnia", unit: "km²", category: "Przegląd", digits: 2 },
+    { key: "powierzchnia", label: "Powierzchnia", unit: "km²", category: "Ludność", digits: 2 },
     { key: "przyrost_naturalny", label: "Przyrost naturalny", unit: "na 1000 os.", category: "Ludność", digits: 2 },
     { key: "obciazenie_demograficzne", label: "Osoby w wieku nieprodukcyjnym", unit: "na 100 os. w wieku produkcyjnym", category: "Ludność", digits: 1 },
     { key: "saldo_migracji", label: "Saldo migracji", unit: "na 1000 os.", category: "Ludność", digits: 1, base: true },
