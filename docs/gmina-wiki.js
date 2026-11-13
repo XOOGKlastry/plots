@@ -57,7 +57,7 @@
     const out = [];
     for (const def of model.definitions) {
       // Only relative measures (shares, per resident, per km², averages): absolute totals always favour big cities.
-      if (!relative.test(def.key) && !/%|‰|\bna\b|\/|średni/i.test((def.unit || "") + " " + def.label)) continue;
+      if (!relative.test(def.key) && !/%|‰|\bna\b|\//i.test(def.unit || "") && !/\bna\b|średni|przeciętn/i.test(def.label)) continue;
       const v = model.metric(g, def).value;
       if (!Number.isFinite(v)) continue;
       const s = distribution(model, gminy, def);
