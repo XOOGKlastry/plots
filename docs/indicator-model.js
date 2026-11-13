@@ -4,8 +4,9 @@
   const descriptive=new Set(['ludnosc','powierzchnia','gestosc_ludnosci','pit_suma','biblioteki_czytelnicy','zlobki_miejsca','przedszkola_dzieci','drogi_km','gaz_odbiorcy','gaz_ogrzewanie','mieszkanie_srednie_m2']);
   const lower=new Set(['bezrobocie_proc','zgony_1000','obciazenie_demograficzne','odpady_kg']);
   function rank(item,peers){
-    if(!Number.isFinite(item.value)||!item.year)return {tone:'missing',label:'Brak porównywalnego rocznika',rank:null,n:0};
-    const values=peers.filter(p=>p.year===item.year&&Number.isFinite(p.value)).map(p=>p.value);
+    // Reference values without a stated year come from one national edition, so they are ranked against each other.
+    if(!Number.isFinite(item.value)||(!item.year&&!item.reference))return {tone:'missing',label:'Brak porównywalnego rocznika',rank:null,n:0};
+    const values=peers.filter(p=>(item.year?p.year===item.year:!p.year&&p.reference)&&Number.isFinite(p.value)).map(p=>p.value);
     if(values.length<30)return {tone:'missing',label:'Za mało porównywalnych danych',rank:null,n:values.length};
     const isDescriptive=item.descriptive||descriptive.has(item.key),direction=item.lowerBetter||lower.has(item.key)?-1:1,better=values.filter(v=>(v-item.value)*direction>0).length,ties=Math.max(1,values.filter(v=>v===item.value).length),n=values.length;
     const tone=isDescriptive?'neutral':(better+ties)/n<=.2?'good':better/n>=.8?'bad':'neutral';

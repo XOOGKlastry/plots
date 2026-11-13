@@ -206,3 +206,10 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .stats-manual-err{margin:4px 0 0;font-size:11.5px;color:#c0392b;min-height:0}
 /* Desktop: category chips wrap into tidy rows instead of a clipped scroller. */
 @media(min-width:768px){.stats-cats{flex-wrap:wrap;overflow:visible;row-gap:6px}.stats-cats button{padding:5px 9px}}
+
+/* Parcel ownership colours: nested under the parcel layer. */
+.layer-sub{margin-left:22px;padding-left:12px;border-left:2px solid var(--line)}.layer-sub[hidden]{display:none!important}.layer-sub #legendDetails{margin:6px 0 4px}.layer-sub #legendDetails>summary{font-size:12px;color:var(--mut);cursor:pointer}
+
+/* Location minimap in the gmina overview. */
+.minimap{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:480px}.minimap figure{margin:0;background:var(--bg);border-radius:14px;padding:6px;text-align:center}.minimap canvas{width:100%;max-width:200px;aspect-ratio:200/190;display:block;margin:0 auto}.minimap figcaption{font-size:11px;color:var(--mut);margin-top:2px}
+:root{--minimap-land:#c5ccd8;--minimap-edge:#ffffff}@media(prefers-color-scheme:dark){:root{--minimap-land:#3a4150;--minimap-edge:#1c2028}}

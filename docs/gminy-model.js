@@ -52,7 +52,7 @@
     const rawYear = hasExtra ? extra.lata?.[definition.key] : gmina[definition.key + "_rok"];
     const year = Number.isInteger(rawYear) && rawYear >= 1900 ? rawYear : null;
     if (gmina._selectedYear && year !== gmina._selectedYear) value = null;
-    return { ...definition, value, year, source: hasExtra || year ? "GUS BDL" : "Dane referencyjne · rok niepodany", sourceKey: hasExtra ? definition.key : null };
+    return { ...definition, value, year, source: hasExtra || year ? "GUS BDL" : "GUS BDL, zestaw referencyjny (rok nieznany)", reference: !year && value !== null, sourceKey: hasExtra ? definition.key : null };
   }
   function addDefinitions(items) {
     for (const item of items) {
