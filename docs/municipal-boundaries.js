@@ -2,8 +2,10 @@
  'use strict';
  const app=window.PLOTS,map=app.map,cache=new Map(),pending=new Map();let current=null,revision=0,data=null;
  const empty=()=>({type:'FeatureCollection',features:[]});
- // The outline layer was removed at the user's request; the module only fetches the bbox to frame a selected gmina.
- function visible(){return false;}
+ // The selected gmina outline is always shown in the Gmina tab (no separate layer switch).
+ function visible(){return !window.DistanceModule?.isOpen()&&app.currentTab()==='gmina';}
+ // A user gesture after selection cancels the pending fit, so a quick zoom-out is never undone by a late boundary load.
+ let gesture=0;map.on('movestart',e=>{if(e.originalEvent)gesture++;});
  function render(){map.getSource('municipal-boundaries')?.setData(visible()&&data?data:empty());}
  function save(id,value){try{localStorage.setItem('plots.boundary.'+id,JSON.stringify(value));let recent=JSON.parse(localStorage.getItem('plots.boundaryRecent')||'[]');recent=[id,...recent.filter(x=>x!==id)];recent.slice(6).forEach(x=>localStorage.removeItem('plots.boundary.'+x));localStorage.setItem('plots.boundaryRecent',JSON.stringify(recent.slice(0,6)));}catch{/* Storage is optional. */}}
  async function load(id){
@@ -12,8 +14,8 @@
   return pending.get(id);
  }
  async function select(id,fit=false){
-  if(current!==id){current=id;revision++;data=null;render();}const run=revision;if(!id)return false;
-  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){app.frame(value.bbox,16);return true;}return true;}
+  if(current!==id){current=id;revision++;data=null;render();}const run=revision,moves=gesture;if(!id)return false;
+  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit&&gesture===moves&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){app.frame(value.bbox,16);return true;}return true;}
   catch(error){if(run===revision&&fit)app.toast('Granice gminy są chwilowo niedostępne');return false;}
  }
  function initialize(){
@@ -25,6 +27,6 @@
  if(map.loaded())initialize();else map.once('load',initialize);
  document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,visible());});
  document.addEventListener('plots:mode',render);
- document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,true);});
+ document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,false);});
  window.MunicipalBoundaries={select,current:()=>current,fit:()=>current?select(current,true):Promise.resolve(false)};
 })();

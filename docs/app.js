@@ -58,16 +58,33 @@
         toast("Wczytano zapasowy podkład mapy. Spróbuj ponownie później.");
       }
     }
+    // Imagery gets street and place names from the vector map (OpenFreeMap / OSM), restyled for photos.
+    let labels = null;
+    if (!b.style) {
+      try {
+        const response = await fetch("styles/map-light.json", { signal: AbortSignal.timeout(10000) });
+        if (response.ok) {
+          const vector = await response.json(), keep = /^(highway-name-(path|minor|major)|label_(village|town|city|city_capital|other)|water_name_(point|line)_label|waterway_line_label)$/;
+          const name = ["coalesce", ["get", "name:pl"], ["get", "name"]], show = store.get("orthoLabels", true) ? "visible" : "none";
+          labels = { sources: { openmaptiles: vector.sources.openmaptiles }, layers: vector.layers.filter(l => keep.test(l.id)).map(l => ({ ...l, id: "ortho-" + l.id,
+            layout: { ...l.layout, "text-field": name, visibility: show },
+            paint: { ...l.paint, "text-color": /water/.test(l.id) ? "#cfe8ff" : "#ffffff", "text-halo-color": "rgba(0,0,0,.82)", "text-halo-width": 1.6, "text-halo-blur": 0.4 } })),
+            glyphs: vector.glyphs };
+        }
+      } catch { /* Labels are optional on imagery. */ }
+    }
     if (requestId !== basemapRequest) return;
     if (!baseStyle) baseStyle = {
       version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
       sources: { base: { type: "raster", tiles: [b.url || BASEMAPS[0].url], tileSize: 256, maxzoom: b.max, attribution: b.attr } },
       layers: [{ id: "base", type: "raster", source: "base", paint: { "raster-fade-duration": 200 } }]
     };
+    if (labels) { baseStyle.sources = { ...baseStyle.sources, ...labels.sources }; baseStyle.layers = [...baseStyle.layers, ...labels.layers]; baseStyle.glyphs = labels.glyphs || baseStyle.glyphs; }
     const current = map.getStyle(), overlaySources = {};
     overlaySourceIds.forEach((key) => { if (current.sources[key]) overlaySources[key] = current.sources[key]; });
     const overlays = current.layers.filter((layer) => Object.prototype.hasOwnProperty.call(overlaySources, layer.source));
-    map.setStyle({ ...baseStyle, sources: { ...baseStyle.sources, ...overlaySources }, layers: [...baseStyle.layers, ...overlays] });
+    const isLabel = (l) => l.id.startsWith("ortho-");
+    map.setStyle({ ...baseStyle, sources: { ...baseStyle.sources, ...overlaySources }, layers: [...baseStyle.layers.filter((l) => !isLabel(l)), ...overlays, ...baseStyle.layers.filter(isLabel)] });
     bmId = b.id; if (save !== false) store.set("basemap", b.id);
     document.querySelectorAll(".bm").forEach((el) => el.setAttribute("aria-pressed", el.dataset.id === b.id));
     // lighter outlines on imagery / dark maps

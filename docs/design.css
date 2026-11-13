@@ -180,9 +180,9 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 /* Gmina compendium: Wikipedia section and national highlights. */
 .wiki-card{background:var(--solid);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flow-root}
 .wiki-photo{float:right;width:min(42%,260px);aspect-ratio:4/3;object-fit:cover;border-radius:10px;margin:0 0 8px 12px;background:var(--line)}
-.wiki-text{font-size:13.5px;line-height:1.55;max-height:7.6em;overflow:hidden;position:relative}.wiki-text p{margin:0 0 .6em}
-.wiki-card:not(.open) .wiki-text:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.4em;background:linear-gradient(transparent,var(--solid))}
-.wiki-card.open .wiki-text{max-height:none}
+.wiki-text{font-size:13.5px;line-height:1.55}.wiki-text p{margin:0 0 .6em}
+.wiki-card:not(.open) .wiki-text p:not(:first-child){display:none}
+
 .wiki-more{border:0;background:none;color:var(--acc);font-weight:600;padding:4px 0;cursor:pointer;font-size:13px}
 .wiki-facts{clear:both;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 14px;margin:10px 0 6px}
 .wiki-fact{border-top:1px solid var(--line);padding-top:6px}.wiki-fact dt{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}.wiki-fact dd{margin:2px 0 0;font-size:13px;overflow-wrap:anywhere}
@@ -213,3 +213,18 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 /* Location minimap in the gmina overview. */
 .minimap{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:480px}.minimap figure{margin:0;background:var(--bg);border-radius:14px;padding:6px;text-align:center}.minimap canvas{width:100%;max-width:200px;aspect-ratio:200/190;display:block;margin:0 auto}.minimap figcaption{font-size:11px;color:var(--mut);margin-top:2px}
 :root{--minimap-land:#c5ccd8;--minimap-edge:#ffffff}@media(prefers-color-scheme:dark){:root{--minimap-land:#3a4150;--minimap-edge:#1c2028}}
+
+.gmina-pop{font-weight:400;color:var(--mut);font-size:.62em;letter-spacing:0;white-space:nowrap}button .gmina-pop{font-size:.9em}
+
+/* Photo gallery and lightbox (Wikimedia Commons). */
+.gallery{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px;overscroll-behavior-x:contain}
+.gallery-item{flex:none;height:150px;aspect-ratio:var(--r);max-width:300px;border:0;padding:0;border-radius:12px;overflow:hidden;background:var(--line);cursor:zoom-in;scroll-snap-align:start}
+.gallery-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}.gallery-item:hover img{transform:scale(1.04)}
+@media(max-width:767px){.gallery-item{height:120px}}
+.photo-box{border:0;padding:0;background:transparent;max-width:100vw;max-height:100dvh;width:100vw;height:100dvh;margin:0;display:none;align-items:center;justify-content:center}
+.photo-box[open]{display:flex}.photo-box::backdrop{background:rgba(8,10,14,.9)}
+.photo-box figure{margin:0;max-width:min(1200px,92vw);text-align:center}.photo-box img{max-width:100%;max-height:78dvh;border-radius:10px;display:block;margin:0 auto}
+.photo-box figcaption{color:#e8ebf0;font-size:13px;margin-top:10px;line-height:1.45}.photo-box figcaption span{color:#aab2bf;font-size:12px}.photo-box figcaption a{color:#9cc8ff}
+.photo-nav,.photo-close{position:fixed;border:0;background:rgba(255,255,255,.12);color:#fff;width:44px;height:44px;border-radius:50%;font-size:28px;line-height:1;cursor:pointer}
+.photo-nav.prev{left:12px;top:50%}.photo-nav.next{right:12px;top:50%}.photo-close{right:14px;top:14px}
+@media(min-width:768px){.gallery{flex-wrap:wrap;overflow:visible}.gallery-item{height:130px}}

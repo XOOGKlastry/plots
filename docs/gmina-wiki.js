@@ -42,7 +42,7 @@
     return `<section class="metric-section wiki-section"><h2><svg class="ic" aria-hidden="true"><use href="icons/phosphor.svg#book-open"></use></svg>O gminie</h2>
       <div class="wiki-card">${thumb ? `<img class="wiki-photo" src="${esc(thumb)}" alt="${esc(name)} – zdjęcie z Wikipedii" loading="lazy" referrerpolicy="no-referrer">` : ""}
       <div class="wiki-text" data-wiki-text>${paras.map(p => `<p>${esc(p)}</p>`).join("")}</div>
-      ${paras.join(" ").length > 420 ? `<button type="button" class="wiki-more" data-wiki-more aria-expanded="false">Czytaj dalej</button>` : ""}
+      ${paras.length > 1 ? `<button type="button" class="wiki-more" data-wiki-more aria-expanded="false">Czytaj dalej</button>` : ""}
       <dl class="wiki-facts">${facts(w)}</dl>
       <p class="wiki-license">Tekst: ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Wikipedia – ${esc(w.title)}</a>` : "Wikipedia"}, licencja <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pl" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>. Dane: Wikidata (CC0).${safeUrl(w.commons) ? ` <a href="${esc(safeUrl(w.commons))}" target="_blank" rel="noopener noreferrer">Zdjęcia w Wikimedia Commons</a>` : ""}</p></div></section>`;
   }
@@ -110,6 +110,40 @@
       <div class="minimap"><figure><canvas role="img" aria-label="${esc(name)} na mapie Polski"></canvas><figcaption>W Polsce</figcaption></figure>
       <figure><canvas role="img" aria-label="${esc(name)} i sąsiednie gminy"></canvas><figcaption>Sąsiednie gminy</figcaption></figure></div></section>`;
   }
-  const api = { load, render, highlights, minimap, minimapHtml };
+  /* Photo gallery (data/foto/<woj>.json, Wikimedia Commons): thumbnail strip + lightbox with author and licence. */
+  const photoCache = new Map();
+  function loadPhotos(k) {
+    const woj = String(k).slice(0, 2);
+    if (!photoCache.has(woj)) photoCache.set(woj, fetch(`data/foto/${woj}.json`, { signal: AbortSignal.timeout(20000) })
+      .then(r => r.ok ? r.json() : { gminy: {} }).catch(e => { photoCache.delete(woj); throw e; }));
+    return photoCache.get(woj).then(doc => doc.gminy[k] || []);
+  }
+  const large = u => String(u).replace(/\/(\d+)px-/, "/1280px-");
+  function galleryHtml(photos, name) {
+    if (!photos.length) return "";
+    return `<section class="metric-section gallery-section"><h2><svg class="ic" aria-hidden="true"><use href="icons/phosphor.svg#image"></use></svg>Zdjęcia <span class="muted small">${photos.length}</span></h2>
+      <div class="gallery" role="list">${photos.map((p, i) => `<button type="button" class="gallery-item" role="listitem" data-photo="${i}" style="--r:${Number(p.r) || 1.5}" aria-label="Powiększ zdjęcie ${i + 1}: ${esc(p.f.replace(/\.[^.]+$/, ""))}"><img src="${esc(safeUrl(p.t) || "")}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join("")}</div>
+      <p class="wiki-license">Zdjęcia: Wikimedia Commons, autorzy i licencje po powiększeniu.</p></section>`;
+  }
+  function openPhoto(photos, index, name) {
+    let box = document.getElementById("photoBox");
+    if (!box) {
+      box = document.createElement("dialog"); box.id = "photoBox"; box.className = "photo-box";
+      box.innerHTML = `<button type="button" class="photo-close" data-photo-close aria-label="Zamknij">×</button><button type="button" class="photo-nav prev" data-photo-step="-1" aria-label="Poprzednie">‹</button><figure><img alt="" referrerpolicy="no-referrer"><figcaption></figcaption></figure><button type="button" class="photo-nav next" data-photo-step="1" aria-label="Następne">›</button>`;
+      document.body.append(box);
+      box.addEventListener("click", e => { if (e.target === box || e.target.closest("[data-photo-close]")) box.close(); const s = e.target.closest("[data-photo-step]"); if (s) box._show(box._i + Number(s.dataset.photoStep)); });
+      box.addEventListener("keydown", e => { if (e.key === "ArrowLeft") box._show(box._i - 1); if (e.key === "ArrowRight") box._show(box._i + 1); });
+      let x0 = null; box.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
+      box.addEventListener("touchend", e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) box._show(box._i + (dx < 0 ? 1 : -1)); x0 = null; });
+    }
+    box._show = i => {
+      const list = box._photos; box._i = (i + list.length) % list.length; const p = list[box._i];
+      box.querySelector("img").src = safeUrl(large(p.t)) || ""; box.querySelector("img").alt = `${box._name} – ${p.f.replace(/\.[^.]+$/, "")}`;
+      box.querySelector("figcaption").innerHTML = `${esc(p.f.replace(/\.[^.]+$/, "").replace(/_/g, " "))}<br><span>${esc(p.a || "autor nieznany")} · ${esc(p.l || "licencja w opisie")} · <a href="${esc(safeUrl(p.u) || "#")}" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> · ${box._i + 1}/${list.length}</span>`;
+    };
+    box._photos = photos; box._name = name; box._show(index);
+    if (!box.open) box.showModal();
+  }
+  const api = { load, render, highlights, minimap, minimapHtml, loadPhotos, galleryHtml, openPhoto };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.GminaWiki = api;
 })(typeof window !== "undefined" ? window : globalThis);
