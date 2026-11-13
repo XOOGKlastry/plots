@@ -41,14 +41,14 @@
     for (const id of ["stats-fill", "stats-line", "stats-focus"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
   }
 
-  function series(def) {
+  function series(def, mode = state.mode) {
     const values = new Map(), years = new Set();
     for (const g of gminy) {
-      const m = model.metric(state.year && state.mode === "value" ? { ...g, _selectedYear: state.year } : g, def);
+      const m = model.metric(state.year && mode === "value" ? { ...g, _selectedYear: state.year } : g, def);
       (m.history || []).forEach(h => years.add(h.year));
       if (m.year) years.add(m.year);
       let v = m.value;
-      if (state.mode === "change") {
+      if (mode === "change") {
         const base = state.year ? model.metric({ ...g, _selectedYear: state.year }, def) : m;
         const prev = base.history?.find(h => h.year === base.year - 1 && Number.isFinite(h.value));
         v = Number.isFinite(base.value) && prev ? base.value - prev.value : null;
@@ -65,10 +65,23 @@
     if (selectedId) map.setFeatureState({ source: "stats-gminy", id: selectedId }, { sel: true });
   }
 
+  // Year-over-year only makes sense when enough gminy have a previous year and the change actually varies.
+  const changeCache = new Map();
+  function changeOk(def) {
+    const id = def.key + ":" + (state.year || "");
+    if (!changeCache.has(id)) {
+      const v = [...series(def, "change").values.values()].map(o => o.value);
+      changeCache.set(id, v.length >= 50 && new Set(v.map(x => Math.round(x * 1e6))).size > 2);
+    }
+    return changeCache.get(id);
+  }
+
   function compute() {
     const def = defs.find(d => d.key === state.key) || defs[0];
     if (!def) return;
     state.key = def.key;
+    const okChange = changeOk(def);
+    if (!okChange && state.mode === "change") { state.mode = "value"; state.palette = null; }
     const { values, years } = series(def);
     const raw = [...values.values()].map(o => o.value);
     const signed = state.mode === "change" || /saldo|przyrost/.test(def.key);
@@ -76,7 +89,7 @@
     const manual = state.manual[def.key + ":" + state.mode];
     const scheme = S.classify(raw, { method: state.method === "manual" && !manual ? "quantile" : state.method, breaks: manual, classes: state.classes, zeroClass: state.zero, palette, reverse: state.reverse, diverging: signed && state.method !== "manual" });
     const usedYears = [...new Set([...values.values()].map(o => o.year).filter(Boolean))].sort((a, b) => a - b);
-    current = { def, values, years, usedYears, scheme, palette, raw };
+    current = { def, values, years, usedYears, scheme, palette, raw, okChange };
   }
 
   function rankList(sorted) {
@@ -102,7 +115,10 @@
     const missing = gminy.length - current.values.size;
     $("#statsCurrent").innerHTML = `<small style="--cat:${window.IndicatorIcons.of(def).color}">${icon(window.IndicatorIcons.of(def).icon)}${esc(def.category)} · ${esc(window.IndicatorIcons.of(def).group)}</small><strong>${esc(def.label)}</strong><span>${esc(unit())}${yearText ? " · " + yearText : ""}</span>${icon("caret-down", "stats-caret")}`;
     $("#statsYear").innerHTML = `<option value="">Najnowszy</option>` + current.years.slice(0, 6).map(y => `<option value="${y}" ${state.year === y ? "selected" : ""}>${y}</option>`).join("");
-    $("#statsMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === state.mode));
+    $("#statsMode").querySelectorAll("button").forEach(b => {
+      b.setAttribute("aria-pressed", b.dataset.mode === state.mode);
+      if (b.dataset.mode === "change") { b.disabled = !current.okChange; b.title = current.okChange ? "" : "Dla tego wskaźnika nie ma danych z poprzedniego roku"; }
+    });
     $("#statsMethod").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.method === state.method));
     $("#statsClasses").value = String(state.classes); $("#statsClasses").disabled = state.method === "manual"; $("#statsZero").checked = state.zero;
     $("#statsManual").hidden = state.method !== "manual";
@@ -216,7 +232,7 @@
     else if (b.id === "statsCurrent") togglePicker();
     else if (b.dataset.stat) { state.key = b.dataset.stat; state.palette = null; state.year = null; togglePicker(false); update(); if (app.isMobile()) sheet(false); }
     else if (b.id === "statsHandle") sheet(document.body.classList.contains("stats-mini"));
-    else if (b.dataset.mode) { state.mode = b.dataset.mode; state.palette = null; update(); }
+    else if (b.dataset.mode && !b.disabled) { state.mode = b.dataset.mode; state.palette = null; update(); }
     else if (b.dataset.method) { state.method = b.dataset.method; update(); }
     else if (b.dataset.palette) { state.palette = b.dataset.palette === "auto" ? null : b.dataset.palette; update(); }
     else if (b.hasAttribute("data-pick-cat")) { pickCat = b.dataset.pickCat; pickerList($("#statsSearch").value); }

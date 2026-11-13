@@ -72,10 +72,9 @@
   /* "Czym się wyróżnia": rank of the gmina in its powiat, voivodeship and the country, at either end of the scale.
      Returns [{def, v, dir:"hi"|"lo", tone:"good"|"bad"|"", scopes:[{s,rank,n}], score}]. */
   function standouts(model, gminy, g, limit = 8) {
-    const pow = gminy.filter(x => x.k.slice(0, 4) === g.k.slice(0, 4)), woj = gminy.filter(x => x.k.slice(0, 2) === g.k.slice(0, 2));
     const out = [];
     for (const def of model.definitions) {
-      if (!relative.test(def.key) && !/%|‰|\bna\b|\//i.test(def.unit || "") && !/\bna\b|średni|przeciętn/i.test(def.label)) continue;
+      if (!relative.test(def.key) && !/%|‰|\bna\b|\//i.test(def.unit || "") && !/\bna (1|10|100|1000|10 ?tys|mieszk|osob|km|ha|uczni|dziec)|średni|przeciętn/i.test(def.label)) continue;
       const v = model.metric(g, def).value;
       if (!Number.isFinite(v) || (/^usl_/.test(def.key) && !/^usl_grp_/.test(def.key))) continue; // single shop brands are trivia
       const all = distribution(model, gminy, def);
@@ -87,13 +86,9 @@
       let best = null;
       for (const dir of ["hi", "lo"]) {
         if (dir === "lo" && v === 0) continue;
-        const k = rank(gminy, dir), w = rank(woj, dir), p = pow.length >= 4 ? rank(pow, dir) : null;
-        const scopes = [];
-        if (p && p.rank === 1) scopes.push({ s: "powiat", ...p });
-        if (w.rank <= 3 && w.n >= 30) scopes.push({ s: "woj", ...w });
-        if (k.rank <= Math.max(10, k.n * .01)) scopes.push({ s: "kraj", ...k });
-        if (!scopes.length) continue;
-        const score = Math.min(...scopes.map(x => x.rank / x.n * (x.s === "kraj" ? 1 : x.s === "woj" ? 3 : 8)));
+        const k = rank(gminy, dir);
+        if (k.rank > Math.max(10, k.n * .01)) continue; // only the national top 1%
+        const scopes = [{ s: "kraj", ...k }], score = k.rank / k.n;
         if (!best || score < best.score) best = { def, v, dir, scopes, score };
       }
       if (!best) continue;

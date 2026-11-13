@@ -343,3 +343,4 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .so-good .so-badge{background:#e8f8ee;color:#1d6f32}.so-bad .so-badge{background:#fff1e0;color:#9a4700}
 .so-list .stat-map-link{flex:none;min-width:36px;min-height:36px;justify-content:center}
 .so-val b{color:#1c1c1e;font-weight:650}.so-ranks{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px}.so-badge{align-self:auto}.so-badge b{font-weight:750}.so-badge small{font-weight:500;opacity:.75}
+.stats-seg button:disabled{color:#b8bcc4;cursor:not-allowed;background:none;box-shadow:none;text-decoration:line-through;text-decoration-color:#d0d3d8}
