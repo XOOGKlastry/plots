@@ -1,7 +1,7 @@
 (function(){
  'use strict';
- const model=window.MunicipalityModel;let shapes=null,pending=null,revision=0;
- function ready(){if(!pending)pending=fetch('data/municipalities.topojson').then(r=>{if(!r.ok)throw Error('Granice gmin niedostępne');return r.json();}).then(t=>shapes=model.decode(t)).catch(e=>{pending=null;throw e;});return pending;}
+ const model=window.MunicipalityModel;let shapes=null,raw=null,pending=null,revision=0;
+ function ready(){if(!pending)pending=fetch('data/municipalities.topojson').then(r=>{if(!r.ok)throw Error('Granice gmin niedostępne');return r.json();}).then(t=>{raw=t;return shapes=model.decode(t);}).catch(e=>{pending=null;throw e;});return pending;}
  async function update(detail){
   const current=++revision;
   const id=model.teryt(detail.TERYT_GMI||detail.teryt_gmi||detail.teryt||detail.gmina_teryt);
@@ -17,5 +17,5 @@
  document.addEventListener('plots:point',e=>update(e.detail).catch(()=>window.PLOTS.toast('Dane gmin są chwilowo niedostępne')));
  document.addEventListener('plots:parcel',()=>revision++);
  document.addEventListener('plots:manual-gmina',()=>revision++);
- window.MunicipalityContext={ready,update};
+ window.MunicipalityContext={ready,update,topology:()=>raw};
 })();

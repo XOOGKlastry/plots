@@ -14,11 +14,6 @@
   function facts(w) {
     const rows = [];
     const add = (label, value, href) => { if (value) rows.push(`<div class="wiki-fact"><dt>${esc(label)}</dt><dd>${href && safeUrl(href) ? `<a href="${esc(safeUrl(href))}" target="_blank" rel="noopener noreferrer">${esc(value)}</a>` : esc(value)}</dd></div>`); };
-    add("Siedziba", w.seat);
-    const role = (/prezydent|burmistrz|wójt/i.exec(w.headRole || "") || [""])[0].toLowerCase();
-    add(role ? role[0].toUpperCase() + role.slice(1) : "Wójt, burmistrz lub prezydent", w.head);
-    add("Sołectwa", w.solectwa);
-    add("Miejscowości", w.miejscowosci);
     add("Wysokość", Number.isFinite(w.elev) ? `${w.elev.toLocaleString("pl-PL")} m n.p.m.` : "");
     add("Utworzona", w.since);
     add("Prawa miejskie", w.rights);
@@ -33,6 +28,12 @@
     add("BIP", w.bip ? w.bip.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "", w.bip);
     if (w.twins?.length) add(w.twins.length > 1 ? "Miasta partnerskie" : "Miasto partnerskie", w.twins.join(", "));
     return rows.join("");
+  }
+  /* Short facts for the top of the overview: seat, head of the gmina, villages. */
+  function quick(w) {
+    const role = (/prezydent|burmistrz|wójt/i.exec(w.headRole || "") || [""])[0].toLowerCase();
+    return [["Siedziba", w.seat], [role ? role[0].toUpperCase() + role.slice(1) : "Wójt, burmistrz lub prezydent", w.head],
+      ["Sołectwa", w.solectwa], ["Miejscowości", w.miejscowosci]].filter(x => x[1]).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("");
   }
   /* Wikipedia section: photo, intro (collapsed), facts, licence. */
   function render(w, name) {
@@ -68,47 +69,106 @@
     }
     return out.sort((a, b) => a.pct - b.pct).slice(0, limit);
   }
-  /* Location minimap: Poland with the gmina marked, plus its neighbourhood, drawn on canvas from the shared PRG topology. */
-  let base = null;
+  /* Location map: the gmina among its neighbours (names, powiat and voivodeship borders, scale) with a Poland
+     locator inset. Borders and neighbours come from shared arcs of the PRG topology (data/municipalities.topojson). */
+  let topo = null;
+  function topology() {
+    if (topo) return topo;
+    const t = window.MunicipalityContext?.topology();
+    if (!t) return null;
+    const tr = t.transform, arcs = t.arcs.map(arc => { let x = 0, y = 0; return arc.map(p => { if (!tr) return p; x += p[0]; y += p[1]; return [x * tr.scale[0] + tr.translate[0], y * tr.scale[1] + tr.translate[1]]; }); });
+    const owners = new Map(), byKey = new Map(), flat = a => Array.isArray(a) ? a.flatMap(flat) : [a];
+    for (const o of Object.values(t.objects)) for (const g of o.geometries || []) {
+      const k = g.properties?.k; if (!k || byKey.has(k)) continue;
+      const ids = [...new Set(flat(g.arcs).map(i => i < 0 ? ~i : i))]; byKey.set(k, ids);
+      for (const i of ids) { const list = owners.get(i) || []; list.push(k); owners.set(i, list); }
+    }
+    const kinds = { outline: [], woj: [], powiat: [] }, neighbours = new Map();
+    for (const [i, ks] of owners) {
+      if (ks.length < 2) { kinds.outline.push(i); continue; }
+      const [a, b] = ks;
+      if (a.slice(0, 2) !== b.slice(0, 2)) kinds.woj.push(i); else if (a.slice(0, 4) !== b.slice(0, 4)) kinds.powiat.push(i);
+      for (const x of ks) for (const y of ks) if (x !== y) { const s = neighbours.get(x) || new Set(); s.add(y); neighbours.set(x, s); }
+    }
+    return topo = { arcs, kinds, neighbours, byKey };
+  }
+  async function neighbours(k) { await window.MunicipalityContext.ready(); const t = topology(); return t ? [...(t.neighbours.get(k) || [])] : []; }
+  const CITIES = [["Warszawa", 21.01, 52.23], ["Kraków", 19.94, 50.06], ["Łódź", 19.46, 51.76], ["Wrocław", 17.03, 51.11], ["Poznań", 16.93, 52.41],
+    ["Gdańsk", 18.65, 54.35], ["Szczecin", 14.55, 53.43], ["Bydgoszcz", 18.01, 53.12], ["Lublin", 22.57, 51.25], ["Białystok", 23.16, 53.13],
+    ["Katowice", 19.02, 50.26], ["Kielce", 20.63, 50.87], ["Olsztyn", 20.49, 53.78], ["Rzeszów", 22.0, 50.04], ["Opole", 17.93, 50.67],
+    ["Zielona Góra", 15.51, 51.94], ["Gorzów Wlkp.", 15.23, 52.73], ["Toruń", 18.6, 53.01]];
   function project(bbox, w, h, pad) {
     const kx = Math.cos(((bbox[1] + bbox[3]) / 2) * Math.PI / 180), bw = (bbox[2] - bbox[0]) * kx, bh = bbox[3] - bbox[1];
     const s = Math.min((w - 2 * pad) / bw, (h - 2 * pad) / bh), ox = (w - bw * s) / 2, oy = (h - bh * s) / 2;
-    return ([x, y]) => [ox + (x - bbox[0]) * kx * s, h - oy - (y - bbox[1]) * s];
+    const pr = ([x, y]) => [ox + (x - bbox[0]) * kx * s, h - oy - (y - bbox[1]) * s];
+    pr.kmPerPx = 111.32 / s; return pr;
   }
   function trace(ctx, f, pr) { ctx.beginPath(); for (const poly of f.polygons) for (const ring of poly) ring.forEach((p, i) => { const [x, y] = pr(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); }
-  function canvas(el, w, h) { const c = el, r = Math.min(2, window.devicePixelRatio || 1); c.width = w * r; c.height = h * r; const ctx = c.getContext("2d"); ctx.scale(r, r); return ctx; }
-  function colors(el) { const cs = getComputedStyle(el); return { acc: cs.getPropertyValue("--acc").trim() || "#087cfc", land: cs.getPropertyValue("--minimap-land").trim() || "#d9dee6", edge: cs.getPropertyValue("--minimap-edge").trim() || "#ffffff" }; }
-  async function minimap(el, k) {
+  function strokeArcs(ctx, t, ids, pr) { ctx.beginPath(); for (const i of ids) t.arcs[i].forEach((p, j) => { const [x, y] = pr(p); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
+  function canvas(el, w, h) { const r = Math.min(2, window.devicePixelRatio || 1); el.width = Math.round(w * r); el.height = Math.round(h * r); el.style.aspectRatio = `${w}/${h}`; const ctx = el.getContext("2d"); ctx.scale(r, r); return ctx; }
+  function palette(el) {
+    const cs = getComputedStyle(el), v = (n, d) => cs.getPropertyValue(n).trim() || d;
+    return { acc: v("--acc", "#087cfc"), land: v("--minimap-land", "#dfe3ea"), near: v("--minimap-near", "#c9d0db"), edge: v("--minimap-edge", "#ffffff"),
+      border: v("--minimap-border", "#5b6474"), text: v("--minimap-text", "#2b3240"), halo: v("--minimap-halo", "rgba(255,255,255,.9)"), sea: v("--minimap-bg", "#f3f5f8") };
+  }
+  // Label point: area-weighted centroid of the largest outer ring (good enough for compact gmina shapes).
+  function labelPoint(f) {
+    let best = null, bestA = 0;
+    for (const poly of f.polygons) {
+      const ring = poly[0]; let a = 0, cx = 0, cy = 0;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const c = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1]; a += c; cx += (ring[j][0] + ring[i][0]) * c; cy += (ring[j][1] + ring[i][1]) * c; }
+      if (Math.abs(a) > bestA) { bestA = Math.abs(a); best = [cx / (3 * a), cy / (3 * a)]; }
+    }
+    return best || [(f.bbox[0] + f.bbox[2]) / 2, (f.bbox[1] + f.bbox[3]) / 2];
+  }
+  function label(ctx, text, x, y, col, bold, size) {
+    ctx.font = `${bold ? 700 : 500} ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 3; ctx.strokeStyle = col.halo; ctx.lineJoin = "round"; ctx.strokeText(text, x, y); ctx.fillStyle = col.text; ctx.fillText(text, x, y);
+  }
+  async function minimap(el, k, names = {}) {
     if (!el || !window.MunicipalityContext) return;
-    const shapes = await window.MunicipalityContext.ready(), f = shapes.find(x => x.id === k);
-    if (!f || !el.isConnected) { el.hidden = true; return; }
-    const [cPl, cNb] = el.querySelectorAll("canvas"), col = colors(el), W = 200, H = 190;
-    // Poland: the country fill is drawn once and reused for every gmina.
-    const all = shapes.reduce((b, x) => [Math.min(b[0], x.bbox[0]), Math.min(b[1], x.bbox[1]), Math.max(b[2], x.bbox[2]), Math.max(b[3], x.bbox[3])], [Infinity, Infinity, -Infinity, -Infinity]);
-    const prPl = project(all, W, H, 6);
-    if (!base || base.land !== col.land) {
-      const off = document.createElement("canvas"), octx = canvas(off, W, H);
-      octx.fillStyle = col.land; for (const x of shapes) { trace(octx, x, prPl); octx.fill(); }
-      base = { img: off, land: col.land };
-    }
-    let ctx = canvas(cPl, W, H); ctx.drawImage(base.img, 0, 0, W, H);
-    ctx.fillStyle = col.acc; trace(ctx, f, prPl); ctx.fill();
-    const [cx, cy] = prPl([(f.bbox[0] + f.bbox[2]) / 2, (f.bbox[1] + f.bbox[3]) / 2]);
-    ctx.strokeStyle = col.acc; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.stroke();
-    // Neighbourhood: the gmina with its surroundings, every gmina outlined.
-    const span = Math.max(f.bbox[2] - f.bbox[0], (f.bbox[3] - f.bbox[1]) * 1.6, 0.12), mx = (f.bbox[0] + f.bbox[2]) / 2, my = (f.bbox[1] + f.bbox[3]) / 2;
-    const nb = [mx - span * 1.3, my - span * 0.8, mx + span * 1.3, my + span * 0.8], prNb = project(nb, W, H, 0);
-    ctx = canvas(cNb, W, H); ctx.lineJoin = "round";
-    for (const x of shapes) {
-      if (x.bbox[2] < nb[0] || x.bbox[0] > nb[2] || x.bbox[3] < nb[1] || x.bbox[1] > nb[3]) continue;
-      trace(ctx, x, prNb); ctx.fillStyle = x === f ? col.acc : col.land; ctx.fill(); ctx.strokeStyle = col.edge; ctx.lineWidth = 1; ctx.stroke();
-    }
+    const shapes = await window.MunicipalityContext.ready(), f = shapes.find(x => x.id === k), t = topology();
+    if (!f || !t || !el.isConnected) { if (el) el.hidden = true; return; }
     el.hidden = false;
+    const [cMain, cInset] = el.querySelectorAll("canvas"), col = palette(el);
+    const W = Math.max(280, Math.min(620, el.clientWidth || 360)), H = Math.round(W * 0.74);
+    // Area: the gmina with all its neighbours, padded.
+    const near = new Set([k, ...(t.neighbours.get(k) || [])]);
+    let bb = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const x of shapes) if (near.has(x.id)) bb = [Math.min(bb[0], x.bbox[0]), Math.min(bb[1], x.bbox[1]), Math.max(bb[2], x.bbox[2]), Math.max(bb[3], x.bbox[3])];
+    const px = (bb[2] - bb[0]) * 0.04, py = (bb[3] - bb[1]) * 0.04; bb = [bb[0] - px, bb[1] - py, bb[2] + px, bb[3] + py];
+    const pr = project(bb, W, H, 0);
+    let ctx = canvas(cMain, W, H); ctx.fillStyle = col.sea; ctx.fillRect(0, 0, W, H); ctx.lineJoin = "round";
+    const inView = shapes.filter(x => !(x.bbox[2] < bb[0] || x.bbox[0] > bb[2] || x.bbox[3] < bb[1] || x.bbox[1] > bb[3]));
+    for (const x of inView) { trace(ctx, x, pr); ctx.fillStyle = x === f ? col.acc : near.has(x.id) ? col.near : col.land; ctx.fill(); ctx.strokeStyle = col.edge; ctx.lineWidth = 1; ctx.stroke(); }
+    ctx.strokeStyle = col.border; ctx.globalAlpha = .6; ctx.lineWidth = 1.4; ctx.setLineDash([5, 3]); strokeArcs(ctx, t, t.kinds.powiat, pr);
+    ctx.setLineDash([]); ctx.globalAlpha = .9; ctx.lineWidth = 2.2; strokeArcs(ctx, t, t.kinds.woj, pr); strokeArcs(ctx, t, t.kinds.outline, pr); ctx.globalAlpha = 1;
+    // Names: neighbours (regular), then the gmina itself (bold, on top).
+    for (const x of inView) if (near.has(x.id) && x !== f) { const [lx, ly] = pr(labelPoint(x)); const underInset = lx > W - Math.min(150, W * 0.3) - 40 && ly < Math.min(150, W * 0.3) + 24; if (!underInset && lx > 24 && lx < W - 24 && ly > 8 && ly < H - 8) label(ctx, names[x.id] || "", lx, ly, col, false, 11); }
+    const [fx, fy] = pr(labelPoint(f)); label(ctx, names[k] || "", fx, fy, col, true, 13);
+    // Scale bar: a round length of about a fifth of the width.
+    const kmPx = pr.kmPerPx, target = W / 5 * kmPx, step = [1, 2, 5, 10, 20, 50].find(s => s >= target / 1.5) || 50, len = step / kmPx, y0 = H - 12;
+    ctx.strokeStyle = col.halo; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(10, y0); ctx.lineTo(10 + len, y0); ctx.stroke();
+    ctx.strokeStyle = col.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(10, y0); ctx.lineTo(10 + len, y0); ctx.moveTo(10, y0 - 4); ctx.lineTo(10, y0 + 4); ctx.moveTo(10 + len, y0 - 4); ctx.lineTo(10 + len, y0 + 4); ctx.stroke();
+    ctx.font = "600 11px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = col.halo; ctx.strokeText(`${step} km`, 16 + len, y0); ctx.fillStyle = col.text; ctx.fillText(`${step} km`, 16 + len, y0);
+    // Poland locator: land, voivodeships, main cities, the gmina.
+    const IW = Math.round(Math.min(150, W * 0.3)), IH = Math.round(IW * 0.94);
+    const all = shapes.reduce((b, x) => [Math.min(b[0], x.bbox[0]), Math.min(b[1], x.bbox[1]), Math.max(b[2], x.bbox[2]), Math.max(b[3], x.bbox[3])], [Infinity, Infinity, -Infinity, -Infinity]);
+    const pl = project(all, IW, IH, 5);
+    ctx = canvas(cInset, IW, IH); ctx.lineJoin = "round";
+    ctx.fillStyle = col.land; ctx.strokeStyle = col.land; ctx.lineWidth = .8;
+    for (const x of shapes) { trace(ctx, x, pl); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = col.edge; ctx.lineWidth = .9; strokeArcs(ctx, t, t.kinds.woj, pl);
+    ctx.strokeStyle = col.border; ctx.lineWidth = 1; strokeArcs(ctx, t, t.kinds.outline, pl);
+    ctx.fillStyle = col.border; for (const [, lon, lat] of CITIES) { const [x, y] = pl([lon, lat]); ctx.beginPath(); ctx.arc(x, y, 1.6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = col.acc; trace(ctx, f, pl); ctx.fill();
+    const [cx, cy] = pl([(f.bbox[0] + f.bbox[2]) / 2, (f.bbox[1] + f.bbox[3]) / 2]);
+    ctx.strokeStyle = col.acc; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.stroke();
   }
   function minimapHtml(name) {
-    return `<section class="metric-section minimap-section" id="gminaMinimap" hidden><h2><svg class="ic" aria-hidden="true"><use href="icons/phosphor.svg#map-trifold"></use></svg>Położenie</h2>
-      <div class="minimap"><figure><canvas role="img" aria-label="${esc(name)} na mapie Polski"></canvas><figcaption>W Polsce</figcaption></figure>
-      <figure><canvas role="img" aria-label="${esc(name)} i sąsiednie gminy"></canvas><figcaption>Sąsiednie gminy</figcaption></figure></div></section>`;
+    return `<figure class="locmap" id="gminaMinimap" hidden><canvas class="locmap-main" role="img" aria-label="${esc(name)} i sąsiednie gminy z granicami powiatów i województw"></canvas>
+      <canvas class="locmap-inset" role="img" aria-label="${esc(name)} na mapie Polski"></canvas>
+      <figcaption><span class="lg-woj"></span>granica województwa <span class="lg-pow"></span>granica powiatu · © GUGiK PRG</figcaption></figure>`;
   }
   /* Photo gallery (data/foto/<woj>.json, Wikimedia Commons): thumbnail strip + lightbox with author and licence. */
   const photoCache = new Map();
@@ -144,6 +204,6 @@
     box._photos = photos; box._name = name; box._show(index);
     if (!box.open) box.showModal();
   }
-  const api = { load, render, highlights, minimap, minimapHtml, loadPhotos, galleryHtml, openPhoto };
+  const api = { load, render, quick, highlights, minimap, minimapHtml, neighbours, loadPhotos, galleryHtml, openPhoto };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.GminaWiki = api;
 })(typeof window !== "undefined" ? window : globalThis);
