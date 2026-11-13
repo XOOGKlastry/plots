@@ -149,35 +149,46 @@
     for (const x of shapes) if (near.has(x.id)) bb = [Math.min(bb[0], x.bbox[0]), Math.min(bb[1], x.bbox[1]), Math.max(bb[2], x.bbox[2]), Math.max(bb[3], x.bbox[3])];
     const px = (bb[2] - bb[0]) * 0.05, py = (bb[3] - bb[1]) * 0.05; bb = [bb[0] - px, bb[1] - py, bb[2] + px, bb[3] + py];
     const pr = project(bb, W, H, 0);
-    let ctx = canvas(cMain, W, H); ctx.fillStyle = MAP.land; ctx.fillRect(0, 0, W, H); ctx.lineJoin = "round"; ctx.lineCap = "round";
     const inView = shapes.filter(x => !(x.bbox[2] < bb[0] || x.bbox[0] > bb[2] || x.bbox[3] < bb[1] || x.bbox[1] > bb[3]));
-    for (const x of inView) { trace(ctx, x, pr); ctx.fillStyle = near.has(x.id) ? MAP.near : MAP.land; ctx.fill(); ctx.strokeStyle = MAP.edge; ctx.lineWidth = .8; ctx.stroke(); }
-    ctx.strokeStyle = MAP.powiat; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]); strokeArcs(ctx, t, t.kinds.powiat, pr); ctx.setLineDash([]);
-    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 5; strokeArcs(ctx, t, [...t.kinds.woj, ...t.kinds.outline], pr);
-    ctx.strokeStyle = MAP.woj; ctx.lineWidth = 2; ctx.setLineDash([7, 3, 1.5, 3]); strokeArcs(ctx, t, [...t.kinds.woj, ...t.kinds.outline], pr); ctx.setLineDash([]);
-    // The gmina: glow, translucent fill, crisp outline.
-    ctx.save(); ctx.shadowColor = "rgba(10,132,255,.45)"; ctx.shadowBlur = 14; trace(ctx, f, pr); ctx.fillStyle = MAP.blueFill; ctx.fill(); ctx.restore();
-    trace(ctx, f, pr); ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.stroke(); ctx.strokeStyle = MAP.blue; ctx.lineWidth = 2.6; ctx.stroke();
-    // Neighbour names (skipped under the inset and at the edges), then the callout.
     const IW = Math.round(Math.min(150, W * 0.3)), IH = Math.round(IW * 0.94);
-    ctx.font = `600 10.5px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3.5; ctx.strokeStyle = MAP.halo; ctx.fillStyle = MAP.text;
-    for (const x of inView) if (near.has(x.id) && x !== f) {
-      const [lx, ly] = pr(labelPoint(x)), txt = names[x.id] || "", hw = ctx.measureText(txt).width / 2;
-      if (lx + hw > W - IW - 18 && ly < IH + 26) continue;
-      if (lx - hw < 4 || lx + hw > W - 4 || ly < 10 || ly > H - 34) continue;
-      ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly);
-    }
-    const [fx, fy] = pr(labelPoint(f)); callout(ctx, names[k] || "", Math.max(70, Math.min(W - 70, fx)), fy);
-    // Scale: frosted pill with a two-tone bar.
-    const kmPx = pr.kmPerPx, target = W / 5 * kmPx, step = [1, 2, 5, 10, 20, 50].find(s => s >= target / 1.5) || 50, len = step / kmPx;
-    ctx.font = `600 10.5px ${FONT}`; const lab = `${step} km`, lw = ctx.measureText(lab).width, bw = len + lw + 26, by = H - 30;
-    ctx.save(); ctx.shadowColor = "rgba(0,0,0,.1)"; ctx.shadowBlur = 6; roundRect(ctx, 10, by, bw, 20, 10); ctx.fillStyle = "rgba(255,255,255,.88)"; ctx.fill(); ctx.restore();
-    ctx.fillStyle = MAP.ink; roundRect(ctx, 20, by + 8.5, len, 3, 1.5); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillRect(20 + len / 2, by + 9.3, len / 2 - 1, 1.4);
-    ctx.fillStyle = MAP.ink; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(lab, 26 + len, by + 10.5);
+    const mctx = canvas(cMain, W, H), dpr = cMain.width / W;
+    // Neighbours are clickable: hit areas as Path2D in CSS pixels.
+    const hits = inView.filter(x => near.has(x.id) && x !== f).map(x => { const p = new Path2D(); for (const poly of x.polygons) for (const ring of poly) ring.forEach((q, i) => { const [a, b] = pr(q); i ? p.lineTo(a, b) : p.moveTo(a, b); }); p.closePath(); return { id: x.id, path: p }; });
+    const draw = hover => {
+      const ctx = mctx; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = MAP.land; ctx.fillRect(0, 0, W, H); ctx.lineJoin = "round"; ctx.lineCap = "round";
+      for (const x of inView) { trace(ctx, x, pr); ctx.fillStyle = x.id === hover ? "#e8f1ff" : near.has(x.id) ? MAP.near : MAP.land; ctx.fill(); ctx.strokeStyle = MAP.edge; ctx.lineWidth = .8; ctx.stroke(); }
+      ctx.strokeStyle = MAP.powiat; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]); strokeArcs(ctx, t, t.kinds.powiat, pr); ctx.setLineDash([]);
+      ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 5; strokeArcs(ctx, t, [...t.kinds.woj, ...t.kinds.outline], pr);
+      ctx.strokeStyle = MAP.woj; ctx.lineWidth = 2; ctx.setLineDash([7, 3, 1.5, 3]); strokeArcs(ctx, t, [...t.kinds.woj, ...t.kinds.outline], pr); ctx.setLineDash([]);
+      const hx = hover && inView.find(x => x.id === hover); if (hx) { trace(ctx, hx, pr); ctx.strokeStyle = "rgba(10,132,255,.55)"; ctx.lineWidth = 1.6; ctx.stroke(); }
+      ctx.save(); ctx.shadowColor = "rgba(10,132,255,.45)"; ctx.shadowBlur = 14; trace(ctx, f, pr); ctx.fillStyle = MAP.blueFill; ctx.fill(); ctx.restore();
+      trace(ctx, f, pr); ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.stroke(); ctx.strokeStyle = MAP.blue; ctx.lineWidth = 2.6; ctx.stroke();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3.5; ctx.strokeStyle = MAP.halo;
+      for (const x of inView) if (near.has(x.id) && x !== f) {
+        ctx.font = `${x.id === hover ? 700 : 600} 10.5px ${FONT}`; ctx.fillStyle = x.id === hover ? MAP.blue : MAP.text;
+        const [lx, ly] = pr(labelPoint(x)), txt = names[x.id] || "", hw = ctx.measureText(txt).width / 2;
+        if (lx + hw > W - IW - 18 && ly < IH + 26) continue;
+        if (lx - hw < 4 || lx + hw > W - 4 || ly < 10 || ly > H - 34) continue;
+        ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly);
+      }
+      const [fx, fy] = pr(labelPoint(f)); callout(ctx, names[k] || "", Math.max(70, Math.min(W - 70, fx)), fy);
+      const kmPx = pr.kmPerPx, target = W / 5 * kmPx, step = [1, 2, 5, 10, 20, 50].find(s => s >= target / 1.5) || 50, len = step / kmPx;
+      ctx.font = `600 10.5px ${FONT}`; const lab = `${step} km`, lw = ctx.measureText(lab).width, bw = len + lw + 26, by = H - 30;
+      ctx.save(); ctx.shadowColor = "rgba(0,0,0,.1)"; ctx.shadowBlur = 6; roundRect(ctx, 10, by, bw, 20, 10); ctx.fillStyle = "rgba(255,255,255,.88)"; ctx.fill(); ctx.restore();
+      ctx.fillStyle = MAP.ink; roundRect(ctx, 20, by + 8.5, len, 3, 1.5); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillRect(20 + len / 2, by + 9.3, len / 2 - 1, 1.4);
+      ctx.fillStyle = MAP.ink; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(lab, 26 + len, by + 10.5);
+    };
+    draw(null);
+    const pick = e => { const r = cMain.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width, y = (e.clientY - r.top) * H / r.height; mctx.setTransform(1, 0, 0, 1, 0, 0); const h = hits.find(h => mctx.isPointInPath(h.path, x, y)); return h ? h.id : null; };
+    let hover = null;
+    cMain.onpointermove = e => { if (e.pointerType !== "mouse") return; const id = pick(e); if (id !== hover) { hover = id; cMain.style.cursor = id ? "pointer" : ""; cMain.title = id ? `Przejdź do: ${names[id] || ""}` : ""; draw(hover); } };
+    cMain.onpointerleave = () => { if (hover) { hover = null; cMain.style.cursor = ""; draw(null); } };
+    cMain.onclick = e => { const id = pick(e); if (id) { draw(id); el.dispatchEvent(new CustomEvent("gmina-pick", { bubbles: true, detail: id })); } };
     // Poland locator with an iOS location dot.
     const all = shapes.reduce((b, x) => [Math.min(b[0], x.bbox[0]), Math.min(b[1], x.bbox[1]), Math.max(b[2], x.bbox[2]), Math.max(b[3], x.bbox[3])], [Infinity, Infinity, -Infinity, -Infinity]);
     const pl = project(all, IW, IH, 6);
-    ctx = canvas(cInset, IW, IH); ctx.lineJoin = "round";
+    const ctx = canvas(cInset, IW, IH); ctx.lineJoin = "round";
     ctx.fillStyle = MAP.pl; ctx.strokeStyle = MAP.pl; ctx.lineWidth = .8;
     for (const x of shapes) { trace(ctx, x, pl); ctx.fill(); ctx.stroke(); }
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; strokeArcs(ctx, t, t.kinds.woj, pl);

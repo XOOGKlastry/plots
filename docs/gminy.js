@@ -216,6 +216,7 @@
   $("#dataCategories").addEventListener("click", (e) => { const b = e.target.closest("[data-category]"); if (b) { changeCategory(b.dataset.category); } });
   dialog.addEventListener("close",()=>window.UIHistory?.dismiss("gmina-details"));
   $("#closeGmina").onclick = () => dialog.close();
+  $("#gminaDetails").addEventListener("gmina-pick", (e) => { select(e.detail, false).then(()=>{$("#gminaDetails").scrollTop=0;}); });
   $("#gminaDetails").addEventListener("input", (e) => { if (e.target.id === "indSearch") { indQuery = e.target.value; runIndicatorSearch(indQuery); } });
   $("#gminaDetails").addEventListener("click", (e) => { const more=e.target.closest("[data-wiki-more]");if(more){const open=more.getAttribute("aria-expanded")!=="true";more.setAttribute("aria-expanded",open);more.textContent=open?"Zwiń":"Czytaj dalej";more.closest(".wiki-card").classList.toggle("open",open);} });
   $("#gminaDetails").addEventListener("click", (e) => { if (e.target.closest("[data-gmina-map]")) { dialog.close(); select(selected.k, true); } const n=e.target.closest("[data-neighbor]"); if (n) { select(n.dataset.neighbor, false).then(()=>{$("#gminaDetails").scrollTop=0;}); } });
