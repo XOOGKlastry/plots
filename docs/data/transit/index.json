@@ -1,0 +1,48 @@
+{
+ "built": "2026-11-14T12:22Z",
+ "regions": [
+  {
+   "id": "slask",
+   "name": "Śląskie",
+   "bbox": [
+    18.0,
+    49.35,
+    19.98,
+    51.12
+   ],
+   "days": {
+    "rob": {
+     "file": "slask-rob.bin.gz",
+     "date": "20261118",
+     "trips": 23918,
+     "stops": 8402,
+     "bytes": 318070
+    },
+    "sob": {
+     "file": "slask-sob.bin.gz",
+     "date": "20261121",
+     "trips": 15115,
+     "stops": 7751,
+     "bytes": 244035
+    },
+    "nie": {
+     "file": "slask-nie.bin.gz",
+     "date": "20261115",
+     "trips": 13839,
+     "stops": 7584,
+     "bytes": 232296
+    }
+   },
+   "sources": [
+    {
+     "name": "ZTM, Górnośląsko-Zagłębiowska Metropolia",
+     "url": "https://mkuran.pl/gtfs/gzm.zip"
+    },
+    {
+     "name": "PKP PLK i przewoźnicy kolejowi",
+     "url": "https://mkuran.pl/gtfs/polish_trains.zip"
+    }
+   ]
+  }
+ ]
+}
