@@ -46,18 +46,74 @@
       };
       area.onpointermove = show; area.onpointerdown = show; area.onpointerleave = () => { dot.hidden = tip.hidden = true; };
     });
+    bindPyramid(root);
   }
 
-  /* Age pyramid: men left, women right, share of the population. */
+  /* Age pyramid: men left, women right. The part of the longer bar that exceeds the other sex is drawn darker,
+     so the surplus is visible at a glance. Tapping a row shows counts, surplus, feminization and the national rank
+     (ranks come from profil_gmin.py: r[i] = [rank with most women, rank with most men, n]). */
+  const sum = a => a.reduce((x, y) => x + y, 0);
+  const plural = (n, one, few, many) => n === 1 ? one : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? few : many;
+  const notable = (rank, n) => rank <= Math.max(25, n * .01);
+  function rankText(r, women, what) {
+    if (!r) return "";
+    const rank = women ? r[0] : r[1], n = r[2];
+    if (!notable(rank, n)) return "";
+    const side = women ? "kobiet" : "mężczyzn";
+    return `<span class="pyr-rank${rank <= 3 ? " top" : ""}">${rank === 1 ? "Największa" : rank + ". największa"} przewaga ${side}${what} w kraju <small>(na ${fmt(n)} gmin)</small></span>`;
+  }
+  function pyrSummary(d) {
+    const fem = d.sk / d.sm * 100, women = d.sk >= d.sm, diff = Math.abs(d.sk - d.sm);
+    let cross = -1;
+    for (let i = d.rows.length - 1; i >= 0; i--) { if (d.rows[i].k > d.rows[i].m) cross = i; else break; }
+    let best = null;
+    d.rows.forEach((r, i) => { if (!r.r || r.k === r.m) return; const rk = r.k > r.m ? r.r[0] : r.r[1]; if (!best || rk < best.rk) best = { i, rk, n: r.r[2] }; });
+    return `<p class="pyr-big"><b>${fmt(fem)}</b> kobiet na 100 mężczyzn</p>
+      <p>${women ? "Kobiet" : "Mężczyzn"} jest więcej o <b>${fmt(diff)}</b> (${fmt(diff / Math.min(d.sk, d.sm) * 100, 1)}%).${cross > 0 ? ` Kobiety przeważają od grupy ${esc(d.rows[cross].a)} lat.` : ""}</p>
+      ${rankText(d.rt, women, "")}
+      ${best && notable(best.rk, best.n) ? `<button type="button" class="pyr-jump" data-i="${best.i}">Wyróżnia się grupa ${esc(d.rows[best.i].a)} lat ${Icons.svg("caret-right")}</button>` : ""}
+      <p class="pyr-hint">Stuknij grupę wieku, aby zobaczyć szczegóły.</p>`;
+  }
+  function pyrRow(d, i) {
+    const r = d.rows[i], t = r.m + r.k, women = r.k > r.m, diff = Math.abs(r.k - r.m);
+    return `<p class="pyr-big"><b>${esc(r.a)}</b> lat · ${fmt(t)} ${plural(t, "osoba", "osoby", "osób")} <small>(${fmt(t / (d.sm + d.sk) * 100, 1)}% mieszkańców)</small></p>
+      <p><span class="pyr-m">Mężczyźni ${fmt(r.m)}</span> · <span class="pyr-k">Kobiety ${fmt(r.k)}</span></p>
+      <p>${diff === 0 ? "Tyle samo kobiet i mężczyzn." : `Przewaga ${women ? "kobiet" : "mężczyzn"} o <b>${fmt(diff)}</b> (${fmt(diff / Math.max(1, Math.min(r.k, r.m)) * 100, 1)}%).`} ${r.m ? `${fmt(r.k / r.m * 100)} kobiet na 100 mężczyzn.` : ""}</p>
+      ${diff ? rankText(r.r, women, ` w wieku ${r.a}`) : ""}`;
+  }
   function pyramid(p, ages) {
     const pr = p?.pir;
     if (!pr) return "";
-    const tot = pr.m.reduce((a, b) => a + b, 0) + pr.k.reduce((a, b) => a + b, 0), mx = Math.max(...pr.m, ...pr.k) / tot * 100;
-    const rows = ages.map((a, i) => ({ a, m: pr.m[i] / tot * 100, k: pr.k[i] / tot * 100 })).reverse();
-    const sm = pr.m.reduce((a, b) => a + b, 0), sk = tot - sm;
-    return section("users", `Piramida wieku (${pr.y})`, `<div class="pyramid"><div class="pyr-head"><span class="pyr-m">Mężczyźni ${fmt(sm)}</span><span class="pyr-k">Kobiety ${fmt(sk)}</span></div>
-      ${rows.map(r => `<div class="pyr-row"><span class="pyr-bar m"><i style="width:${(r.m / mx * 100).toFixed(1)}%" title="${fmt(r.m, 1)}%"></i></span><span class="pyr-age">${esc(r.a)}</span><span class="pyr-bar k"><i style="width:${(r.k / mx * 100).toFixed(1)}%" title="${fmt(r.k, 1)}%"></i></span></div>`).join("")}</div>`,
-      "Udział grupy wieku w liczbie mieszkańców. GUS, Bank Danych Lokalnych.");
+    const rows = ages.map((a, i) => ({ a, m: pr.m[i], k: pr.k[i], r: pr.r?.[i] || null }));
+    const d = { rows, sm: sum(pr.m), sk: sum(pr.k), rt: pr.rt || null }, mx = Math.max(...pr.m, ...pr.k);
+    const w = v => (v / mx * 100).toFixed(2) + "%";
+    const bars = rows.map((r, i) => ({ r, i })).reverse().map(({ r, i }) => {
+      const lo = Math.min(r.m, r.k);
+      return `<button type="button" class="pyr-row" data-i="${i}" aria-label="${esc(r.a)} lat">
+        <span class="pyr-bar m">${r.m > lo ? `<i class="ex" style="width:${w(r.m - lo)}"></i>` : ""}<i class="base" style="width:${w(lo)}"></i></span>
+        <span class="pyr-age">${esc(r.a)}</span>
+        <span class="pyr-bar k"><i class="base" style="width:${w(lo)}"></i>${r.k > lo ? `<i class="ex" style="width:${w(r.k - lo)}"></i>` : ""}</span></button>`;
+    }).join("");
+    return section("users", `Piramida wieku (${pr.y})`, `<div class="pyramid" data-pyr='${esc(JSON.stringify(d))}'>
+      <div class="pyr-head"><span class="pyr-m">Mężczyźni ${fmt(d.sm)}</span><span class="pyr-k">Kobiety ${fmt(d.sk)}</span></div>
+      ${bars}<div class="pyr-legend"><span><i class="m"></i><i class="k"></i>wspólna część</span><span><i class="m ex"></i><i class="k ex"></i>przewaga jednej płci</span></div>
+      <div class="pyr-info" aria-live="polite">${pyrSummary(d)}</div></div>`,
+      "Liczba mieszkańców w grupach wieku. Ranking obejmuje gminy, w których grupa liczy co najmniej 50 osób. GUS, Bank Danych Lokalnych.");
+  }
+  function bindPyramid(root) {
+    root.querySelectorAll(".pyramid[data-pyr]").forEach(el => {
+      if (el.dataset.bound) return;
+      el.dataset.bound = 1;
+      const d = JSON.parse(el.dataset.pyr), info = el.querySelector(".pyr-info");
+      let sel = -1;
+      const pick = i => {
+        sel = sel === i ? -1 : i;
+        el.querySelectorAll(".pyr-row").forEach(b => b.classList.toggle("on", +b.dataset.i === sel));
+        el.classList.toggle("has-sel", sel >= 0);
+        info.innerHTML = sel >= 0 ? pyrRow(d, sel) : pyrSummary(d);
+      };
+      el.addEventListener("click", e => { const b = e.target.closest(".pyr-row,.pyr-jump"); if (b) pick(+b.dataset.i); });
+    });
   }
 
   /* Budget: where the money comes from and what it is spent on (latest year). */
@@ -155,5 +211,5 @@
     gotoMarker = new maplibregl.Marker({ element: el, anchor: b.dataset.gotoPt ? "bottom" : "center" }).setLngLat(at).addTo(map);
   }
   document.addEventListener("click", e => { const b = e.target.closest?.("[data-goto-pt],[data-goto-box]"); if (b) { e.preventDefault(); gotoPlace(b); } });
-  window.GminaProfile = { load, popChart, bindPop, pyramid, budget, elections, heritage, nature };
+  window.GminaProfile = { load, popChart, bindPop, pyramid, plural, budget, elections, heritage, nature };
 })();

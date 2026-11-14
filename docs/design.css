@@ -270,7 +270,17 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .pop-years{display:flex;justify-content:space-between;font-size:10.5px;color:#8e8e93;margin:4px 0 0 calc(8px + 3.4em)}
 .pyramid{background:#fff;border-radius:18px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(20,30,50,.06)}
 .pyr-head{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:6px}.pyr-m{color:#0a84ff}.pyr-k{color:#ff375f}
-.pyr-row{display:grid;grid-template-columns:1fr 46px 1fr;align-items:center;height:15px}
+.pyr-row{display:grid;grid-template-columns:1fr 46px 1fr;align-items:center;height:17px;width:100%;border:0;background:none;padding:0;font:inherit;cursor:pointer;border-radius:5px;-webkit-tap-highlight-color:transparent}
+.pyr-row:hover{background:#f2f2f7}.pyr-row.on{background:#e8f0fe}.pyramid.has-sel .pyr-row:not(.on) .pyr-bar{opacity:.4}.pyr-row.on .pyr-age{color:#1c1c1e;font-weight:700}
+.pyr-bar.m i.base{border-radius:0 3px 3px 0}.pyr-bar.k i.base{border-radius:3px 0 0 3px}.pyr-bar.m i.ex{background:#0040b8;opacity:1;border-radius:3px 0 0 3px}.pyr-bar.k i.ex{background:#c2002f;opacity:1;border-radius:0 3px 3px 0}
+.pyr-bar.m i.base:only-child,.pyr-bar.k i.base:only-child{border-radius:3px}
+.pyr-legend{display:flex;gap:14px;justify-content:center;font-size:10.5px;color:#8e8e93;margin-top:6px}.pyr-legend span{display:flex;align-items:center;gap:3px}
+.pyr-legend i{width:9px;height:9px;border-radius:2px;background:#0a84ff;opacity:.8}.pyr-legend i.k{background:#ff375f;opacity:.75}.pyr-legend i.m.ex{background:#0040b8;opacity:1}.pyr-legend i.k.ex{background:#c2002f;opacity:1}
+.pyr-info{margin-top:10px;padding-top:10px;border-top:1px solid #f2f2f7;font-size:13px;color:#3a3a3c;min-height:96px}.pyr-info p{margin:0 0 5px;line-height:1.45}
+.pyr-big{font-size:14px;color:#1c1c1e}.pyr-big b{font-size:20px;letter-spacing:-.02em}.pyr-big small{color:#8e8e93;font-size:12px}
+.pyr-rank{display:inline-block;margin:2px 0 6px;padding:4px 9px;border-radius:9px;background:#fff4e5;color:#a05a00;font-size:12px;font-weight:600}.pyr-rank.top{background:#ffe9ec;color:#c2002f}.pyr-rank small{font-weight:500;opacity:.8}
+.pyr-jump{display:inline-flex;align-items:center;gap:4px;border:0;background:#f2f2f7;color:#0a84ff;font:inherit;font-size:12.5px;font-weight:600;padding:6px 10px;border-radius:10px;cursor:pointer;margin:0 0 6px}.pyr-jump svg{width:13px;height:13px}
+.pyr-hint{font-size:11.5px;color:#8e8e93}
 .pyr-age{font-size:10px;color:#8e8e93;text-align:center}
 .pyr-bar{display:flex;height:11px}.pyr-bar.m{justify-content:flex-end}.pyr-bar i{display:block;height:100%;border-radius:3px}
 .pyr-bar.m i{background:#0a84ff;opacity:.8}.pyr-bar.k i{background:#ff375f;opacity:.75}
@@ -350,3 +360,14 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .terr-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.terr-row:last-child{border-bottom:0}.terr-row>svg{flex:none;width:20px;height:20px;color:var(--acc);margin-top:1px}.terr-row strong{display:block;font-size:13.5px}.terr-row p{margin:3px 0 0;font-size:13px}.terr-row small{font-size:11.5px}
 .terr-chip{display:inline-block;background:var(--bg);border-radius:8px;padding:2px 8px;margin:2px 4px 2px 0;font-size:12px}.terr-ages{display:flex;gap:3px;align-items:flex-end;margin-top:8px;height:52px}.terr-ages span{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px}.terr-ages i{display:block;width:100%;background:var(--acc);opacity:.7;border-radius:3px 3px 0 0}.terr-ages small{font-size:9.5px;color:var(--mut);white-space:nowrap}
 .terr-list{list-style:none;margin:6px 0 0;padding:0}.terr-list li{font-size:12.5px;padding:4px 0;border-top:1px dashed var(--line)}.terr-list small{display:block;color:var(--mut)}
+
+/* Census district card and interactive age bars (terrain.js). */
+.terr-ages2 .terr-ages{height:62px;position:relative}.terr-ages button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;border:0;background:none;padding:0;font:inherit;cursor:pointer;position:relative;height:100%;-webkit-tap-highlight-color:transparent}
+.terr-ages button i{display:block;width:100%;background:var(--acc);opacity:.7;border-radius:3px 3px 0 0}.terr-ages button b{position:absolute;left:8%;right:8%;height:2px;background:#1c1c1e;border-radius:1px;opacity:.55}
+.terr-ages button small{font-size:9.5px;color:var(--mut);white-space:nowrap}.terr-ages2.has-sel button:not(.on) i{opacity:.3}.terr-ages button.on i{opacity:1}.terr-ages button.on small{color:#1c1c1e;font-weight:700}
+.terr-ages-info{font-size:12px!important;color:#3a3a3c;margin-top:6px!important;min-height:2.9em;line-height:1.4}.terr-pl-mark{display:inline-block;width:12px;height:2px;background:#1c1c1e;opacity:.55;vertical-align:middle}
+.terr-obw-big{font-size:14px!important}.terr-obw-big b{font-size:22px;letter-spacing:-.02em}
+.terr-sex{display:flex;height:22px;border-radius:7px;overflow:hidden;margin:8px 0 4px;font-size:11px;font-weight:600;color:#fff}.terr-sex span{display:flex;align-items:center;padding:0 7px;white-space:nowrap;overflow:hidden;min-width:0}.terr-sex .m{background:#0a84ff}.terr-sex .k{background:#ff375f;justify-content:flex-end}
+.terr-sex-txt{font-size:12.5px!important}.terr-sex-txt small{color:var(--mut)}
+.terr-tag{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:8px;margin:4px 4px 0 0}.terr-tag.hi{background:#fff4e5;color:#a05a00}.terr-tag.lo{background:#e8f0fe;color:#0a5bd3}
+#terrObwod{padding:0 2px}#terrObwod .terr-row{border:0}

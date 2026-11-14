@@ -309,6 +309,15 @@ SELECT ST_AsMVT(q, 'spis', 4096, 'g') FROM (
   WHERE o.geom && b2.e2 AND o.lud IS NOT NULL
 ) q WHERE g IS NOT NULL
 """
+# One label point per district (point on surface), so a district split by tile edges is labelled once.
+SPIS_PKT_SQL = """
+WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (SELECT ST_Transform(e,2180) e2 FROM b)
+SELECT ST_AsMVT(q, 'spis_pkt', 4096, 'g') FROM (
+  SELECT o.lud, ST_AsMVTGeom(ST_Transform(ST_PointOnSurface(o.geom),3857), b.e, 4096, 0, true) g
+  FROM spis.obwody_2021 o, b, b2
+  WHERE o.geom && b2.e2 AND o.lud > 0 AND ST_Intersects(ST_PointOnSurface(o.geom), b2.e2)
+) q WHERE g IS NOT NULL
+"""
 
 @app.route("/tiles/spis/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
 def tile_spis(z, x, y):
@@ -318,8 +327,10 @@ def tile_spis(z, x, y):
         return Response(b"", mimetype="application/x-protobuf")
     tol = max(0.0, 40075016 / (4096 * 2 ** z) * 0.5)
     with POOL.connection() as c:
-        b = c.execute(SPIS_TILE_SQL, {"z": z, "x": x, "y": y, "tol": tol}).fetchone()[0]
-    return Response(bytes(b or b""), mimetype="application/x-protobuf",
+        b = bytes(c.execute(SPIS_TILE_SQL, {"z": z, "x": x, "y": y, "tol": tol}).fetchone()[0] or b"")
+        if z >= 13:
+            b += bytes(c.execute(SPIS_PKT_SQL, {"z": z, "x": x, "y": y}).fetchone()[0] or b"")
+    return Response(b, mimetype="application/x-protobuf",
                     headers={"Cache-Control": "public, max-age=86400"})
 
 @app.get("/api/ludnosc")
@@ -338,7 +349,50 @@ def api_ludnosc():
               FROM (SELECT o.*, ST_Area(ST_Intersection(o.geom, p.g)) / NULLIF(ST_Area(o.geom),0) f FROM spis.obwody_2021 o, p WHERE o.geom && p.g AND ST_Intersects(o.geom, p.g) AND o.lud IS NOT NULL) o
             """, {"lon": lon, "lat": lat, "r": r}).fetchone()
             out[str(r)] = {"lud": round(float(row[0] or 0)), "wiek": [round(float(v or 0)) for v in row[1:]]}
-    return {"r": out, "source": "GUS, Narodowy Spis Powszechny 2021 (obwody spisowe)"}
+        pl = _spis_pl(c)
+    return {"r": out, "polska": pl["wiek"], "source": "GUS, Narodowy Spis Powszechny 2021 (obwody spisowe)"}
+
+_SPIS_PL = None
+
+def _spis_pl(c):
+    """National totals of the census districts (cached): residents, sex and 10-year age groups."""
+    global _SPIS_PL
+    if _SPIS_PL is None:
+        r = c.execute("SELECT sum(lud), sum(m), sum(k), sum(w0), sum(w10), sum(w20), sum(w30), sum(w40), sum(w50), sum(w60), sum(w70), sum(w80) FROM spis.obwody_2021 WHERE lud > 0").fetchone()
+        _SPIS_PL = {"lud": int(r[0]), "m": int(r[1]), "k": int(r[2]), "wiek": [int(v) for v in r[3:]]}
+    return _SPIS_PL
+
+@app.get("/api/obwod")
+def api_obwod():
+    """One census district (NSP 2021) at a point or by id: residents, sex, age, its rank in the gmina and national percentiles."""
+    global _SPIS_PL
+    try:
+        oid = int(request.args["id"]) if "id" in request.args else None
+        lon, lat = (None, None) if oid is not None else (float(request.args["lon"]), float(request.args["lat"]))
+    except (KeyError, ValueError):
+        return {"error": "lon, lat albo id"}, 400
+    cols = "id, teryt, gmina_nazwa, obwod, lud, m, k, km2, gestosc, p_senior, p_dzieci, gr, gn, pg, ps, pd, w0, w10, w20, w30, w40, w50, w60, w70, w80"
+    with POOL.connection() as c:
+        _spis_pl(c)
+        if oid is not None:
+            row = c.execute(f"SELECT {cols}, ST_AsGeoJSON(ST_Transform(geom,4326),6) FROM spis.obwody_2021 WHERE id=%s", (oid,)).fetchone()
+        else:
+            row = c.execute(f"""SELECT {cols}, ST_AsGeoJSON(ST_Transform(geom,4326),6) FROM spis.obwody_2021
+                WHERE geom && ST_Transform(ST_SetSRID(ST_MakePoint(%(lon)s,%(lat)s),4326),2180)
+                  AND ST_Intersects(geom, ST_Transform(ST_SetSRID(ST_MakePoint(%(lon)s,%(lat)s),4326),2180)) LIMIT 1""", {"lon": lon, "lat": lat}).fetchone()
+        if not row:
+            return {"obwod": None}
+        names = cols.replace(" ", "").split(",")
+        d = dict(zip(names, row[:-1]))
+        g = c.execute("SELECT sum(lud), sum(m), sum(k), count(*) FROM spis.obwody_2021 WHERE teryt=%s AND lud > 0", (d["teryt"],)).fetchone()
+    num = lambda v: float(v) if v is not None else None
+    return {"obwod": {
+        "id": d["id"], "teryt": d["teryt"], "gmina": d["gmina_nazwa"], "nr": d["obwod"], "lud": d["lud"], "m": d["m"], "k": d["k"],
+        "km2": num(d["km2"]), "gestosc": num(d["gestosc"]), "p_poprod": num(d["p_senior"]), "p_przedprod": num(d["p_dzieci"]),
+        "gr": d["gr"], "gn": d["gn"], "pg": d["pg"], "ps": d["ps"], "pd": d["pd"],
+        "wiek": [d[f"w{i}"] for i in range(0, 90, 10)], "geom": json.loads(row[-1])},
+        "gmina": {"lud": int(g[0] or 0), "m": int(g[1] or 0), "k": int(g[2] or 0), "n": g[3]},
+        "polska": _SPIS_PL, "source": "GUS, Narodowy Spis Powszechny 2021 (obwody spisowe)"}
 
 # ---------- Lasy (Bank Danych o Lasach), pozwolenia (GUNB RWDZ), teren w punkcie ----------
 LASY_TILE_SQL = """

@@ -28,8 +28,13 @@
   const LAYERS = [
     { id: "spis", label: "Mieszkańcy (Spis 2021)", desc: "Obwody spisowe GUS: gęstość, seniorzy, dzieci", kw: "ludność mieszkańcy spis gus gęstość seniorzy dzieci wiek",
       add() { map.addSource("terr-spis", { type: "vector", tiles: [BASE + "/tiles/spis/{z}/{x}/{y}.pbf"], minzoom: 8, maxzoom: 14, attribution: "GUS, NSP 2021" });
-        map.addLayer({ id: "terr-spis", type: "fill", source: "terr-spis", "source-layer": "spis", paint: { "fill-color": stepExpr(spisMode), "fill-opacity": .62, "fill-outline-color": "rgba(80,60,40,.25)" } }, firstSymbol()); },
-      ids: ["terr-spis"], legend: spisLegend },
+        map.addLayer({ id: "terr-spis", type: "fill", source: "terr-spis", "source-layer": "spis", paint: { "fill-color": stepExpr(spisMode), "fill-opacity": .62, "fill-outline-color": "rgba(80,60,40,.25)" } }, firstSymbol());
+        map.addLayer({ id: "terr-spis-lbl", type: "symbol", source: "terr-spis", "source-layer": "spis_pkt", minzoom: 13.5,
+          layout: { "text-field": ["to-string", ["get", "lud"]], "text-size": 11, "text-font": ["Noto Sans Regular"], "symbol-placement": "point", "text-allow-overlap": false },
+          paint: { "text-color": "#3a2a1a", "text-halo-color": "rgba(255,255,255,.9)", "text-halo-width": 1.4 } });
+        if (!map.getSource("terr-spis-sel")) map.addSource("terr-spis-sel", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addLayer({ id: "terr-spis-sel", type: "line", source: "terr-spis-sel", paint: { "line-color": "#1c1c1e", "line-width": 2.4 } }); },
+      ids: ["terr-spis", "terr-spis-lbl", "terr-spis-sel"], legend: spisLegend },
     { id: "gunb", label: "Nowe inwestycje", desc: "Pozwolenia na budowę i zgłoszenia od 2021 r. (GUNB)", kw: "pozwolenia na budowę inwestycje gunb zgłoszenia budowy deweloper",
       add() { map.addSource("terr-gunb", { type: "vector", tiles: [BASE + "/tiles/gunb/{z}/{x}/{y}.pbf"], minzoom: 12, maxzoom: 16, attribution: "GUNB, RWDZ" });
         map.addLayer({ id: "terr-gunb", type: "circle", source: "terr-gunb", "source-layer": "gunb", paint: { "circle-color": katColor, "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 16, 6], "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": .9 } }); },
@@ -101,7 +106,7 @@
     if (l && l.r) {
       const r1 = l.r["1000"], ages = ["0–9", "10–19", "20–29", "30–39", "40–49", "50–59", "60–69", "70–79", "80+"], mx = Math.max(1, ...r1.wiek);
       out.push(row("users-three", "Mieszkańcy w okolicy", `<p>${["500", "1000", "3000"].map(k => `<span class="terr-chip"><b>${fmt(l.r[k].lud)}</b> do ${k === "1000" ? "1 km" : k === "3000" ? "3 km" : "500 m"}</span>`).join("")}</p>` +
-        (r1.lud > 30 ? `<div class="terr-ages" title="Struktura wieku w promieniu 1 km">${r1.wiek.map((v, i) => `<span><i style="height:${Math.max(2, v / mx * 34)}px"></i><small>${ages[i]}</small></span>`).join("")}</div>` : "")));
+        (r1.lud > 30 ? agesHTML(r1.wiek, l.polska || null, "mieszkańców w promieniu 1 km") : "")));
     }
     if (t) {
       if (t.pozwolenia?.length) {
@@ -120,6 +125,85 @@
     }
     return out.join("") || `<p class="muted small">Brak danych dla tego miejsca.</p>`;
   }
+  /* Interactive age bars: tap a bar to see the count and share; the thin mark shows the share in Poland. */
+  const AGES10 = ["0–9", "10–19", "20–29", "30–39", "40–49", "50–59", "60–69", "70–79", "80+"];
+  function agesHTML(wiek, pl, label) {
+    const tot = wiek.reduce((a, b) => a + b, 0) || 1, plTot = pl ? pl.reduce((a, b) => a + b, 0) : 0;
+    const sh = wiek.map(v => v / tot * 100), plSh = pl ? pl.map(v => v / plTot * 100) : null, mx = Math.max(...sh, ...(plSh || [0]));
+    const data = { w: wiek, s: sh, p: plSh, l: label };
+    return `<div class="terr-ages2" data-ages='${esc(JSON.stringify(data))}'><div class="terr-ages">${wiek.map((v, i) => `<button type="button" data-i="${i}" aria-label="${AGES10[i]} lat"><i style="height:${Math.max(2, sh[i] / mx * 40)}px"></i>${plSh ? `<b style="bottom:${(plSh[i] / mx * 40 + 14).toFixed(1)}px"></b>` : ""}<small>${AGES10[i]}</small></button>`).join("")}</div>
+      <p class="terr-ages-info">${plSh ? `<span class="terr-pl-mark"></span> udział w Polsce · ` : ""}Stuknij słupek, aby zobaczyć liczbę osób.</p></div>`;
+  }
+  function bindAges(root) {
+    root.querySelectorAll(".terr-ages2[data-ages]").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = 1;
+      const d = JSON.parse(el.dataset.ages), info = el.querySelector(".terr-ages-info"), def = info.innerHTML;
+      let sel = -1;
+      el.addEventListener("click", e => {
+        const b = e.target.closest("button[data-i]"); if (!b) return;
+        const i = +b.dataset.i; sel = sel === i ? -1 : i;
+        el.querySelectorAll("button[data-i]").forEach(x => x.classList.toggle("on", +x.dataset.i === sel));
+        el.classList.toggle("has-sel", sel >= 0);
+        if (sel < 0) { info.innerHTML = def; return; }
+        const diff = d.p ? d.s[i] - d.p[i] : 0;
+        info.innerHTML = `<b>${AGES10[i]} lat: ${fmt(d.w[i])} ${window.GminaProfile?.plural ? window.GminaProfile.plural(Math.round(d.w[i]), "osoba", "osoby", "osób") : "osób"}</b> · ${d.s[i].toFixed(1).replace(".", ",")}% ${esc(d.l)}` +
+          (d.p ? `<br>W Polsce ${d.p[i].toFixed(1).replace(".", ",")}%${Math.abs(diff) >= .5 ? `, tu ${diff > 0 ? "więcej" : "mniej"} o ${Math.abs(diff).toFixed(1).replace(".", ",")} pkt proc.` : ", podobnie jak tutaj."}` : "");
+      });
+    });
+  }
+  const pct = v => (+v).toFixed(1).replace(".", ",");
+  function femLine(m, k) {
+    if (!m || !k) return "";
+    const f = k / m * 100, d = Math.abs(k - m);
+    return `${fmt(f)} kobiet na 100 mężczyzn${d ? `, przewaga ${k > m ? "kobiet" : "mężczyzn"} o ${fmt(d)}` : ""}`;
+  }
+  function obwodHTML(r) {
+    const o = r.obwod, g = r.gmina, pl = r.polska;
+    const gName = r.gminaNazwa || (o.gmina || "").replace(/^gm\.\s*(m\.|w\.|m\.-w\.)?\s*/i, "");
+    const sexW = o.m + o.k ? o.k / (o.m + o.k) * 100 : 50;
+    const top = (p, more, less) => p >= 90 ? `<span class="terr-tag hi">${more} niż w ${p}% obwodów w Polsce</span>` : p <= 10 ? `<span class="terr-tag lo">${less} niż w ${100 - p}% obwodów w Polsce</span>` : "";
+    return `<div class="terr-obwod">
+      <p class="terr-obw-big"><b>${fmt(o.lud)}</b> ${window.GminaProfile?.plural ? window.GminaProfile.plural(o.lud, "mieszkaniec", "mieszkańców", "mieszkańców") : "mieszkańców"}</p>
+      <p><span class="terr-chip"><b>${fmt(o.gestosc || 0)}</b> os./km²</span><span class="terr-chip">${o.km2 < 1 ? `${fmt(o.km2 * 100)} ha` : `${pct(o.km2)} km²`}</span></p>
+      <p class="terr-sex-txt">${o.gn > 1 ? `${o.gr === 1 ? "Najludniejszy" : o.gr <= 10 ? `${o.gr}. najludniejszy` : "Jeden"} z ${fmt(o.gn)} obwodów ${gName ? `gminy ${esc(gName)}` : "w gminie"}` : `Jedyny obwód ${gName ? `gminy ${esc(gName)}` : "w gminie"}`}${g.lud ? `, ${(o.lud / g.lud * 100).toLocaleString("pl-PL", { maximumFractionDigits: o.lud / g.lud < .01 ? 2 : 1 })}% jej mieszkańców` : ""}.</p>
+      ${top(o.pg, "Gęściej zaludniony", "Rzadziej zaludniony")}
+      <div class="terr-sex"><span class="m" style="flex:${o.m}">Mężczyźni ${fmt(o.m)}</span><span class="k" style="flex:${o.k}">Kobiety ${fmt(o.k)}</span></div>
+      <p class="terr-sex-txt">${femLine(o.m, o.k)}. <small>Gmina: ${fmt(g.k / g.m * 100)}, Polska: ${fmt(pl.k / pl.m * 100)} kobiet na 100 mężczyzn.</small></p>
+      ${agesHTML(o.wiek, pl.wiek, "mieszkańców obwodu")}
+      <p class="terr-sex-txt">W wieku poprodukcyjnym <b>${pct(o.p_poprod)}%</b>, przedprodukcyjnym <b>${pct(o.p_przedprod)}%</b>.</p>
+      ${top(o.ps, "Więcej seniorów", "Mniej seniorów")}${top(o.pd, "Więcej dzieci i młodzieży", "Mniej dzieci i młodzieży")}
+      <small class="muted">Obwód statystyczny ${esc(o.nr || o.id)} · GUS, Narodowy Spis Powszechny 2021</small></div>`;
+  }
+  function showSel(geom) {
+    const src = map.getSource("terr-spis-sel");
+    if (src) src.setData(geom ? { type: "Feature", geometry: geom, properties: {} } : { type: "FeatureCollection", features: [] });
+  }
+  const spisOn = () => !!map.getLayer("terr-spis") && map.getLayoutProperty("terr-spis", "visibility") !== "none";
+  let obwSeq = 0;
+  async function gminaName(k) {
+    try { const all = await window.PLOTS_GMINY?.all(); const g = all && all.find(x => x.k === k); return g ? g.n : ""; } catch { return ""; }
+  }
+  async function obwodInto(place, el, bare) {
+    const my = ++obwSeq;
+    const r = await app.api(`/api/obwod?lon=${place.lon}&lat=${place.lat}`).catch(() => null);
+    if (my !== obwSeq || !el.isConnected) return;
+    if (!r || !r.obwod || !r.obwod.lud) { el.innerHTML = bare ? `<p class="muted small">W tym miejscu nikt nie mieszka według Spisu 2021.</p>` : ""; return; }
+    r.gminaNazwa = await gminaName(r.obwod.teryt);
+    if (my !== obwSeq || !el.isConnected) return;
+    el.innerHTML = bare ? obwodHTML(r) : row("users-three", "Obwód spisowy (Spis 2021)", obwodHTML(r));
+    bindAges(el);
+    if (spisOn()) showSel(r.obwod.geom);
+  }
+  // Below the parcel zoom a tap on the census layer opens the district card.
+  function handleClick(e) {
+    if (!spisOn() || map.getZoom() >= (window.PLOTS_CFG_MINZ || 13)) return false;
+    if (!map.queryRenderedFeatures(e.point, { layers: ["terr-spis"] }).length) return false;
+    const place = { lon: e.lngLat.lng, lat: e.lngLat.lat };
+    app.showInfo(`<div class="phead"><h2>Obwód spisowy</h2></div><div id="terrObwod"><p class="muted small">Wczytuję dane spisu…</p></div>`);
+    obwodInto(place, document.getElementById("terrObwod"), true);
+    return true;
+  }
+
   let seq = 0;
   async function loadInto(place, el) {
     if (!place || !el) return;
@@ -127,9 +211,11 @@
     const q = `?lon=${place.lon}&lat=${place.lat}`;
     const [t, l] = await Promise.all([app.api("/api/teren" + q).catch(() => null), app.api("/api/ludnosc" + q).catch(() => null)]);
     if (my !== seq || !el.isConnected) return;
-    el.innerHTML = render(t, l);
+    el.innerHTML = render(t, l) + `<div class="terr-obw-slot"></div>`;
+    bindAges(el);
+    obwodInto(place, el.querySelector(".terr-obw-slot"));
   }
-  window.PLOTS_TERRAIN = { loadInto };
+  window.PLOTS_TERRAIN = { loadInto, handleClick };
   // Every place card has the MPZP section (#placePlans): put „Teren i otoczenie” right after it.
   const P = window.PLOTS_PLANNING;
   if (P && P.loadInto) {

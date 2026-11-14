@@ -7,6 +7,7 @@
   const BASE = (params.get("tiles") || CFG.TILES_URL || "http://127.0.0.1:5001").replace(/\/$/, "");
   const MINZ = +(params.get("minzoom") || CFG.MIN_ZOOM || 13);
   const ADR_MINZ = +(CFG.ADR_MIN_ZOOM || 16);
+  window.PLOTS_CFG_MINZ = MINZ;
   const GR = window.GRUPY_REJ || {};
   const COL = window.GRUPY_COLORS || {};
   const isMobile = () => matchMedia("(max-width:767px)").matches;
@@ -455,6 +456,7 @@
     map.on("click", async (e) => {
       const click=++clickRevision;
       if(window.DistanceModule?.handleClick(e))return;
+      if(window.PLOTS_TERRAIN?.handleClick(e))return;
       const point={lon:e.lngLat.lng,lat:e.lngLat.lat};
       if(map.getZoom()<MINZ){addressRequest++;await window.MunicipalityContext.update(point);if(click!==clickRevision)return;const id=window.PLOTS_GMINY.current();if(id)window.PLOTS_GMINY.select(id,true);else {tab("gmina");snap("half");}return;}
       if (window.PLOTS_PLANNING?.inspecting()) return;
