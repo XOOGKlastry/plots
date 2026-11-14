@@ -12,7 +12,7 @@
   async function load(k) {
     const woj = k.slice(0, 2);
     const [p, d, w] = await Promise.all([json(`data/profil/${woj}.json`), json(`data/dziedzictwo/${woj}.json`), json("data/wybory.json")]);
-    return { profil: p?.gminy?.[k] || null, ages: p?.ages || [], dz: d?.gminy?.[k] || null, wyb: w ? { elections: w.elections, g: w.g?.[k] } : null };
+    return { profil: p?.gminy?.[k] || null, ages: p?.ages || [], ref: p?.ref || null, dz: d?.gminy?.[k] || null, wyb: w ? { elections: w.elections, g: w.g?.[k] } : null };
   }
   const section = (icon, title, body, note = "") => `<section class="metric-section profile-section"><h2>${Icons.svg(icon)}${esc(title)}</h2>${body}${note ? `<p class="profile-note">${note}</p>` : ""}</section>`;
 
@@ -50,11 +50,14 @@
   }
 
   /* Age pyramid: men left, women right. The part of the longer bar that exceeds the other sex is drawn darker,
-     so the surplus is visible at a glance. Tapping a row shows counts, surplus, feminization and the national rank
+     so the surplus is visible at a glance. Modes: counts, or shares compared with the voivodeship / Poland (outlined boxes).
+     Tapping a row shows counts, surplus, feminization and the national rank
      (ranks come from profil_gmin.py: r[i] = [rank with most women, rank with most men, n]). */
   const sum = a => a.reduce((x, y) => x + y, 0);
   const plural = (n, one, few, many) => n === 1 ? one : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? few : many;
   const notable = (rank, n) => rank <= Math.max(25, n * .01);
+  const pp = v => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), 1);
+  const REF = { woj: "województwie", pl: "Polsce" };
   function rankText(r, women, what) {
     if (!r) return "";
     const rank = women ? r[0] : r[1], n = r[2];
@@ -62,7 +65,18 @@
     const side = women ? "kobiet" : "mężczyzn";
     return `<span class="pyr-rank${rank <= 3 ? " top" : ""}">${rank === 1 ? "Największa" : rank + ". największa"} przewaga ${side}${what} w kraju <small>(na ${fmt(n)} gmin)</small></span>`;
   }
-  function pyrSummary(d) {
+  const shares = (m, k) => { const t = sum(m) + sum(k) || 1; return { m: m.map(v => v / t * 100), k: k.map(v => v / t * 100) }; };
+  function pyrSummary(d, mode) {
+    if (mode !== "n" && d.ref[mode]) {
+      const g = shares(d.rows.map(r => r.m), d.rows.map(r => r.k)), R = d.ref[mode];
+      const dev = d.rows.map((r, i) => ({ i, v: g.m[i] + g.k[i] - R.m[i] - R.k[i] }));
+      const hi = dev.reduce((a, b) => b.v > a.v ? b : a), lo = dev.reduce((a, b) => b.v < a.v ? b : a);
+      const age = x => { const t = sum(x.m) + sum(x.k); let acc = 0; const all = x.m.map((v, i) => v + x.k[i]); for (let i = 0; i < all.length; i++) { if (acc + all[i] >= t / 2) return i * 5 + (t / 2 - acc) / all[i] * 5; acc += all[i]; } };
+      const mg = age({ m: d.rows.map(r => r.m), k: d.rows.map(r => r.k) }), mr = age(R);
+      return `<p class="pyr-big">Mediana wieku <b>${fmt(mg, 1)}</b> lat <small>(w ${REF[mode]} ${fmt(mr, 1)})</small></p>
+        <p>Obrys pokazuje udział grupy w ${REF[mode]}. Najbardziej ponad: <button type="button" class="pyr-link" data-i="${hi.i}">${esc(d.rows[hi.i].a)} lat (${pp(hi.v)} pkt proc.)</button>, najbardziej poniżej: <button type="button" class="pyr-link" data-i="${lo.i}">${esc(d.rows[lo.i].a)} lat (${pp(lo.v)} pkt proc.)</button>.</p>
+        <p class="pyr-hint">Stuknij grupę wieku, aby zobaczyć szczegóły.</p>`;
+    }
     const fem = d.sk / d.sm * 100, women = d.sk >= d.sm, diff = Math.abs(d.sk - d.sm);
     let cross = -1;
     for (let i = d.rows.length - 1; i >= 0; i--) { if (d.rows[i].k > d.rows[i].m) cross = i; else break; }
@@ -74,45 +88,69 @@
       ${best && notable(best.rk, best.n) ? `<button type="button" class="pyr-jump" data-i="${best.i}">Wyróżnia się grupa ${esc(d.rows[best.i].a)} lat ${Icons.svg("caret-right")}</button>` : ""}
       <p class="pyr-hint">Stuknij grupę wieku, aby zobaczyć szczegóły.</p>`;
   }
-  function pyrRow(d, i) {
-    const r = d.rows[i], t = r.m + r.k, women = r.k > r.m, diff = Math.abs(r.k - r.m);
-    return `<p class="pyr-big"><b>${esc(r.a)}</b> lat · ${fmt(t)} ${plural(t, "osoba", "osoby", "osób")} <small>(${fmt(t / (d.sm + d.sk) * 100, 1)}% mieszkańców)</small></p>
+  function pyrRow(d, i, mode) {
+    const r = d.rows[i], t = r.m + r.k, women = r.k > r.m, diff = Math.abs(r.k - r.m), tot = d.sm + d.sk;
+    let cmp = "";
+    if (mode !== "n" && d.ref[mode]) {
+      const R = d.ref[mode], r1 = v => Math.round(v * 10) / 10, here = r1(t / tot * 100), there = r1(R.m[i] + R.k[i]);
+      cmp = `<p class="pyr-cmp">Tutaj <b>${fmt(here, 1)}%</b> mieszkańców, w ${REF[mode]} ${fmt(there, 1)}%: <b>${pp(here - there)} pkt proc.</b><br><small>Mężczyźni ${fmt(r.m / tot * 100, 1)}% (w ${REF[mode]} ${fmt(R.m[i], 1)}%), kobiety ${fmt(r.k / tot * 100, 1)}% (${fmt(R.k[i], 1)}%)</small></p>`;
+    }
+    return `<p class="pyr-big"><b>${esc(r.a)}</b> lat · ${fmt(t)} ${plural(t, "osoba", "osoby", "osób")} <small>(${fmt(t / tot * 100, 1)}% mieszkańców)</small></p>
       <p><span class="pyr-m">Mężczyźni ${fmt(r.m)}</span> · <span class="pyr-k">Kobiety ${fmt(r.k)}</span></p>
       <p>${diff === 0 ? "Tyle samo kobiet i mężczyzn." : `Przewaga ${women ? "kobiet" : "mężczyzn"} o <b>${fmt(diff)}</b> (${fmt(diff / Math.max(1, Math.min(r.k, r.m)) * 100, 1)}%).`} ${r.m ? `${fmt(r.k / r.m * 100)} kobiet na 100 mężczyzn.` : ""}</p>
-      ${diff ? rankText(r.r, women, ` w wieku ${r.a}`) : ""}`;
+      ${cmp}${diff ? rankText(r.r, women, ` w wieku ${r.a}`) : ""}`;
   }
-  function pyramid(p, ages) {
+  function pyrBars(d, mode) {
+    const cmp = mode !== "n" && d.ref[mode], tot = d.sm + d.sk;
+    const val = v => cmp ? v / tot * 100 : v, R = cmp ? d.ref[mode] : null;
+    const mx = Math.max(...d.rows.map(r => Math.max(val(r.m), val(r.k))), ...(R ? [...R.m, ...R.k] : []));
+    const w = v => (v / mx * 100).toFixed(2) + "%";
+    return d.rows.map((r, i) => ({ r, i })).reverse().map(({ r, i }) => {
+      const lo = Math.min(r.m, r.k);
+      return `<button type="button" class="pyr-row" data-i="${i}" aria-label="${esc(r.a)} lat">
+        <span class="pyr-bar m">${r.m > lo ? `<i class="ex" style="width:${w(val(r.m - lo))}"></i>` : ""}<i class="base" style="width:${w(val(lo))}"></i>${R ? `<b class="ref" style="width:${w(R.m[i])}"></b>` : ""}</span>
+        <span class="pyr-age">${esc(r.a)}</span>
+        <span class="pyr-bar k"><i class="base" style="width:${w(val(lo))}"></i>${r.k > lo ? `<i class="ex" style="width:${w(val(r.k - lo))}"></i>` : ""}${R ? `<b class="ref" style="width:${w(R.k[i])}"></b>` : ""}</span></button>`;
+    }).join("");
+  }
+  function pyramid(p, ages, ref) {
     const pr = p?.pir;
     if (!pr) return "";
     const rows = ages.map((a, i) => ({ a, m: pr.m[i], k: pr.k[i], r: pr.r?.[i] || null }));
-    const d = { rows, sm: sum(pr.m), sk: sum(pr.k), rt: pr.rt || null }, mx = Math.max(...pr.m, ...pr.k);
-    const w = v => (v / mx * 100).toFixed(2) + "%";
-    const bars = rows.map((r, i) => ({ r, i })).reverse().map(({ r, i }) => {
-      const lo = Math.min(r.m, r.k);
-      return `<button type="button" class="pyr-row" data-i="${i}" aria-label="${esc(r.a)} lat">
-        <span class="pyr-bar m">${r.m > lo ? `<i class="ex" style="width:${w(r.m - lo)}"></i>` : ""}<i class="base" style="width:${w(lo)}"></i></span>
-        <span class="pyr-age">${esc(r.a)}</span>
-        <span class="pyr-bar k"><i class="base" style="width:${w(lo)}"></i>${r.k > lo ? `<i class="ex" style="width:${w(r.k - lo)}"></i>` : ""}</span></button>`;
-    }).join("");
+    const R = {};
+    for (const key of ["woj", "pl"]) if (ref?.[key]) R[key] = shares(ref[key].m, ref[key].k);
+    const d = { rows, sm: sum(pr.m), sk: sum(pr.k), rt: pr.rt || null, ref: R };
+    const modes = [["n", "Liczba osób"], ...(R.woj ? [["woj", "Na tle woj."]] : []), ...(R.pl ? [["pl", "Na tle Polski"]] : [])];
     return section("users", `Piramida wieku (${pr.y})`, `<div class="pyramid" data-pyr='${esc(JSON.stringify(d))}'>
+      ${modes.length > 1 ? `<div class="stats-seg pyr-modes" role="group">${modes.map(([k, l]) => `<button type="button" data-mode="${k}" aria-pressed="${k === "n"}">${l}</button>`).join("")}</div>` : ""}
       <div class="pyr-head"><span class="pyr-m">Mężczyźni ${fmt(d.sm)}</span><span class="pyr-k">Kobiety ${fmt(d.sk)}</span></div>
-      ${bars}<div class="pyr-legend"><span><i class="m"></i><i class="k"></i>wspólna część</span><span><i class="m ex"></i><i class="k ex"></i>przewaga jednej płci</span></div>
-      <div class="pyr-info" aria-live="polite">${pyrSummary(d)}</div></div>`,
-      "Liczba mieszkańców w grupach wieku. Ranking obejmuje gminy, w których grupa liczy co najmniej 50 osób. GUS, Bank Danych Lokalnych.");
+      <div class="pyr-bars">${pyrBars(d, "n")}</div><div class="pyr-legend"><span><i class="m"></i><i class="k"></i>wspólna część</span><span><i class="m ex"></i><i class="k ex"></i>przewaga jednej płci</span><span class="pyr-leg-ref" hidden><i class="ref"></i>udział w <em></em></span></div>
+      <div class="pyr-info" aria-live="polite">${pyrSummary(d, "n")}</div></div>`,
+      "Liczba mieszkańców w grupach wieku. Ranking obejmuje gminy, w których grupa liczy co najmniej 50 osób. Województwo i Polska: suma gmin. GUS, Bank Danych Lokalnych.");
   }
   function bindPyramid(root) {
     root.querySelectorAll(".pyramid[data-pyr]").forEach(el => {
       if (el.dataset.bound) return;
       el.dataset.bound = 1;
-      const d = JSON.parse(el.dataset.pyr), info = el.querySelector(".pyr-info");
-      let sel = -1;
-      const pick = i => {
-        sel = sel === i ? -1 : i;
+      const d = JSON.parse(el.dataset.pyr), info = el.querySelector(".pyr-info"), bars = el.querySelector(".pyr-bars");
+      let sel = -1, mode = "n";
+      const paint = () => {
         el.querySelectorAll(".pyr-row").forEach(b => b.classList.toggle("on", +b.dataset.i === sel));
         el.classList.toggle("has-sel", sel >= 0);
-        info.innerHTML = sel >= 0 ? pyrRow(d, sel) : pyrSummary(d);
+        info.innerHTML = sel >= 0 ? pyrRow(d, sel, mode) : pyrSummary(d, mode);
       };
-      el.addEventListener("click", e => { const b = e.target.closest(".pyr-row,.pyr-jump"); if (b) pick(+b.dataset.i); });
+      el.addEventListener("click", e => {
+        const m = e.target.closest("[data-mode]");
+        if (m) {
+          mode = m.dataset.mode;
+          el.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-pressed", b === m));
+          bars.innerHTML = pyrBars(d, mode);
+          const lr = el.querySelector(".pyr-leg-ref"); lr.hidden = mode === "n"; lr.querySelector("em").textContent = REF[mode] || "";
+          paint(); return;
+        }
+        const b = e.target.closest(".pyr-row,.pyr-jump,.pyr-link");
+        if (b) { const i = +b.dataset.i; sel = sel === i ? -1 : i; paint(); }
+      });
     });
   }
 

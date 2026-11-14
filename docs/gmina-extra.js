@@ -1,0 +1,244 @@
+/* More about the gmina population: GUS projection to 2060 (powiat level), commuting to work (NSP 2021 flow matrix, with arrows on
+   the map), registered migration over the years and NSP 2021 details (education, households, families, dwellings, work).
+   Data: data/prognoza/<woj>.json, data/dojazdy/<woj>.json, data/gminy-centra.json, data/nsp/<woj>.json. */
+(function () {
+  "use strict";
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (v, d = 0) => Number(v).toLocaleString("pl-PL", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const pp = (v, d = 1) => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), d);
+  const sum = a => a.reduce((x, y) => x + y, 0);
+  const cache = new Map();
+  const json = url => { if (!cache.has(url)) cache.set(url, fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)); return cache.get(url); };
+  const section = (icon, title, body, note = "") => `<section class="metric-section profile-section">${title ? `<h2>${Icons.svg(icon)}${esc(title)}</h2>` : ""}${body}${note ? `<p class="profile-note">${note}</p>` : ""}</section>`;
+  let names = null;
+  async function nameOf(k) {
+    if (!names) {
+      const all = (await (window.PLOTS_GMINY?.all?.() || Promise.resolve([]))) || [], cnt = {};
+      all.forEach(g => { cnt[g.n] = (cnt[g.n] || 0) + 1; });
+      // Same name for a town and the rural gmina around it (Oleśnica, Oleśnica): add the type.
+      names = new Map(all.map(g => [g.k, cnt[g.n] > 1 ? `${g.n} (${g.k[6] === "1" ? "miasto" : g.k[6] === "2" ? "gm. wiejska" : g.k[6] === "3" ? "gm. miejsko-wiejska" : "gmina"})` : g.n]));
+    }
+    return names.get(k) || k;
+  }
+  const seg = (attr, opts, on) => `<div class="stats-seg ext-seg" role="group">${opts.map(([k, l]) => `<button type="button" ${attr}="${k}" aria-pressed="${k === on}">${esc(l)}</button>`).join("")}</div>`;
+  function line(vals, x0, opts = {}) {
+    const pts = vals.map((v, i) => [i, v]).filter(p => Number.isFinite(p[1]));
+    if (pts.length < 2) return "";
+    const ref = opts.ref || [], all = [...pts.map(p => p[1]), ...ref.filter(Number.isFinite)], lo = Math.min(...all, opts.zero ? 0 : Infinity), hi = Math.max(...all, opts.zero ? 0 : -Infinity), pad = (hi - lo) * .1 || 1;
+    const X = i => i / (vals.length - 1) * 100, Y = v => 100 - (v - lo + pad) / (hi - lo + 2 * pad) * 100;
+    const path = arr => arr.map((v, i) => Number.isFinite(v) ? `${i && Number.isFinite(arr[i - 1]) ? "L" : "M"}${X(i).toFixed(2)},${Y(v).toFixed(2)}` : "").join("");
+    return `<div class="ext-line" data-line='${esc(JSON.stringify({ v: vals, x0, r: ref, u: opts.unit || "" }))}'><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      ${opts.zero && lo < 0 ? `<line x1="0" x2="100" y1="${Y(0)}" y2="${Y(0)}" stroke="#c7c7cc" stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 3"/>` : ""}
+      ${ref.length ? `<path d="${path(ref)}" fill="none" stroke="#8e8e93" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>` : ""}
+      <path d="${path(vals)}" fill="none" stroke="${opts.color || "#0a84ff"}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
+      <span class="ext-dot" hidden></span><span class="ext-tip" hidden></span><div class="ext-years"><span>${x0}</span><span>${x0 + vals.length - 1}</span></div></div>`;
+  }
+  function bindLines(root) {
+    root.querySelectorAll(".ext-line[data-line]").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = 1;
+      const d = JSON.parse(el.dataset.line), svg = el.querySelector("svg"), dot = el.querySelector(".ext-dot"), tip = el.querySelector(".ext-tip");
+      const all = [...d.v, ...d.r].filter(Number.isFinite), lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo) * .1 || 1;
+      const show = e => {
+        const r = svg.getBoundingClientRect(), i = Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * (d.v.length - 1)), v = d.v[i];
+        if (!Number.isFinite(v)) return;
+        const x = i / (d.v.length - 1) * 100; dot.hidden = tip.hidden = false; dot.style.left = tip.style.left = x + "%";
+        dot.style.top = (100 - (v - lo + pad) / (hi - lo + 2 * pad) * 100) + "%";
+        tip.textContent = `${d.x0 + i}: ${fmt(v, Math.abs(v) < 20 && v % 1 ? 1 : 0)}${d.u}${d.r.length && Number.isFinite(d.r[i]) ? ` (Polska ${fmt(d.r[i], 1)})` : ""}`;
+        tip.style.transform = `translateX(${x > 70 ? "-100%" : x < 30 ? "0" : "-50%"})`;
+      };
+      svg.onpointermove = show; svg.onpointerdown = show; svg.onpointerleave = () => { dot.hidden = tip.hidden = true; };
+    });
+  }
+
+  /* ---------- Prognoza ludności (GUS, powiaty) ---------- */
+  function medianAge(m, k) {
+    const all = m.map((v, i) => v + k[i]), t = sum(all); let acc = 0;
+    for (let i = 0; i < all.length; i++) { if (acc + all[i] >= t / 2) return i * 5 + (t / 2 - acc) / all[i] * 5; acc += all[i]; }
+  }
+  const share65 = p => (sum(p.m.slice(13)) + sum(p.k.slice(13))) / (sum(p.m) + sum(p.k)) * 100;
+  function forecastPyr(P, y, ages) {
+    const p = P.p[y], b = P.p["2023"], t = sum(p.m) + sum(p.k), tb = sum(b.m) + sum(b.k);
+    const mx = Math.max(...p.m.map(v => v / t), ...p.k.map(v => v / t), ...b.m.map(v => v / tb), ...b.k.map(v => v / tb));
+    const w = v => (v / mx * 100).toFixed(1) + "%";
+    return ages.map((a, i) => ({ a, i })).reverse().map(({ a, i }) => `<div class="pyr-row ext-prow"><span class="pyr-bar m"><i class="base" style="width:${w(p.m[i] / t)}"></i><b class="ref" style="width:${w(b.m[i] / tb)}"></b></span><span class="pyr-age">${esc(a)}</span><span class="pyr-bar k"><i class="base" style="width:${w(p.k[i] / t)}"></i><b class="ref" style="width:${w(b.k[i] / tb)}"></b></span></div>`).join("");
+  }
+  function forecastInfo(D, P, y) {
+    const p = P.p[y], b = P.p["2023"], i = D.lata.indexOf(+y), ch = (P.t[i] - P.t[0]) / P.t[0] * 100, chPl = (D.pl.t[i] - D.pl.t[0]) / D.pl.t[0] * 100;
+    return `<p class="pyr-big"><b>${fmt(P.t[i])}</b> mieszkańców w ${y} r. <small>(${pp(ch)}% od 2023, Polska ${pp(chPl)}%)</small></p>
+      <p>Osoby 65+: <b>${fmt(share65(p), 1)}%</b> <small class="muted">(2023: ${fmt(share65(b), 1)}%)</small> · mediana wieku <b>${fmt(medianAge(p.m, p.k), 1)}</b> lat <small class="muted">(2023: ${fmt(medianAge(b.m, b.k), 1)})</small></p>`;
+  }
+  async function forecast(g) {
+    const D = await json(`data/prognoza/${g.k.slice(0, 2)}.json`);
+    const P = D?.pow?.[g.k.slice(0, 4)];
+    if (!P) return "";
+    const years = Object.keys(P.p), ages = D.ages, last = P.t.length - 1;
+    const ch40 = (P.t[D.lata.indexOf(2040)] - P.t[0]) / P.t[0] * 100, ch60 = (P.t[last] - P.t[0]) / P.t[0] * 100;
+    const pl60 = (D.pl.t[last] - D.pl.t[0]) / D.pl.t[0] * 100;
+    const city = /^\d{4}01$/.test(g.k.slice(0, 6)) && g.k[6] === "1" && +g.k.slice(2, 4) >= 61;
+    const plNorm = D.pl.t.map(v => v / D.pl.t[0] * P.t[0]);
+    return section("chart-line", `Prognoza ludności do 2060`, `<div class="pop-chart ext-fc" data-fc='${esc(JSON.stringify({ k: g.k.slice(0, 4) }))}'>
+      <div class="pop-summary"><strong>${pp(ch60)}%</strong> <span>do 2060 r. (${fmt(P.t[0])} → ${fmt(P.t[last])})</span><span class="pop-peak">Do 2040 r.: ${pp(ch40)}%. Polska do 2060 r.: ${pp(pl60)}%.</span></div>
+      ${line(P.t, D.lata[0], { ref: plNorm })}
+      <p class="ext-legend"><span class="ext-sw"></span>${esc(P.n.replace(/^Powiat /i, "powiat "))}<span class="ext-sw dash"></span>Polska w tej samej skali</p>
+      ${seg("data-fy", years.filter(y => +y >= 2025).map(y => [y, y]), "2040")}
+      <div class="pyramid ext-fpyr"><div class="pyr-head"><span class="pyr-m">Mężczyźni</span><span class="pyr-k">Kobiety</span></div><div class="ext-fbars">${forecastPyr(P, "2040", ages)}</div>
+      <div class="pyr-legend"><span><i class="m"></i><i class="k"></i>wybrany rok</span><span><i class="ref"></i>2023</span></div>
+      <div class="pyr-info ext-finfo">${forecastInfo(D, P, "2040")}</div></div></div>`,
+      `Prognoza GUS jest liczona dla ${city ? "miasta na prawach powiatu" : `całego powiatu (${esc(P.n)}), nie dla pojedynczych gmin`}. GUS, Prognoza ludności rezydującej na lata 2023–2060.`);
+  }
+  function bindForecast(root, g) {
+    root.querySelectorAll(".ext-fc").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = 1;
+      el.addEventListener("click", async e => {
+        const b = e.target.closest("[data-fy]"); if (!b) return;
+        const D = await json(`data/prognoza/${g.k.slice(0, 2)}.json`), P = D.pow[g.k.slice(0, 4)];
+        el.querySelectorAll("[data-fy]").forEach(x => x.setAttribute("aria-pressed", x === b));
+        el.querySelector(".ext-fbars").innerHTML = forecastPyr(P, b.dataset.fy, D.ages);
+        el.querySelector(".ext-finfo").innerHTML = forecastInfo(D, P, b.dataset.fy);
+      });
+    });
+  }
+
+  /* ---------- Dojazdy do pracy (NSP 2021) ---------- */
+  async function commute(g, lud) {
+    const D = await json(`data/dojazdy/${g.k.slice(0, 2)}.json`), c = D?.gminy?.[g.k];
+    if (!c) return "";
+    const list = async (arr, total) => {
+      const top = arr.slice(0, 8), mx = top[0]?.[1] || 1, nm = await Promise.all(top.map(x => nameOf(x[0])));
+      return `<ul class="ext-flow">${top.map((x, i) => `<li><span class="ext-fn">${esc(nm[i])}</span><span class="ext-fb"><i style="width:${(x[1] / mx * 100).toFixed(1)}%"></i></span><b>${fmt(x[1])}</b><small>${fmt(x[1] / total * 100, 0)}%</small></li>`).join("")}</ul>`;
+    };
+    const [lo, li] = await Promise.all([list(c.do, c.o), list(c.z, c.i)]);
+    const bal = c.i - c.o;
+    return section("car-profile", "Dojazdy do pracy (Spis 2021)", `<div class="ext-card ext-commute" data-k="${g.k}">
+      <p><span class="terr-chip"><b>${fmt(c.o)}</b> wyjeżdża do pracy</span><span class="terr-chip"><b>${fmt(c.i)}</b> przyjeżdża</span></p>
+      <p class="ext-bal">${bal >= 0 ? `Gmina przyciąga pracowników: przyjeżdża o <b>${fmt(bal)}</b> więcej osób, niż wyjeżdża.` : `Gmina „oddaje” pracowników: wyjeżdża o <b>${fmt(-bal)}</b> więcej osób, niż przyjeżdża.`}${lud ? ` Wyjeżdżający to ${fmt(c.o / lud * 100, 1)}% mieszkańców.` : ""}</p>
+      ${seg("data-cdir", [["do", "Dokąd jeżdżą"], ["z", "Skąd przyjeżdżają"]], "do")}
+      <div data-cl="do">${lo}</div><div data-cl="z" hidden>${li}</div>
+      <button type="button" class="place-distance-action ext-map-btn" data-cmap>${Icons.svg("map-trifold")}Pokaż na mapie</button></div>`,
+      "Pracownicy najemni dojeżdżający do pracy w innej gminie. GUS, NSP 2021: macierz przepływów ludności związanych z zatrudnieniem (bez przepływów poniżej 3 osób).");
+  }
+  function bindCommute(root) {
+    root.querySelectorAll(".ext-commute").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = 1;
+      let dir = "do";
+      el.addEventListener("click", e => {
+        const b = e.target.closest("[data-cdir]");
+        if (b) { dir = b.dataset.cdir; el.querySelectorAll("[data-cdir]").forEach(x => x.setAttribute("aria-pressed", x === b)); el.querySelectorAll("[data-cl]").forEach(x => { x.hidden = x.dataset.cl !== dir; }); return; }
+        if (e.target.closest("[data-cmap]")) showFlows(el.dataset.k, dir);
+      });
+    });
+  }
+  async function showFlows(k, dir) {
+    const app = window.PLOTS; if (!app) return;
+    const [D, C] = await Promise.all([json(`data/dojazdy/${k.slice(0, 2)}.json`), json("data/gminy-centra.json")]);
+    const c = D?.gminy?.[k]; if (!c || !C?.[k]) return;
+    const arr = c[dir].slice(0, 25).filter(x => C[x[0]]), mx = arr[0]?.[1] || 1, home = C[k];
+    const nm = await Promise.all(arr.map(x => nameOf(x[0]))), hn = await nameOf(k);
+    const arc = (a, b) => { const mx_ = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[0] - a[0], dy = b[1] - a[1], cx = mx_ - dy * .18, cy = my + dx * .18, pts = [];
+      for (let t = 0; t <= 1.0001; t += 1 / 24) pts.push([(1 - t) ** 2 * a[0] + 2 * (1 - t) * t * cx + t * t * b[0], (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * cy + t * t * b[1]]); return pts; };
+    const feats = arr.map((x, i) => ({ type: "Feature", properties: { n: x[1], w: 1.2 + 9 * x[1] / mx, label: `${nm[i]} ${fmt(x[1])}` },
+      geometry: { type: "LineString", coordinates: dir === "do" ? arc(home, C[x[0]]) : arc(C[x[0]], home) } }));
+    const pts = arr.map((x, i) => ({ type: "Feature", properties: { label: `${nm[i]}\n${fmt(x[1])}`, r: 3 + 7 * Math.sqrt(x[1] / mx) }, geometry: { type: "Point", coordinates: C[x[0]] } }));
+    pts.push({ type: "Feature", properties: { label: hn, r: 8, home: 1 }, geometry: { type: "Point", coordinates: home } });
+    const map = app.map;
+    const data = { type: "FeatureCollection", features: feats }, pdata = { type: "FeatureCollection", features: pts };
+    if (map.getSource("ext-flows")) { map.getSource("ext-flows").setData(data); map.getSource("ext-flow-pts").setData(pdata); }
+    else {
+      map.addSource("ext-flows", { type: "geojson", data }); map.addSource("ext-flow-pts", { type: "geojson", data: pdata });
+      map.addLayer({ id: "ext-flows", type: "line", source: "ext-flows", layout: { "line-cap": "round" }, paint: { "line-color": dir === "do" ? "#ff6b00" : "#0a84ff", "line-width": ["get", "w"], "line-opacity": .75 } });
+      map.addLayer({ id: "ext-flow-pts", type: "circle", source: "ext-flow-pts", paint: { "circle-radius": ["get", "r"], "circle-color": ["case", ["has", "home"], "#1c1c1e", "#fff"], "circle-stroke-color": "#1c1c1e", "circle-stroke-width": 1.5 } });
+      map.addLayer({ id: "ext-flow-lbl", type: "symbol", source: "ext-flow-pts", layout: { "text-field": ["get", "label"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#1c1c1e", "text-halo-color": "#fff", "text-halo-width": 1.6 } });
+    }
+    map.setPaintProperty("ext-flows", "line-color", dir === "do" ? "#ff6b00" : "#0a84ff");
+    const b = new maplibregl.LngLatBounds(home, home); arr.forEach(x => b.extend(C[x[0]]));
+    document.querySelectorAll("dialog[open]").forEach(d => d.close());
+    if (app.isMobile()) app.snap("peek");
+    map.fitBounds(b, { padding: app.isMobile() ? { top: 120, bottom: 200, left: 40, right: 40 } : 80, maxZoom: 10, duration: 600 });
+    let chip = document.getElementById("extFlowChip");
+    if (!chip) { chip = document.createElement("div"); chip.id = "extFlowChip"; chip.className = "ext-chip"; document.body.appendChild(chip); }
+    chip.innerHTML = `<span><b>${esc(hn)}</b>: ${dir === "do" ? "dokąd jeżdżą do pracy" : "skąd przyjeżdżają do pracy"}</span><button type="button" aria-label="Zamknij">${Icons.svg("x")}</button>`;
+    chip.hidden = false;
+    chip.querySelector("button").onclick = () => { chip.hidden = true; ["ext-flow-lbl", "ext-flow-pts", "ext-flows"].forEach(id => map.getLayer(id) && map.removeLayer(id)); ["ext-flows", "ext-flow-pts"].forEach(id => map.getSource(id) && map.removeSource(id)); };
+  }
+
+  /* ---------- Migracje i Spis 2021 ---------- */
+  const pctOf = (a, b) => b ? a / b * 100 : NaN;
+  function stackBar(parts, total) {
+    const PAL = ["#0a84ff", "#30b0c7", "#34c759", "#ffcc00", "#ff9500", "#ff2d55", "#af52de", "#5856d6", "#a2845e", "#8e8e93"];
+    return `<div class="bud-bar">${parts.map((x, i) => `<i style="flex:${x.v};background:${x.c || PAL[i % PAL.length]}" title="${esc(x.n)}"></i>`).join("")}</div>
+      <ul class="bud-list ext-list">${parts.map((x, i) => `<li><span class="bud-sw" style="background:${x.c || PAL[i % PAL.length]}"></span><span class="bud-n">${esc(x.n)}</span><span class="bud-v"><b>${fmt(pctOf(x.v, total), 1)}%</b>${x.pl != null ? `<small>Polska ${fmt(x.pl, 1)}%</small>` : `<small>${fmt(x.v)}</small>`}</span></li>`).join("")}</ul>`;
+  }
+  async function migration(g, N, PL) {
+    const m = N?.migr; if (!m) return "";
+    const s = m.s1000 || [], y0 = m.y0, last = s.length - 1;
+    const sumN = a => sum((a || []).filter(Number.isFinite).slice(-5));
+    const zm = sumN(m.zm), zw = sumN(m.zwies), wm = sumN(m.wm), ww = sumN(m.wwies), zz = sumN(m.zz), wz = sumN(m.wz);
+    let html = `<div class="ext-card">`;
+    if (s.some(Number.isFinite)) html += `<p class="pop-summary"><strong>${pp(s[last])}</strong> <span>osób na 1000 mieszkańców w ${y0 + last} r. (saldo migracji, na plusie = więcej osób się melduje, niż wymeldowuje)</span></p>${line(s, y0, { zero: true, ref: PL?.migr?.s1000 || [], unit: "‰" })}<p class="ext-legend"><span class="ext-sw"></span>gmina<span class="ext-sw dash"></span>Polska</p>`;
+    if (zm + zw + wm + ww) html += `<div class="ext-mig"><div><b>Skąd przybywają</b><small>ostatnie 5 lat</small>${stackBar([{ n: "z miast", v: zm, c: "#0a84ff" }, { n: "ze wsi", v: zw, c: "#34c759" }, { n: "z zagranicy", v: zz, c: "#af52de" }], zm + zw + zz)}</div>
+      <div><b>Dokąd wyjeżdżają</b><small>ostatnie 5 lat</small>${stackBar([{ n: "do miast", v: wm, c: "#0a84ff" }, { n: "na wieś", v: ww, c: "#34c759" }, { n: "za granicę", v: wz, c: "#af52de" }], wm + ww + wz)}</div></div>`;
+    const z = N.zam;
+    if (z && z[0]) {
+      const zp = PL?.zam;
+      html += `<p class="ext-sub">Według Spisu 2021: <b>${fmt(pctOf(z[1], z[0]), 1)}%</b> mieszkańców mieszka tu od urodzenia${zp ? ` (Polska ${fmt(pctOf(zp[1], zp[0]), 1)}%)` : ""}, <b>${fmt(pctOf(z[3] + z[4], z[0]), 1)}%</b> przybyło w latach 2011–2021${zp ? ` (Polska ${fmt(pctOf(zp[3] + zp[4], zp[0]), 1)}%)` : ""}, w tym ${fmt(z[4])} z zagranicy.</p>`;
+    }
+    html += `</div>`;
+    return section("arrows-left-right", "Migracje", html, "Zameldowania i wymeldowania na pobyt stały (GUS, Bank Danych Lokalnych) oraz okres zamieszkiwania (GUS, NSP 2021). GUS nie publikuje, z której gminy do której ktoś się przeprowadził; przepływy między gminami pokazuje sekcja dojazdów do pracy.");
+  }
+  function nspSections(g, N, PL) {
+    if (!N) return "";
+    const out = [], P = (a, i) => PL?.[a] ? pctOf(PL[a][i], PL[a][0]) : null;
+    if (N.wyksz?.[0]) {
+      const w = N.wyksz, L = ["wyższe", "średnie i policealne", "zasadnicze zawodowe/branżowe", "gimnazjalne", "podstawowe", "niepełne podstawowe i bez"];
+      const idx = [1, 2, 5, 6, 7, 8];
+      const fem = w[11] && w[13] ? pctOf(w[11], w[13]) : null, male = w[10] && w[12] ? pctOf(w[10], w[12]) : null;
+      out.push(section("graduation-cap", "Wykształcenie (Spis 2021)", `<div class="ext-card">${stackBar(idx.map((j, i) => ({ n: L[i], v: w[j], pl: P("wyksz", j) })), w[0])}
+        ${fem != null ? `<p class="ext-sub">Wyższe wykształcenie ma <b>${fmt(fem, 1)}%</b> kobiet i <b>${fmt(male, 1)}%</b> mężczyzn w wieku 13+${PL?.wyksz ? ` (Polska: ${fmt(pctOf(PL.wyksz[11], PL.wyksz[13]), 1)}% i ${fmt(pctOf(PL.wyksz[10], PL.wyksz[12]), 1)}%)` : ""}.</p>` : ""}</div>`, "Ludność w wieku 13 lat i więcej. GUS, NSP 2021."));
+    }
+    if (N.gosp?.[0]) {
+      const h = N.gosp, r = N.rodz;
+      let body = `<div class="ext-card"><p class="pop-summary"><strong>${fmt(h[7], 2)}</strong> <span>osoby w przeciętnym gospodarstwie domowym${PL?.gosp ? ` (Polska ${fmt(PL.gosp[6] / PL.gosp[0], 2)})` : ""}</span></p>
+        ${stackBar(["1 osoba", "2 osoby", "3 osoby", "4 osoby", "5 i więcej"].map((n, i) => ({ n, v: h[i + 1], pl: P("gosp", i + 1) })), h[0])}`;
+      if (r?.[0]) body += `<p class="ext-sub"><b>Rodziny</b></p>${stackBar([["małżeństwa bez dzieci", 2], ["małżeństwa z dziećmi", 3], ["związki niesformalizowane", 4], ["matki z dziećmi", 5], ["ojcowie z dziećmi", 6]].map(([n, i]) => ({ n, v: r[i], pl: P("rodz", i) })), r[0])}
+        ${N.dzieci ? `<p class="ext-sub">Przeciętnie <b>${fmt(N.dzieci[6], 2)}</b> dziecka w rodzinie z dziećmi; ${fmt(pctOf(N.dzieci[4] + N.dzieci[5], N.dzieci[0] - N.dzieci[1]), 1)}% rodzin z dziećmi ma troje lub więcej${PL?.dzieci ? ` (Polska ${fmt(pctOf(PL.dzieci[4] + PL.dzieci[5], PL.dzieci[0] - PL.dzieci[1]), 1)}%)` : ""}.</p>` : ""}`;
+      out.push(section("house-line", "Gospodarstwa domowe i rodziny (Spis 2021)", body + `</div>`, "GUS, NSP 2021."));
+    }
+    if (N.akt?.[0]) {
+      const a = N.akt;
+      out.push(section("briefcase", "Praca (Spis 2021)", `<div class="ext-card"><p><span class="terr-chip">wskaźnik zatrudnienia <b>${fmt(a[6], 1)}%</b>${PL?.akt ? ` <small>Polska ${fmt(PL.akt[6], 1)}%</small>` : ""}</span><span class="terr-chip">stopa bezrobocia <b>${fmt(a[7], 1)}%</b>${PL?.akt ? ` <small>Polska ${fmt(PL.akt[7], 1)}%</small>` : ""}</span><span class="terr-chip">aktywni zawodowo <b>${fmt(a[5], 1)}%</b></span></p>
+        <p class="ext-sub">Pracuje <b>${fmt(a[8], 1)}%</b> mężczyzn i <b>${fmt(a[9], 1)}%</b> kobiet w wieku 15+.</p>
+        ${N.obyw?.[0] ? `<p class="ext-sub">Cudzoziemcy: <b>${fmt(N.obyw[2])}</b> osób, ${fmt(pctOf(N.obyw[2], N.obyw[0]), 2)}% mieszkańców${PL?.obyw ? ` (Polska ${fmt(pctOf(PL.obyw[2], PL.obyw[0]), 2)}%)` : ""}.</p>` : ""}
+        ${N.niep ? `<p class="ext-sub">Osoby z niepełnosprawnością: <b>${fmt(N.niep)}</b>.</p>` : ""}</div>`, "Ludność w wieku 15 lat i więcej. GUS, NSP 2021."));
+    }
+    if (N.cyw?.[0]) {
+      const c = N.cyw;
+      out.push(section("heart", "Stan cywilny (Spis 2021)", `<div class="ext-card">${stackBar([["kawalerowie i panny", 1], ["w małżeństwie", 2], ["wdowcy i wdowy", 3], ["rozwiedzeni", 4]].map(([n, i]) => ({ n, v: c[i], pl: P("cyw", i) })), c[0])}</div>`, "Ludność w wieku 15 lat i więcej. GUS, NSP 2021."));
+    }
+    return out.join("");
+  }
+  function housing(g, N, PL) {
+    if (!N?.okres?.[0]) return "";
+    const o = N.okres, L = ["przed 1918", "1918–1944", "1945–1970", "1971–1978", "1979–1988", "1989–2002", "2003–2011", "2012–2016", "2017–2021"];
+    const pl = PL?.okres, m2 = o[1] / o[2], plm2 = pl ? pl[1] / pl[2] : null, w = N.wyp;
+    const old = pctOf(o[3] + o[4] + o[5], o[0]), oldPl = pl ? pctOf(pl[3] + pl[4] + pl[5], pl[0]) : null;
+    return section("buildings", "Mieszkania (Spis 2021)", `<div class="ext-card">
+      <p class="pop-summary"><strong>${fmt(m2, 1)} m²</strong> <span>na osobę${plm2 ? ` (Polska ${fmt(plm2, 1)} m²)` : ""}</span></p>
+      <p class="ext-sub"><b>Kiedy zbudowano budynki z mieszkaniami</b></p>${stackBar(L.map((n, i) => ({ n, v: o[3 + i], pl: pl ? pctOf(pl[3 + i], pl[0]) : null, c: ["#5e3c99", "#7b5ba6", "#998ec3", "#b2abd2", "#d8daeb", "#fee0b6", "#fdb863", "#e66101", "#b35806"][i] })), o[0])}
+      <p class="ext-sub">${fmt(old, 1)}% mieszkań jest w budynkach sprzed 1971 r.${oldPl != null ? ` (Polska ${fmt(oldPl, 1)}%)` : ""}.${w?.[0] ? ` Łazienka: ${fmt(pctOf(w[1], w[0]), 1)}%, gaz z sieci: ${fmt(pctOf(w[3], w[0]), 1)}% mieszkań${PL?.wyp ? ` (Polska ${fmt(pctOf(PL.wyp[1], PL.wyp[0]), 1)}% i ${fmt(pctOf(PL.wyp[3], PL.wyp[0]), 1)}%)` : ""}.` : ""}</p></div>`,
+      "Mieszkania zamieszkane. GUS, NSP 2021.");
+  }
+
+  async function fill(g, el, category, lud) {
+    if (!el || !g) return;
+    const woj = g.k.slice(0, 2);
+    const nspDoc = await json(`data/nsp/${woj}.json`);
+    const N = nspDoc?.gminy?.[g.k] || null, PL = nspDoc?.pl || null;
+    let html = "";
+    if (category === "Ludność") html = (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL);
+    else if (category === "Warunki życia") html = housing(g, N, PL);
+    if (!el.isConnected) return;
+    el.insertAdjacentHTML("beforeend", html);
+    bindLines(el); bindForecast(el, g); bindCommute(el);
+  }
+  window.GminaExtra = { fill, showFlows };
+})();

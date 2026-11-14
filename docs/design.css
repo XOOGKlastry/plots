@@ -371,3 +371,29 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .terr-sex-txt{font-size:12.5px!important}.terr-sex-txt small{color:var(--mut)}
 .terr-tag{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:8px;margin:4px 4px 0 0}.terr-tag.hi{background:#fff4e5;color:#a05a00}.terr-tag.lo{background:#e8f0fe;color:#0a5bd3}
 #terrObwod{padding:0 2px}#terrObwod .terr-row{border:0}
+
+.pyr-modes{display:flex;margin:0 0 10px}.pyr-modes button{flex:1;font-size:12px;padding:6px 4px}
+.pyr-bar{position:relative}.pyr-bar b.ref{position:absolute;top:-1px;bottom:-1px;border:1.5px solid #1c1c1e;border-radius:3px;opacity:.55;pointer-events:none}.pyr-bar.m b.ref{right:0;border-right:0;border-radius:3px 0 0 3px}.pyr-bar.k b.ref{left:0;border-left:0;border-radius:0 3px 3px 0}
+.pyr-legend i.ref{background:none;border:1.5px solid #1c1c1e;opacity:.55}.pyr-legend em{font-style:normal}
+.pyr-link{border:0;background:none;padding:0;font:inherit;color:#0a84ff;font-weight:600;cursor:pointer}
+.pyr-cmp{background:#f2f2f7;border-radius:10px;padding:7px 9px}.pyr-cmp small{color:#6e6e73}
+
+/* gmina-extra.js: projection, migration, commuting, census. */
+.ext-card{background:#fff;border-radius:18px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(20,30,50,.06)}
+.ext-card p{margin:0 0 6px;font-size:13px;line-height:1.45}
+.ext-line{position:relative;height:120px;margin:10px 0 18px;border-bottom:1px solid #e5e5ea;touch-action:pan-y;cursor:crosshair}.ext-line svg{width:100%;height:100%;display:block}
+.ext-dot{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#0a84ff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none}
+.ext-tip{position:absolute;top:-8px;font-size:11.5px;font-weight:600;background:#1c1c1e;color:#fff;padding:3px 8px;border-radius:8px;white-space:nowrap;pointer-events:none}
+.ext-years{position:absolute;left:0;right:0;bottom:-17px;display:flex;justify-content:space-between;font-size:10.5px;color:#8e8e93}
+.ext-legend{display:flex;align-items:center;gap:6px;font-size:11.5px!important;color:#6e6e73;flex-wrap:wrap}.ext-sw{display:inline-block;width:16px;height:0;border-top:2.2px solid #0a84ff}.ext-sw.dash{border-top:1.5px dashed #8e8e93;margin-left:8px}
+.ext-seg{display:flex;margin:10px 0}.ext-seg button{flex:1;font-size:12px;padding:6px 2px}
+.ext-fpyr{box-shadow:none;padding:6px 0 0}.ext-prow{cursor:default}.ext-prow:hover{background:none}
+.ext-flow{list-style:none;margin:6px 0 10px;padding:0}.ext-flow li{display:grid;grid-template-columns:minmax(0,9em) 1fr auto 3em;gap:8px;align-items:center;font-size:12.5px;padding:3px 0}
+.ext-fn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ext-fb{height:9px;background:#f2f2f7;border-radius:5px;overflow:hidden}.ext-fb i{display:block;height:100%;background:#ff9500;border-radius:5px}
+.ext-flow small{color:#8e8e93;text-align:right}.ext-bal{color:#3a3a3c}
+.ext-map-btn{margin-top:4px}
+.ext-mig{display:grid;gap:12px;margin-top:8px}@media(min-width:700px){.ext-mig{grid-template-columns:1fr 1fr}}.ext-mig>div>b{display:block;font-size:13px}.ext-mig>div>small{display:block;color:#8e8e93;font-size:11px;margin-bottom:6px}
+.ext-sub{margin-top:10px!important}.ext-list li{font-size:12.5px}
+.ext-chip{position:fixed;left:16px;top:calc(env(safe-area-inset-top) + 138px);z-index:40;background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.18);padding:7px 8px 7px 14px;display:flex;align-items:center;gap:8px;font-size:13px;max-width:calc(100vw - 110px)}
+@media(min-width:900px){.ext-chip{left:50%;transform:translateX(-50%);top:86px;max-width:520px}}
+.ext-chip button{border:0;background:#f2f2f7;border-radius:50%;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;flex:none}.ext-chip svg{width:14px;height:14px}
