@@ -490,6 +490,87 @@ def api_teren():
     out["geotermia"] = [{k: v for k, v in (x.get("attributes") or {}).items() if k not in ("OBJECTID", "Shape", "SHAPE", "Shape.STArea()", "Shape.STLength()")} for x in (g or {}).get("results", [])][:1]
     return out
 
+# ---------- Internet stacjonarny: zasięg pod adresem (SIDUSIS, UKE). Usługa nie wysyła nagłówków CORS, stąd pośrednik. ----------
+_SID = "https://internet.gov.pl/geoserver/public/wms"
+_SID_WOJ = ["dolnoslaskie", "kujawsko-pomorskie", "lodzkie", "lubelskie", "lubuskie", "malopolskie", "mazowieckie", "opolskie", "podkarpackie",
+            "podlaskie", "pomorskie", "slaskie", "swietokrzyskie", "warminsko-mazurskie", "wielkopolskie", "zachodniopomorskie"]
+_SID_LAYERS = ",".join(f"s_{w}_buildings" for w in _SID_WOJ) + "," + ",".join(f"s_{w}_address_points" for w in _SID_WOJ)
+_SID_CACHE = {}
+def _sid_get(q, timeout=12):
+    import urllib.request, urllib.parse
+    with urllib.request.urlopen(urllib.request.Request(_SID + "?" + urllib.parse.urlencode(q), headers={"User-Agent": "Mozilla/5.0 (plots)"}), timeout=timeout) as r:
+        return r.read(), r.headers.get("Content-Type", "")
+
+@app.get("/api/internet")
+def api_internet():
+    """Fixed-line internet coverage of the address points nearest to a place (SIDUSIS summary class per address)."""
+    import math
+    try:
+        lon, lat = float(request.args["lon"]), float(request.args["lat"])
+    except (KeyError, ValueError):
+        return {"error": "lon, lat"}, 400
+    merc = lambda lo, la: (lo * 20037508.34 / 180, math.log(math.tan((90 + la) * math.pi / 360)) * 6378137)
+    # The service answers only close to the queried pixel, so ask at the nearest address points known from the address register.
+    spots = []
+    try:
+        meta = _adr_meta()
+        g2180 = _adr_geom(meta, 2180)
+        stmt = _sql.SQL("""WITH p AS (SELECT ST_Transform(ST_SetSRID(ST_MakePoint(%s,%s),4326),2180) g)
+            SELECT ST_X({out}), ST_Y({out}), ST_Distance({g2180},p.g) FROM {table},p
+            WHERE {geom} && ST_Transform(ST_Expand(p.g,150),{srid}) AND ST_DWithin({g2180},p.g,150) ORDER BY ST_Distance({g2180},p.g) LIMIT 6""").format(
+            out=_adr_geom(meta, 4326), table=_sql.Identifier(ADR_SCHEMA, ADR_TABLE), geom=_sql.Identifier(meta["geom"]), srid=_sql.Literal(meta["srid"]), g2180=g2180)
+        with POOL.connection() as c:
+            spots = [(r[0], r[1], round(r[2])) for r in c.execute(stmt, (lon, lat)).fetchall()]
+    except Exception:
+        spots = []
+    if not spots: spots = [(lon, lat, 0)]
+    def ask(spot):
+        mx, my = merc(spot[0], spot[1])
+        q = {"SERVICE": "WMS", "VERSION": "1.1.1", "REQUEST": "GetFeatureInfo", "LAYERS": "layers", "QUERY_LAYERS": "address_points", "SRS": "EPSG:3857",
+             "BBOX": f"{mx-30},{my-30},{mx+30},{my+30}", "WIDTH": 101, "HEIGHT": 101, "X": 50, "Y": 50, "BUFFER": 25, "FEATURE_COUNT": 5, "INFO_FORMAT": "application/json"}
+        try:
+            feats = json.loads(_sid_get(q)[0]).get("features", [])
+        except Exception:
+            return None
+        best = None
+        for f in feats:
+            g = (f.get("geometry") or {}).get("coordinates") or [mx, my]
+            dd = math.hypot(g[0] - mx, g[1] - my)
+            if best is None or dd < best[0]: best = (dd, f.get("properties") or {})
+        if not best: return {}
+        pr = best[1]
+        return {"adres": " ".join(str(x) for x in [pr.get("street_name") or pr.get("city_name"), pr.get("house_number")] if x),
+                "miejscowosc": pr.get("city_name"), "klasa": pr.get("summary"), "m": spot[2]}
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(6) as ex:
+        res = list(ex.map(ask, spots))
+    if all(r is None for r in res):
+        return {"error": "upstream"}, 502
+    out, seen = [], set()
+    for r in res:
+        if r and r["adres"] not in seen: seen.add(r["adres"]); out.append(r)
+    out.sort(key=lambda x: x["m"])
+    return Response(json.dumps({"punkty": out}, ensure_ascii=False), mimetype="application/json", headers={"Cache-Control": "public, max-age=3600"})
+
+@app.route("/tiles/internet/<int:z>/<int:x>/<int:y>.png", methods=["GET", "OPTIONS"])
+def tile_internet(z, x, y):
+    """Buildings and address points coloured by fixed-line coverage, straight from the SIDUSIS map service."""
+    if request.method == "OPTIONS": return ("", 204)
+    if z < 14 or z > 19: return Response(b"", status=204)
+    key = (z, x, y)
+    if key not in _SID_CACHE:
+        s_ = 40075016.68557849 / 2 ** z
+        bb = (-20037508.342789244 + x * s_, 20037508.342789244 - (y + 1) * s_, -20037508.342789244 + (x + 1) * s_, 20037508.342789244 - y * s_)
+        try:
+            raw, ct = _sid_get({"SERVICE": "WMS", "VERSION": "1.1.1", "REQUEST": "GetMap", "LAYERS": _SID_LAYERS, "STYLES": "", "SRS": "EPSG:3857",
+                                "BBOX": ",".join(map(str, bb)), "WIDTH": 512, "HEIGHT": 512, "FORMAT": "image/png", "TRANSPARENT": "TRUE"}, 20)
+            if "png" not in ct: raise ValueError(ct)
+        except Exception:
+            return Response(b"", status=204)
+        if len(_SID_CACHE) > 600: _SID_CACHE.clear()
+        _SID_CACHE[key] = raw
+    return Response(_SID_CACHE[key], mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
 # ---------- EGMS: ruch pionowy 2016-2020 (Copernicus, raster 150 m z PIG-PIB) jako kafelki PNG ----------
 _EGMS = {}
 def _egms():

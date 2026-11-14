@@ -64,6 +64,15 @@
         map.addSource("terr-lasy", { type: "vector", tiles: [BASE + "/tiles/lasy/{z}/{x}/{y}.pbf"], minzoom: 11, maxzoom: 15, attribution: "Bank Danych o Lasach" });
         map.addLayer({ id: "terr-lasy", type: "fill", source: "terr-lasy", "source-layer": "lasy", paint: { "fill-color": m, "fill-opacity": .6, "fill-outline-color": "rgba(30,60,30,.35)" } }, firstSymbol()); },
       ids: ["terr-lasy"], legend: () => legendRow(["SO", "ŚW", "DB", "BK", "BRZ", "OL", "JD", "MD"].map(k => GAT[k][1]), ["SO", "ŚW", "DB", "BK", "BRZ", "OL", "JD", "MD"].map(k => GAT[k][0])) + `<small class="terr-unit">Dominujący gatunek drzewostanu; widoczne po przybliżeniu</small>` },
+    { id: "powodz", label: "Zagrożenie powodziowe", desc: "Obszary zalewowe z map Wód Polskich (ISOK)", kw: "powódź zalewowe zagrożenie powodziowe isok wody polskie rzeka wał zalanie",
+      add() { for (const [id, name] of [["terr-powodz", "NZ.Fluvial"], ["terr-powodz-morze", "NZ.SeaWater"]]) {
+          map.addSource(id, { type: "raster", tiles: [floodTiles(name)], tileSize: 512, minzoom: 13, attribution: "Wody Polskie, ISOK" });
+          map.addLayer({ id, type: "raster", source: id, minzoom: 14, paint: { "raster-opacity": .85 } }, firstSymbol()); } },
+      ids: ["terr-powodz", "terr-powodz-morze"], legend: () => legendRow([FLOOD[10], FLOOD[100], FLOOD[500], FLOOD.wal], ["raz na 10 lat", "raz na 100 lat", "raz na 500 lat", "po przerwaniu wału"]) + `<small class="terr-unit">Powódź rzeczna i od strony morza. Widoczne po przybliżeniu.</small>` },
+    { id: "internet", label: "Internet stacjonarny", desc: "Zasięg sieci w budynkach i pod adresami (UKE, SIDUSIS)", kw: "internet światłowód zasięg sieć stacjonarny szerokopasmowy uke sidusis",
+      add() { map.addSource("terr-internet", { type: "raster", tiles: [BASE + "/tiles/internet/{z}/{x}/{y}.png"], tileSize: 256, minzoom: 14, maxzoom: 18, attribution: "UKE, SIDUSIS" });
+        map.addLayer({ id: "terr-internet", type: "raster", source: "terr-internet", minzoom: 14, paint: { "raster-opacity": .9 } }, firstSymbol()); },
+      ids: ["terr-internet"], legend: () => legendRow(["#2479ff", "#3cd7ff", "#d446f5", "#138708", "#a0cf3f", "#fff59d", "#ffffff"], ["w zasięgu", "sieć hurtowa", "zasięg teoretyczny", "planowana prywatnie", "planowana publicznie", "dofinansowana, niezrealizowana", "brak zasięgu"]) + `<small class="terr-unit">Budynki i adresy według zasięgu. Widoczne po przybliżeniu.</small>` },
     { id: "osuwiska", label: "Osuwiska", desc: "Osuwiska i tereny zagrożone (SOPO, PIG-PIB)", kw: "osuwiska sopo zagrożenia geologiczne skarpy",
       add() { map.addSource("terr-osuwiska", { type: "raster", tiles: [arcExport("geozagrozenia/sopo_obszary", "14,12")], tileSize: 256, attribution: "PIG-PIB, SOPO" });
         map.addLayer({ id: "terr-osuwiska", type: "raster", source: "terr-osuwiska", minzoom: 9, paint: { "raster-opacity": .85 } }, firstSymbol()); },
@@ -89,6 +98,71 @@
   const panel = document.getElementById("terrainLayers");
   panel.innerHTML = `<h3>Dane o terenie</h3>` + LAYERS.map(L => `<div class="layer-entry" data-keywords="${esc(L.kw)}"><label class="sw"><input type="checkbox" id="terr-${L.id}"/><span></span><div>${esc(L.label)}<small>${esc(L.desc)}</small></div></label><div class="terr-legend-box" id="terr-leg-${L.id}" hidden></div></div>`).join("") +
     `<p class="source-note muted">Źródła: GUS (NSP 2021), GUNB (rejestr RWDZ, dane.gov.pl), Copernicus EGMS i PIG-PIB, Bank Danych o Lasach, GDDKiA.</p>`;
+  /* Powódź: obszary zagrożenia z map Wód Polskich (ISOK). Usługa rysuje same obrysy, więc wysyłamy własny styl z wypełnieniem:
+     im ciemniejszy niebieski, tym częstsza powódź; pomarańczowy to teren zalewany dopiero po przerwaniu wału. */
+  const ISOK = "https://wody.isok.gov.pl/wss/INSPIRE/INSPIRE_NZ_HY_MZPMRP_WMS";
+  const FLOOD = { 10: "#0d2f81", 100: "#1e88e5", 500: "#90caf9", wal: "#f4a261" };
+  // One style per layer keeps the request address short: the service refuses long ones.
+  const floodSLD = name => {
+    const eq = rp => `<ogc:PropertyIsEqualTo><ogc:PropertyName>loo_ql_returnperiod</ogc:PropertyName><ogc:Literal>${rp}</ogc:Literal></ogc:PropertyIsEqualTo>`;
+    const wal = `<ogc:PropertyIsLike wildCard="*" singleChar="?" escape="!"><ogc:PropertyName>loo_qualitativelikelihood</ogc:PropertyName><ogc:Literal>*zniszczeni*</ogc:Literal></ogc:PropertyIsLike>`;
+    const rule = (filter, col, op) => `<FeatureTypeStyle><Rule><ogc:Filter>${filter}</ogc:Filter><PolygonSymbolizer><Fill><CssParameter name="fill">${col}</CssParameter><CssParameter name="fill-opacity">${op}</CssParameter></Fill></PolygonSymbolizer></Rule></FeatureTypeStyle>`;
+    const noWal = rp => `<ogc:And>${eq(rp)}<ogc:Not>${wal}</ogc:Not></ogc:And>`;
+    const layer = n => `<NamedLayer><Name>${n}</Name><UserStyle>${rule(wal, FLOOD.wal, .45)}${rule(noWal(500), FLOOD[500], .6)}${rule(noWal(100), FLOOD[100], .62)}${rule(noWal(10), FLOOD[10], .72)}</UserStyle></NamedLayer>`;
+    return `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld" xmlns:ogc="http://www.opengis.net/ogc">${layer(name)}</StyledLayerDescriptor>`;
+  };
+  // Plain fill for the point query: every scenario polygon under the point is returned with its attributes.
+  const floodHitSLD = `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld">${["NZ.Fluvial", "NZ.SeaWater"].map(n => `<NamedLayer><Name>${n}</Name><UserStyle><FeatureTypeStyle><Rule><PolygonSymbolizer><Fill/></PolygonSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer>`).join("")}</StyledLayerDescriptor>`;
+  const floodTiles = name => ISOK + "?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=512&HEIGHT=512&FORMAT=image/png&TRANSPARENT=TRUE&SLD_BODY=" + encodeURIComponent(floodSLD(name));
+  const merc = (lon, lat) => [6378137 * lon * Math.PI / 180, 6378137 * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))];
+  const floodCache = new Map();
+  /* Flood scenarios covering a point: { ok, rp: smallest return period (10/100/500) or 0, wal: only behind a levee, sea } */
+  function floodAt(place) {
+    const key = place.lon.toFixed(5) + "," + place.lat.toFixed(5);
+    if (!floodCache.has(key)) {
+      const [x, y] = merc(place.lon, place.lat), d = 20;
+      const q = new URLSearchParams({ SERVICE: "WMS", VERSION: "1.1.1", REQUEST: "GetFeatureInfo", SLD_BODY: floodHitSLD, LAYERS: "NZ.Fluvial,NZ.SeaWater", QUERY_LAYERS: "NZ.Fluvial,NZ.SeaWater", SRS: "EPSG:3857",
+        BBOX: [x - d, y - d, x + d, y + d].join(","), WIDTH: 101, HEIGHT: 101, X: 50, Y: 50, INFO_FORMAT: "application/json", FEATURE_COUNT: 30, propertyName: "loo_ql_returnperiod,loo_qualitativelikelihood,hazardcategory" });
+      // The service drops connections when busy (map tiles load at the same time): try a few times before giving up.
+      const get = (left = 3) => fetch(ISOK + "?" + q, { signal: AbortSignal.timeout(25000) }).then(r => { if (!r.ok) throw Error(r.status); return r.json(); })
+        .catch(e => { if (left <= 1) throw e; return new Promise(r => setTimeout(r, 1800)).then(() => get(left - 1)); });
+      const p = get().then(j => {
+        let rp = 0, wal = false, sea = false;
+        for (const f of j.features || []) {
+          const pr = f.properties || {}, n = Math.round(+pr.loo_ql_returnperiod);
+          if (/zniszczeni/i.test(pr.loo_qualitativelikelihood || "")) { wal = true; continue; }
+          if (n > 0 && (!rp || n < rp)) { rp = n; sea = pr.hazardcategory === "seaWater"; }
+        }
+        return { ok: true, rp, wal: wal && !rp, sea };
+      }).catch(() => { floodCache.delete(key); return { ok: false }; });
+      floodCache.set(key, p); while (floodCache.size > 30) floodCache.delete(floodCache.keys().next().value);
+    }
+    return floodCache.get(key);
+  }
+  function floodView(f) {
+    if (!f.ok) return { tone: "none", chip: "nie udało się sprawdzić", title: "Zagrożenie powodziowe", html: `<p>Nie udało się sprawdzić map zagrożenia powodziowego. <a href="https://wody.isok.gov.pl/imap_kzgw/?gpmap=gpMZP" target="_blank" rel="noopener noreferrer">Otwórz Hydroportal</a></p>` };
+    const src = `<small class="muted">Wody Polskie, mapy zagrożenia powodziowego (ISOK). Mapy obejmują większe rzeki i wybrzeże, nie pokazują podtopień po ulewach.</small>`;
+    const from = f.sea ? "od strony morza" : "rzeczna";
+    if (f.rp && f.rp <= 10) return { tone: "bad", chip: "raz na 10 lat", title: "Wysokie zagrożenie powodziowe", html: `<p>Powódź ${from} zdarza się tu średnio <b>raz na 10 lat</b> (prawdopodobieństwo 10% w roku).</p>${src}` };
+    if (f.rp && f.rp <= 100) return { tone: "bad", chip: "raz na 100 lat", title: "Średnie zagrożenie powodziowe", html: `<p>Powódź ${from} zdarza się tu średnio <b>raz na 100 lat</b> (1% w roku). To obszar szczególnego zagrożenia powodzią, zabudowa wymaga uzgodnień z Wodami Polskimi.</p>${src}` };
+    if (f.rp) return { tone: "warn", chip: "raz na 500 lat", title: "Niskie zagrożenie powodziowe", html: `<p>Teren może zostać zalany przy powodzi ekstremalnej, średnio <b>raz na 500 lat</b> (0,2% w roku).</p>${src}` };
+    if (f.wal) return { tone: "warn", chip: "teren za wałem", title: "Teren chroniony wałem", html: `<p>Poza zasięgiem zwykłej powodzi, ale <b>zalanie jest możliwe przy przerwaniu wału</b> przeciwpowodziowego.</p>${src}` };
+    return { tone: "good", chip: "poza zagrożeniem", title: "Poza obszarami zagrożenia powodzią", html: `<p>Miejsce leży poza obszarami zalewowymi wyznaczonymi na mapach zagrożenia powodziowego.</p>${src}` };
+  }
+  /* Internet stacjonarny: klasy zasięgu z SIDUSIS (UKE) dla najbliższych adresów. */
+  const NET = { 5: ["w zasięgu sieci", "good", "#2479ff"], 4: ["w zasięgu sieci hurtowej", "good", "#3cd7ff"], 3: ["zasięg teoretyczny", "info", "#d446f5"], 1: ["sieć planowana", "warn", "#138708"], 2: ["sieć planowana ze środków publicznych", "warn", "#a0cf3f"],
+    "-2": ["inwestycja dofinansowana, jeszcze niezrealizowana", "warn", "#fff59d"], 0: ["brak zasięgu", "bad", "#ffffff"], "-1": ["brak danych", "none", "#8592a7"] };
+  const netName = k => (NET[k] || NET["-1"]);
+  function netView(r) {
+    const src = `<small class="muted">UKE, system SIDUSIS. Operatorów i prędkości sprawdzisz na <a href="https://internet.gov.pl/map/" target="_blank" rel="noopener noreferrer">internet.gov.pl</a>.</small>`;
+    if (!r || r.error) return { tone: "none", chip: "nie udało się sprawdzić", title: "Internet stacjonarny", html: `<p>Nie udało się sprawdzić zasięgu.</p>${src}` };
+    const pts = r.punkty || [];
+    if (!pts.length) return { tone: "none", chip: "brak adresów w pobliżu", title: "Internet stacjonarny", html: `<p>W promieniu 150 m nie ma punktów adresowych, więc zasięgu nie da się ocenić. Dla nowej zabudowy zapytaj operatorów działających w okolicy.</p>${src}` };
+    const near = pts[0], n = netName(near.klasa), inRange = pts.filter(p => p.klasa === 5 || p.klasa === 4).length;
+    const list = pts.slice(0, 4).map(p => `<li><i style="background:${netName(p.klasa)[2]}"></i><span>${esc(p.adres)}</span><small>${esc(netName(p.klasa)[0])} · ${p.m} m</small></li>`).join("");
+    const head = near.m <= 25 ? `Adres ${esc(near.adres)}: <b>${esc(n[0])}</b>.` : `Najbliższy adres (${esc(near.adres)}, ${near.m} m): <b>${esc(n[0])}</b>.`;
+    return { tone: n[1], chip: n[0], title: "Internet stacjonarny", html: `<p>${head}${pts.length > 1 ? ` W zasięgu ${inRange} z ${pts.length} najbliższych adresów.` : ""}</p><ul class="terr-net">${list}</ul>${src}` };
+  }
   const added = new Set();
   function apply(L, on) {
     if (on && !added.has(L.id)) { try { L.add(); added.add(L.id); L.ids.forEach(id => app.registerOverlaySource?.(map.getLayer(id)?.source)); } catch (e) { console.warn(e); } }
@@ -100,7 +174,7 @@
       const cb = document.getElementById("terr-" + L.id);
       cb.checked = app.store.get("terrain." + L.id, false);
       if (cb.checked) apply(L, true);
-      cb.onchange = () => { app.store.set("terrain." + L.id, cb.checked); apply(L, cb.checked); if (cb.checked && map.getZoom() < (L.id === "gunb" ? 12 : L.id === "lasy" ? 11 : 0)) app.toast("Przybliż mapę, aby zobaczyć tę warstwę"); };
+      cb.onchange = () => { app.store.set("terrain." + L.id, cb.checked); apply(L, cb.checked); if (cb.checked && map.getZoom() < ({ gunb: 12, lasy: 11, powodz: 14, internet: 14 }[L.id] || 0)) app.toast("Przybliż mapę, aby zobaczyć tę warstwę"); };
     }
     panel.dispatchEvent(new Event("change", { bubbles: true }));
   }
@@ -220,16 +294,48 @@
     return true;
   }
 
+  /* „Najważniejsze”: trzy odpowiedzi na górze karty miejsca (plan, powódź, internet). Stuknięcie przewija do szczegółów. */
+  const KEYS = [["plan", "map-trifold", "Plan miejscowy"], ["powodz", "waves", "Powódź"], ["net", "wifi-high", "Internet"]];
+  let keyPlace = null;
+  function keyStrip(sec, place) {
+    keyPlace = place;
+    let strip = document.getElementById("placeKey");
+    // Right under the card header, above the first section, so the answers show without scrolling.
+    if (!strip) { (sec.parentElement?.querySelector(":scope > details.place-section") || sec).insertAdjacentHTML("beforebegin", `<div class="key-strip" id="placeKey" aria-label="Najważniejsze o miejscu"></div>`); strip = document.getElementById("placeKey"); }
+    strip.innerHTML = KEYS.map(([k, icon, label]) => `<button type="button" class="key-chip wait" data-key="${k}">${window.Icons.svg(icon)}<span><small>${label}</small><b>sprawdzam…</b></span></button>`).join("");
+    strip.onclick = e => {
+      const b = e.target.closest("[data-key]"); if (!b) return;
+      const target = b.dataset.key === "plan" ? document.getElementById("placePlans") : document.querySelector(`#placeTerrain [data-slot="${b.dataset.key}"]`);
+      const det = target?.closest("details"); if (det) det.open = true;
+      target?.scrollIntoView({ behavior: window.Motion?.on() ? "smooth" : "auto", block: "start" });
+    };
+  }
+  function setKey(kind, place, v) {
+    if (!keyPlace || place.lon !== keyPlace.lon || place.lat !== keyPlace.lat) return;
+    const b = document.querySelector(`#placeKey [data-key="${kind}"]`); if (!b) return;
+    b.className = "key-chip " + (v.tone || "none");
+    b.querySelector("b").textContent = v.text;
+  }
+  document.addEventListener("plots:verdict", e => { const d = e.detail || {}; if (d.kind === "plan" && d.point && d.verdict) setKey("plan", d.point, d.verdict); });
+  const slotIcon = { good: "check-circle", warn: "warning-circle", bad: "warning-circle", info: "check-circle", none: "minus-circle" };
+  function fillSlot(el, kind, place, view, icon) {
+    const slot = el.querySelector(`[data-slot="${kind}"]`);
+    if (slot) slot.innerHTML = `<div class="terr-row tone-${view.tone}">${window.Icons.svg(view.tone === "good" || view.tone === "none" ? icon : slotIcon[view.tone] || icon)}<div><strong>${esc(view.title)}</strong>${view.html}</div></div>`;
+    setKey(kind, place, { tone: view.tone, text: view.chip });
+  }
   let seq = 0;
   async function loadInto(place, el) {
     if (!place || !el) return;
-    const my = ++seq; el.innerHTML = `<p class="muted small">Wczytuję dane o terenie…</p>`;
-    const q = `?lon=${place.lon}&lat=${place.lat}`;
+    const my = ++seq; el.innerHTML = `<div data-slot="powodz"><p class="muted small">Sprawdzam zagrożenie powodziowe…</p></div><div data-slot="net"></div><div data-slot="rest"><p class="muted small">Wczytuję dane o terenie…</p></div>`;
+    const q = `?lon=${place.lon}&lat=${place.lat}`, live = () => my === seq && el.isConnected;
+    floodAt(place).then(f => { if (live()) fillSlot(el, "powodz", place, floodView(f), "waves"); });
+    app.api("/api/internet" + q).catch(() => null).then(r => { if (live()) fillSlot(el, "net", place, netView(r), "wifi-high"); });
     const [t, l] = await Promise.all([app.api("/api/teren" + q).catch(() => null), app.api("/api/ludnosc" + q).catch(() => null)]);
-    if (my !== seq || !el.isConnected) return;
-    el.innerHTML = render(t, l) + `<div class="terr-obw-slot"></div>`;
-    bindAges(el);
-    obwodInto(place, el.querySelector(".terr-obw-slot"));
+    if (!live()) return;
+    const rest = el.querySelector('[data-slot="rest"]');
+    rest.innerHTML = render(t, l) + `<div class="terr-obw-slot"></div>`;
+    bindAges(rest);
+    obwodInto(place, rest.querySelector(".terr-obw-slot"));
   }
   window.PLOTS_TERRAIN = { loadInto, handleClick };
   // Every place card has the MPZP section (#placePlans): put „Teren i otoczenie” right after it.
@@ -243,6 +349,7 @@
         if (sec) {
           let box = document.getElementById("placeTerrain");
           if (!box) { sec.insertAdjacentHTML("afterend", `<details class="place-section terr-section" open><summary>${window.Icons.svg("mountains")}Teren i otoczenie</summary><div id="placeTerrain"></div></details>`); box = document.getElementById("placeTerrain"); }
+          keyStrip(sec, place);
           loadInto(place, box);
         }
       } catch (e) { console.warn(e); }
