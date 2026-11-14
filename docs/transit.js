@@ -1,7 +1,7 @@
 /* Komunikacja publiczna: mapa czasu dojazdu z wybranego punktu o wybranej godzinie.
    Rozkłady (GTFS: autobusy, tramwaje, trolejbusy, pociągi) są wcześniej zamienione na zwarte pliki dla regionu i typu dnia.
    Liczenie odbywa się w przeglądarce algorytmem skanowania połączeń (CSA) z przesiadkami i dojściem pieszo;
-   wynik to siatka pól 200 m z najwcześniejszym czasem dotarcia. Tryb „Komunikacja” w module Odległości. */
+   wynik to siatka pól 200 m z najwcześniejszym czasem dotarcia. Osobny moduł „Komunikacja publiczna”; korzysta z powłoki modułu Odległości (panel, punkt analizy, stuknięcia w mapę). */
 (function () {
   "use strict";
   const app = window.PLOTS, map = app.map, esc = app.esc;
@@ -284,7 +284,7 @@
     if (on) run(); else { seq++; hide(); }
   }
   document.addEventListener("plots:origin", () => { if (state.active) { state.fitted = null; run(); } });
-  document.addEventListener("plots:mode", e => { if (e.detail !== "distance") { if (state.active) { state.active = false; seq++; hide(); } } else if (window.DistanceModule?.getTransport() === "transit") setTimeout(() => setActive(true), 0); });
+  document.addEventListener("plots:mode", e => { if (e.detail !== "distance") { if (state.active) { state.active = false; seq++; hide(); } } });
   // Away from the parcel zoom a tap sets the starting point directly, so the whole reach can stay in view.
   map.on("click", e => { if (state.active && document.body.classList.contains("distance-mode") && map.getZoom() < 13) window.DistanceModule?.setOrigin({ lon: e.lngLat.lng, lat: e.lngLat.lat }); });
   window.Transit = { setActive, isActive: () => state.active, _test: { parseNet, scan, raster, project } };

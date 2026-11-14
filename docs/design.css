@@ -490,3 +490,7 @@ body:not(.no-anim) .key-chip.wait{animation:keyPulse 1.3s ease-in-out infinite}
 #transitBox .walking-slider{display:block!important}
 #distancePanel.transit-mode .distance-heading h2{font-size:0}#distancePanel.transit-mode .distance-heading h2:after{content:"Czas dojazdu";font-size:21px}
 #distancePanel.transit-mode #distanceBadge{display:none}
+
+/* Komunikacja publiczna jako osobny moduł */
+#distancePanel.transit-mode .transport-switch{display:none!important}
+.quick-actions button{min-width:0}

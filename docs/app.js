@@ -254,7 +254,7 @@
         ${cell(IC.area, "Powierzchnia · " + area.source.toLowerCase(), esc(window.ParcelModel.format(area.m2, "m²")) + `<span class="area-secondary">${esc(window.ParcelModel.format(area.ha, "ha"))}</span>`)}
         ${cell(IC.clock, "Aktualność", fmtDate(p.data_zrodla))}
       </div>
-      </details>${embedded?'':`<details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details>`}${embedded?'':`<button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`}`;
+      </details>${embedded?'':`<details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details>`}${embedded?'':`<button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button><button type="button" class="place-distance-action" data-open-transit>${Icons.svg('bus')}Komunikacja publiczna: czas dojazdu${Icons.svg('caret-right')}</button>`}`;
   }
   function adrText(p) {
     const a = [p.ulica, p.numer].filter(Boolean).join(" ");
@@ -273,7 +273,7 @@
     return `<div class="kicker"><i style="background:#d81b60;border-radius:50%"></i>Punkt adresowy</div>
       <div class="idrow"><code style="font-family:var(--ui);font-weight:700;font-size:17px;word-break:normal">${esc(adrText(p))}</code>${copyBtn(adrText(p))}</div>
       ${navButtons(p)}
-      <details class="place-section" open><summary>${Icons.svg('ruler')}Działka pod adresem</summary><div id="adrParcel"><p class="muted small">Wczytuję działkę…</p></div></details><details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details><button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button>`;
+      <details class="place-section" open><summary>${Icons.svg('ruler')}Działka pod adresem</summary><div id="adrParcel"><p class="muted small">Wczytuję działkę…</p></div></details><details class="place-section"><summary>${Icons.svg('map-trifold')}MPZP i plany ogólne</summary><div id="placePlans"></div></details><button type="button" class="place-distance-action" data-open-distance>${Icons.svg('person-simple-walk')}Otwórz moduł odległości${Icons.svg('caret-right')}</button><button type="button" class="place-distance-action" data-open-transit>${Icons.svg('bus')}Komunikacja publiczna: czas dojazdu${Icons.svg('caret-right')}</button>`;
   }
   const card = $("#card");
   function clearPlace(){addressRequest++;selectedParcelId=null;currentPlace=null;highlight(null);if(selMarker){selMarker.remove();selMarker=null;}card.innerHTML='<div class="emptymsg"><h1>Wybierz miejsce</h1><p>Wskaż punkt na mapie lub użyj wyszukiwarki.</p></div>';card.classList.add("empty");document.dispatchEvent(new Event("plots:selection"));snap("hidden");document.body.classList.add("collapsed");}
