@@ -1,5 +1,5 @@
 "use strict";
-const CACHE="mapa-shell-20261114-2500";
+const CACHE="mapa-shell-20261114-2600";
 const ROOT=new URL("./",self.location.href);
 const ASSETS=["./","index.html","style.css","design.css","config.js","grupy.js","gminy-model.js","indicator-icons.js","poi-icons.js","gmina-wiki.js","gmina-profile.js","gmina-extra.js","motion.js","data/miasta.json","gus-client.js","parcel-model.js","app.js","ui-history.js","indicator-model.js","gminy.js","access-model.js","address-access.js","planning.js","terrain.js","surroundings-model.js","surroundings.js","mobile.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png","icons/icon-maskable.png","icons.js","address-picking.js","municipal-boundaries.js","building-distance-model.js","distance-module.js","icons/phosphor.svg","municipality-model.js","municipality-context.js","municipality-crests.js","service-places.js","layer-ui.js","stats-model.js","stats-map.js","data/municipality-crests.json","data/municipalities.topojson","data/gminy.json","data/gus-catalog.json","data/bdl-units.json","data/gus-population.json","data/surroundings.json","styles/map-light.json"];
 const LIBRARIES=["https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js","https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"];
@@ -13,6 +13,8 @@ self.addEventListener("fetch",event=>{
   }
   const crestPack=url.origin===ROOT.origin&&url.pathname.startsWith(ROOT.pathname)&&/^data\/crests-(02|04|06|08|10|12|14|16|18|20|22|24|26|28|30|32)\.bin$/.test(url.pathname.slice(ROOT.pathname.length));
   if(crestPack||url.href===new URL('data/crests-extra-20261110.bin',ROOT).href||url.href===new URL('data/gus-energia.json',ROOT).href){event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(async response=>{if(response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone());}return response;})));return;}
+  // The tunnel address in config.js changes when the tunnel restarts: never serve a stale copy while online.
+  if(url.href===new URL('config.js',ROOT).href){event.respondWith(fetch(request,{cache:'no-store'}).then(async response=>{if(response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone());}return response;}).catch(()=>caches.match(request)));return;}
   const allowed=ASSETS.some(path=>new URL(path,ROOT).href===url.href)||LIBRARIES.includes(url.href);
   if(allowed)event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));
   // Live planning, maps and statistics are never presented as an offline tile cache.

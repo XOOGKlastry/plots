@@ -221,14 +221,17 @@
       });
     });
   }
-  let dotRaf = 0, dotLines = null;
+  /* Commuting arcs on the map. One "Cofnij" button (and the phone Back) returns to the gmina card and the previous view;
+     choosing another gmina removes them; a basemap switch keeps them (sources are re-added after the style change). */
+  let dotRaf = 0, dotLines = null, flow = null;
+  const FLOW_LAYERS = ["ext-flow-dots", "ext-flow-lbl", "ext-flow-pts", "ext-flows"], FLOW_SOURCES = ["ext-flows", "ext-flow-pts", "ext-flow-dots"];
+  const emptyFC = () => ({ type: "FeatureCollection", features: [] });
   function stopDots() { cancelAnimationFrame(dotRaf); dotRaf = 0; }
   function runDots(map) {
     stopDots(); if (!dotLines) return;
-    const src = map.getSource("ext-flow-dots"); if (!src) return;
     const t0 = performance.now(); let last = 0;
     const tick = now => {
-      if (!map.getSource("ext-flow-dots")) return;
+      const src = map.getSource("ext-flow-dots"); if (!src || !dotLines) return;
       dotRaf = requestAnimationFrame(tick);
       if (now - last < 33) return; last = now;
       const feats = [];
@@ -243,6 +246,42 @@
     };
     dotRaf = requestAnimationFrame(tick);
   }
+  function drawFlows() {
+    const app = window.PLOTS, map = app?.map; if (!flow || !map) return;
+    const col = flow.dir === "do" ? "#ff6b00" : "#0a84ff", dcol = flow.dir === "do" ? "#c24e00" : "#005bc4";
+    if (!map.getSource("ext-flows")) {
+      map.addSource("ext-flows", { type: "geojson", data: flow.data }); map.addSource("ext-flow-pts", { type: "geojson", data: flow.pdata }); map.addSource("ext-flow-dots", { type: "geojson", data: emptyFC() });
+      map.addLayer({ id: "ext-flows", type: "line", source: "ext-flows", layout: { "line-cap": "round" }, paint: { "line-color": col, "line-width": ["get", "w"], "line-opacity": .75 } });
+      map.addLayer({ id: "ext-flow-pts", type: "circle", source: "ext-flow-pts", paint: { "circle-radius": ["get", "r"], "circle-color": ["case", ["has", "home"], "#1c1c1e", "#fff"], "circle-stroke-color": "#1c1c1e", "circle-stroke-width": 1.5 } });
+      map.addLayer({ id: "ext-flow-dots", type: "circle", source: "ext-flow-dots", paint: { "circle-radius": ["get", "r"], "circle-color": "#fff", "circle-opacity": ["get", "o"], "circle-stroke-width": 1.4, "circle-stroke-color": dcol, "circle-stroke-opacity": ["get", "o"] } }, "ext-flow-pts");
+      if (map.getStyle().glyphs) map.addLayer({ id: "ext-flow-lbl", type: "symbol", source: "ext-flow-pts", layout: { "text-field": ["get", "label"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#1c1c1e", "text-halo-color": "#fff", "text-halo-width": 1.6 } });
+    } else {
+      map.getSource("ext-flows").setData(flow.data); map.getSource("ext-flow-pts").setData(flow.pdata); map.getSource("ext-flow-dots").setData(emptyFC());
+      map.setPaintProperty("ext-flows", "line-color", col); map.setPaintProperty("ext-flow-dots", "circle-stroke-color", dcol);
+    }
+    if (window.Motion?.on()) runDots(map); else stopDots();
+  }
+  function clearFlows(back) {
+    const app = window.PLOTS, map = app?.map, f = flow;
+    stopDots(); dotLines = null; flow = null;
+    if (map) { FLOW_LAYERS.forEach(id => map.getLayer(id) && map.removeLayer(id)); FLOW_SOURCES.forEach(id => map.getSource(id) && map.removeSource(id)); }
+    const chip = document.getElementById("extFlowChip"); if (chip) chip.hidden = true;
+    if (!f) return;
+    window.UIHistory?.dismiss("flows");
+    if (back) {
+      if (f.view) map.easeTo({ ...f.view, duration: 500 });
+      window.PLOTS_GMINY?.openDetails?.();
+      // Back to the commuting section of the card.
+      let n = 0; const find = () => { const el = document.querySelector(".ext-commute"); if (el) el.scrollIntoView({ block: "center" }); else if (++n < 40) setTimeout(find, 150); };
+      setTimeout(find, 200);
+    }
+  }
+  document.addEventListener("plots:gmina", e => { if (flow && e.detail?.id !== flow.k) clearFlows(false); });
+  let flowRestyle = 0, flowHooked = false;
+  function hookRestyle(map) {
+    if (flowHooked) return; flowHooked = true;
+    map.on("styledata", () => { if (!flow) return; clearTimeout(flowRestyle); flowRestyle = setTimeout(() => { if (flow && !map.getSource("ext-flows")) drawFlows(); }, 120); });
+  }
   async function showFlows(k, dir) {
     const app = window.PLOTS; if (!app) return;
     const [D, C] = await Promise.all([json(`data/dojazdy/${k.slice(0, 2)}.json`), json("data/gminy-centra.json")]);
@@ -255,41 +294,23 @@
       geometry: { type: "LineString", coordinates: dir === "do" ? arc(home, C[x[0]]) : arc(C[x[0]], home) } }));
     const pts = arr.map((x, i) => ({ type: "Feature", properties: { label: `${nm[i]}\n${fmt(x[1])}`, r: 3 + 7 * Math.sqrt(x[1] / mx) }, geometry: { type: "Point", coordinates: C[x[0]] } }));
     pts.push({ type: "Feature", properties: { label: hn, r: 8, home: 1 }, geometry: { type: "Point", coordinates: home } });
-    const map = app.map;
-    const data = { type: "FeatureCollection", features: feats }, pdata = { type: "FeatureCollection", features: pts };
-    if (map.getSource("ext-flows")) { map.getSource("ext-flows").setData(data); map.getSource("ext-flow-pts").setData(pdata); }
-    else {
-      map.addSource("ext-flows", { type: "geojson", data }); map.addSource("ext-flow-pts", { type: "geojson", data: pdata });
-      map.addLayer({ id: "ext-flows", type: "line", source: "ext-flows", layout: { "line-cap": "round" }, paint: { "line-color": dir === "do" ? "#ff6b00" : "#0a84ff", "line-width": ["get", "w"], "line-opacity": .75 } });
-      map.addLayer({ id: "ext-flow-pts", type: "circle", source: "ext-flow-pts", paint: { "circle-radius": ["get", "r"], "circle-color": ["case", ["has", "home"], "#1c1c1e", "#fff"], "circle-stroke-color": "#1c1c1e", "circle-stroke-width": 1.5 } });
-      map.addLayer({ id: "ext-flow-lbl", type: "symbol", source: "ext-flow-pts", layout: { "text-field": ["get", "label"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#1c1c1e", "text-halo-color": "#fff", "text-halo-width": 1.6 } });
-    }
-    map.setPaintProperty("ext-flows", "line-color", dir === "do" ? "#ff6b00" : "#0a84ff");
+    const map = app.map, wasOpen = !!flow; hookRestyle(map);
+    flow = { k, dir, data: { type: "FeatureCollection", features: feats }, pdata: { type: "FeatureCollection", features: pts }, view: wasOpen ? flow.view : { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() } };
     // Flowing dots: more and bigger dots on the stronger flows, one trip in about 3-5 s.
     dotLines = feats.map(f => ({ c: f.geometry.coordinates, n: Math.max(2, Math.round(1 + f.properties.w / 1.6)), r: 2.2 + f.properties.w * .35, ms: 5200 - f.properties.w * 180 }));
-    const empty = { type: "FeatureCollection", features: [] };
-    if (!map.getSource("ext-flow-dots")) {
-      map.addSource("ext-flow-dots", { type: "geojson", data: empty });
-      map.addLayer({ id: "ext-flow-dots", type: "circle", source: "ext-flow-dots", paint: { "circle-radius": ["get", "r"], "circle-color": "#fff", "circle-opacity": ["get", "o"], "circle-stroke-width": 1.4, "circle-stroke-color": dir === "do" ? "#c24e00" : "#005bc4", "circle-stroke-opacity": ["get", "o"] } }, "ext-flow-pts");
-    } else { map.getSource("ext-flow-dots").setData(empty); map.setPaintProperty("ext-flow-dots", "circle-stroke-color", dir === "do" ? "#c24e00" : "#005bc4"); }
-    const moving = !!window.Motion?.on();
-    if (moving) runDots(map); else stopDots();
-    // Frame the places that take 85% of these commuters (at least 3), so one far city does not zoom out to the whole country.
+    drawFlows();
+    // Frame the places that take 85% of these commuters (at least the first), so one far city does not zoom out to the whole country.
     const b = new maplibregl.LngLatBounds(home, home), totN = arr.reduce((t, x) => t + x[1], 0); let acc = 0;
-    arr.forEach((x, i) => { if (i < 3 || acc < totN * .85) b.extend(C[x[0]]); acc += x[1]; });
+    arr.forEach((x, i) => { if (i < 1 || acc < totN * .85) b.extend(C[x[0]]); acc += x[1]; });
     document.querySelectorAll("dialog[open]").forEach(d => d.close());
     if (app.isMobile()) app.snap("peek");
     map.fitBounds(b, { padding: app.isMobile() ? { top: 120, bottom: 200, left: 40, right: 40 } : 80, maxZoom: 10, duration: 600 });
     let chip = document.getElementById("extFlowChip");
     if (!chip) { chip = document.createElement("div"); chip.id = "extFlowChip"; chip.className = "ext-chip"; document.body.appendChild(chip); }
-    chip.innerHTML = `<span><b>${esc(hn)}</b>: ${dir === "do" ? "dokąd jeżdżą do pracy" : "skąd przyjeżdżają do pracy"}</span><button type="button" class="ext-chip-play" aria-label="${moving ? "Zatrzymaj ruch" : "Pokaż ruch"}">${Icons.svg(moving ? "pause" : "play")}</button><button type="button" class="ext-chip-x" aria-label="Zamknij">${Icons.svg("x")}</button>`;
+    chip.innerHTML = `<button type="button" class="ext-back"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg>Cofnij</button>`;
     chip.hidden = false;
-    chip.querySelector(".ext-chip-play").onclick = e => {
-      const b = e.currentTarget, run = !dotRaf;
-      if (run) runDots(map); else { stopDots(); map.getSource("ext-flow-dots")?.setData(empty); }
-      b.innerHTML = Icons.svg(run ? "pause" : "play"); b.setAttribute("aria-label", run ? "Zatrzymaj ruch" : "Pokaż ruch");
-    };
-    chip.querySelector(".ext-chip-x").onclick = () => { stopDots(); dotLines = null; chip.hidden = true; ["ext-flow-dots", "ext-flow-lbl", "ext-flow-pts", "ext-flows"].forEach(id => map.getLayer(id) && map.removeLayer(id)); ["ext-flows", "ext-flow-pts", "ext-flow-dots"].forEach(id => map.getSource(id) && map.removeSource(id)); };
+    chip.querySelector(".ext-back").onclick = () => clearFlows(true);
+    if (!wasOpen) setTimeout(() => window.UIHistory?.open("flows", () => clearFlows(true)), 0);
   }
 
   /* ---------- Migracje i Spis 2021 ---------- */

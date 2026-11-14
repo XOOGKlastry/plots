@@ -495,7 +495,28 @@
   map.on("load",syncMapScale);map.on("zoomend",syncMapScale);
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
-  map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
+  // Parcel/address tiles that failed are retried; repeated failures check whether the tunnel got a new address.
+  let tileErrors = 0, retryTimer = 0, lastRetry = 0, checkedTunnel = false;
+  function retryTiles() {
+    lastRetry = Date.now();
+    for (const id of ["dzialki", "adresy"]) { const src = map.getSource(id); if (src?.setTiles && src.tiles) src.setTiles([...src.tiles]); }
+  }
+  async function checkTunnel() {
+    if (checkedTunnel || params.get("tiles")) return; checkedTunnel = true;
+    try {
+      const txt = await fetch("config.js?x=" + Date.now(), { cache: "no-store" }).then(r => r.text());
+      const url = (txt.match(/TILES_URL:\s*"([^"]+)"/) || [])[1]?.replace(/\/$/, "");
+      if (url && url !== BASE && !sessionStorage.getItem("plots.tunnelReload")) { sessionStorage.setItem("plots.tunnelReload", "1"); location.reload(); return; }
+    } catch { /* offline */ }
+    if (!window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); }
+  }
+  map.on("error", (e) => {
+    if (!e || (e.sourceId !== "dzialki" && e.sourceId !== "adresy")) return;
+    tileErrors++;
+    if (tileErrors >= 6) checkTunnel();
+    clearTimeout(retryTimer); retryTimer = setTimeout(() => { if (Date.now() - lastRetry > 8000) retryTiles(); }, 2500);
+  });
+  map.on("sourcedata", (e) => { if (e.sourceId === "dzialki" && e.isSourceLoaded && e.tile) { tileErrors = 0; try { sessionStorage.removeItem("plots.tunnelReload"); } catch {} } });
   window.PLOTS = { map, base: BASE, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, clearPlace, addressAt, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();document.dispatchEvent(new CustomEvent('plots:parcel-colors',{detail:mode}));},
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
