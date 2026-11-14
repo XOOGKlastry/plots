@@ -397,3 +397,17 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .ext-chip{position:fixed;left:16px;top:calc(env(safe-area-inset-top) + 138px);z-index:40;background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.18);padding:7px 8px 7px 14px;display:flex;align-items:center;gap:8px;font-size:13px;max-width:calc(100vw - 110px)}
 @media(min-width:900px){.ext-chip{left:50%;transform:translateX(-50%);top:86px;max-width:520px}}
 .ext-chip button{border:0;background:#f2f2f7;border-radius:50%;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;flex:none}.ext-chip svg{width:14px;height:14px}
+
+/* Piramida w czasie (animacja) */
+.tl-ctl{display:flex;align-items:center;gap:10px;margin:0 0 4px}
+.tl-play{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:#0a84ff;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px rgba(10,132,255,.35);-webkit-tap-highlight-color:transparent}.tl-play svg{width:18px;height:18px}
+.tl-range{flex:1;min-width:0;accent-color:#0a84ff;height:28px}
+.tl-ylab{flex:none;font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;width:3em;text-align:right}
+.tl-spark{position:relative;margin:0 0 16px;cursor:pointer}.tl-spark svg{display:block;width:100%;height:34px;touch-action:none}
+.tl-spark .ext-years{display:flex;justify-content:space-between;font-size:10px;color:#8e8e93}
+.tl-bars{position:relative}
+.tl-big{position:absolute;right:2px;top:-2px;font-size:44px;font-weight:800;letter-spacing:-.04em;color:#1c1c1e;opacity:.08;pointer-events:none;font-variant-numeric:tabular-nums;line-height:1}
+.tl .pyr-bar i.base{transition:width .26s linear}.tl .pyr-row{transition:background .2s}
+.tl.est .pyr-bar.m i.base{background:repeating-linear-gradient(135deg,#0a84ff 0 4px,#5aa9ff 4px 7px)}.tl.est .pyr-bar.k i.base{background:repeating-linear-gradient(135deg,#ff375f 0 4px,#ff8aa0 4px 7px)}
+.tl-tag{display:inline-block;padding:2px 7px;border-radius:7px;background:#e8f5ec;color:#1e7b34;font-size:11px;font-weight:600;margin-right:4px}.tl-tag.est{background:#fff4e5;color:#a05a00}
+@media (prefers-reduced-motion:reduce){.tl .pyr-bar i.base{transition:none}}

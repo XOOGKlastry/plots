@@ -1,6 +1,6 @@
 /* More about the gmina population: GUS projection to 2060 (powiat level), commuting to work (NSP 2021 flow matrix, with arrows on
    the map), registered migration over the years and NSP 2021 details (education, households, families, dwellings, work).
-   Data: data/prognoza/<woj>.json, data/dojazdy/<woj>.json, data/gminy-centra.json, data/nsp/<woj>.json. */
+   Data: data/pirhist/<teryt>.json, data/prognoza/<woj>.json, data/dojazdy/<woj>.json, data/gminy-centra.json, data/nsp/<woj>.json. */
 (function () {
   "use strict";
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -79,11 +79,7 @@
     return section("chart-line", `Prognoza ludności do 2060`, `<div class="pop-chart ext-fc" data-fc='${esc(JSON.stringify({ k: g.k.slice(0, 4) }))}'>
       <div class="pop-summary"><strong>${pp(ch60)}%</strong> <span>do 2060 r. (${fmt(P.t[0])} → ${fmt(P.t[last])})</span><span class="pop-peak">Do 2040 r.: ${pp(ch40)}%. Polska do 2060 r.: ${pp(pl60)}%.</span></div>
       ${line(P.t, D.lata[0], { ref: plNorm })}
-      <p class="ext-legend"><span class="ext-sw"></span>${esc(P.n.replace(/^Powiat /i, "powiat "))}<span class="ext-sw dash"></span>Polska w tej samej skali</p>
-      ${seg("data-fy", years.filter(y => +y >= 2025).map(y => [y, y]), "2040")}
-      <div class="pyramid ext-fpyr"><div class="pyr-head"><span class="pyr-m">Mężczyźni</span><span class="pyr-k">Kobiety</span></div><div class="ext-fbars">${forecastPyr(P, "2040", ages)}</div>
-      <div class="pyr-legend"><span><i class="m"></i><i class="k"></i>wybrany rok</span><span><i class="ref"></i>2023</span></div>
-      <div class="pyr-info ext-finfo">${forecastInfo(D, P, "2040")}</div></div></div>`,
+      <p class="ext-legend"><span class="ext-sw"></span>${esc(P.n.replace(/^Powiat /i, "powiat "))}<span class="ext-sw dash"></span>Polska w tej samej skali</p></div>`,
       `Prognoza GUS jest liczona dla ${city ? "miasta na prawach powiatu" : `całego powiatu (${esc(P.n)}), nie dla pojedynczych gmin`}. GUS, Prognoza ludności rezydującej na lata 2023–2060.`);
   }
   function bindForecast(root, g) {
@@ -96,6 +92,103 @@
         el.querySelector(".ext-fbars").innerHTML = forecastPyr(P, b.dataset.fy, D.ages);
         el.querySelector(".ext-finfo").innerHTML = forecastInfo(D, P, b.dataset.fy);
       });
+    });
+  }
+
+  /* ---------- Piramida w czasie: GUS rok po roku od 2002, potem szacunek z prognozy powiatu do 2060 ---------- */
+  const TL = new Map();
+  function interpForecast(P, y) {
+    const ys = Object.keys(P.p).map(Number).sort((a, b) => a - b);
+    if (y <= ys[0]) return P.p[ys[0]];
+    const hi = ys.find(v => v >= y), lo = ys[ys.indexOf(hi) - 1];
+    if (hi === y) return P.p[hi];
+    const t = (y - lo) / (hi - lo), A = P.p[lo], B = P.p[hi], f = (a, b) => a.map((v, i) => v + (b[i] - v) * t);
+    return { m: f(A.m, B.m), k: f(A.k, B.k) };
+  }
+  async function timeline(g) {
+    const [H, D] = await Promise.all([json(`data/pirhist/${g.k}.json`), json(`data/prognoza/${g.k.slice(0, 2)}.json`)]);
+    if (!H?.r?.length) return "";
+    const frames = H.r.map((r, i) => r && { y: H.y0 + i, m: r.slice(0, 18), k: r.slice(18) }).filter(Boolean);
+    const L = frames[frames.length - 1], P = D?.pow?.[g.k.slice(0, 4)];
+    if (P) {
+      const base = interpForecast(P, Math.max(L.y, 2023)), r = (v, a, b) => b > 0 ? v * a / b : v;
+      for (let y = L.y + 1; y <= 2060; y++) {
+        const f = interpForecast(P, y);
+        frames.push({ y, m: L.m.map((v, i) => r(v, f.m[i], base.m[i])), k: L.k.map((v, i) => r(v, f.k[i], base.k[i])), est: true });
+      }
+    }
+    frames.forEach(f => { f.t = sum(f.m) + sum(f.k); });
+    const now = frames.indexOf(L), ages = D?.ages || ["0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70-74", "75-79", "80-84", "85+"];
+    TL.set(g.k, { frames, now, ages, mx: Math.max(...frames.flatMap(f => [...f.m, ...f.k])) });
+    const tmin = Math.min(...frames.map(f => f.t)), tmax = Math.max(...frames.map(f => f.t)), pad = (tmax - tmin) * .15 || 1;
+    const X = i => i / (frames.length - 1) * 100, Y = v => 28 - (v - tmin + pad) / (tmax - tmin + 2 * pad) * 26;
+    const pts = (a, b) => frames.slice(a, b + 1).map((f, j) => `${j ? "L" : "M"}${X(a + j).toFixed(2)},${Y(f.t).toFixed(2)}`).join("");
+    const rows = ages.map((a, i) => ({ a, i })).reverse().map(({ a, i }) => `<button type="button" class="pyr-row tl-row" data-i="${i}" aria-label="${esc(a)} lat"><span class="pyr-bar m"><i class="base"></i><b class="ref"></b></span><span class="pyr-age">${esc(a)}</span><span class="pyr-bar k"><i class="base"></i><b class="ref"></b></span></button>`).join("");
+    return section("users", "Piramida wieku w czasie", `<div class="pyramid tl" data-k="${esc(g.k)}">
+      <div class="tl-ctl"><button type="button" class="tl-play" aria-label="Odtwórz">${Icons.svg("play")}</button>
+        <input type="range" class="tl-range" min="0" max="${frames.length - 1}" value="${now}" aria-label="Rok"><span class="tl-ylab">${L.y}</span></div>
+      <div class="tl-spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path d="${pts(0, now)}" fill="none" stroke="#0a84ff" stroke-width="2" vector-effect="non-scaling-stroke"/>${frames.length - 1 > now ? `<path d="${pts(now, frames.length - 1)}" fill="none" stroke="#0a84ff" stroke-width="2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>` : ""}<line class="tl-mark" x1="${X(now)}" x2="${X(now)}" y1="0" y2="30" stroke="#1c1c1e" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg>
+        <div class="ext-years"><span>${frames[0].y}</span><span>${L.y}</span><span>${frames[frames.length - 1].y}</span></div></div>
+      <div class="pyr-head"><span class="pyr-m">Mężczyźni</span><span class="pyr-k">Kobiety</span></div>
+      <div class="tl-bars"><span class="tl-big" aria-hidden="true"></span>${rows}</div>
+      <div class="pyr-legend"><span><i class="m"></i><i class="k"></i>wybrany rok</span><span><i class="ref"></i>${L.y} (ostatnie dane)</span></div>
+      <div class="pyr-info tl-info" aria-live="polite"></div></div>`,
+      `Lata ${frames[0].y}–${L.y}: GUS, Bank Danych Lokalnych, stan na 31 XII.${P ? ` Lata ${L.y + 1}–2060: szacunek, struktura gminy z ${L.y} r. zmieniana tak jak w prognozie GUS dla całego powiatu.` : ""} Stuknij grupę wieku, aby śledzić rocznik.`);
+  }
+  function bindTimeline(root) {
+    root.querySelectorAll(".tl[data-k]").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = 1;
+      const T = TL.get(el.dataset.k); if (!T) return;
+      const { frames, now, mx } = T, range = el.querySelector(".tl-range"), info = el.querySelector(".tl-info"), big = el.querySelector(".tl-big");
+      const ylab = el.querySelector(".tl-ylab"), mark = el.querySelector(".tl-mark"), play = el.querySelector(".tl-play"), N = frames[now];
+      const rowEl = [...el.querySelectorAll(".tl-row")].sort((a, b) => a.dataset.i - b.dataset.i);
+      const bars = rowEl.map(r => ({ m: r.querySelector(".m .base"), k: r.querySelector(".k .base"), rm: r.querySelector(".m .ref"), rk: r.querySelector(".k .ref") }));
+      const w = v => (v / mx * 100).toFixed(2) + "%";
+      bars.forEach((b, i) => { b.rm.style.width = w(N.m[i]); b.rk.style.width = w(N.k[i]); });
+      let idx = now, cohort = null, timer = null;
+      const groupOf = (born, y) => { const a = y - born; return a < 0 ? -1 : Math.min(17, Math.floor(a / 5)); };
+      const paint = () => {
+        const f = frames[idx];
+        bars.forEach((b, i) => { b.m.style.width = w(f.m[i]); b.k.style.width = w(f.k[i]); });
+        el.classList.toggle("est", !!f.est);
+        big.textContent = ylab.textContent = f.y; range.value = idx;
+        const x = idx / (frames.length - 1) * 100; mark.setAttribute("x1", x); mark.setAttribute("x2", x);
+        const g = cohort == null ? -1 : groupOf(cohort, f.y);
+        rowEl.forEach((r, i) => r.classList.toggle("on", i === g));
+        el.classList.toggle("has-sel", g >= 0);
+        const ch = (f.t - N.t) / N.t * 100, s65 = (sum(f.m.slice(13)) + sum(f.k.slice(13))) / f.t * 100, fem = sum(f.k) / sum(f.m) * 100;
+        let html = `<p class="pyr-big"><b>${f.est ? "ok. " + fmt(Math.round(f.t / 100) * 100) : fmt(f.t)}</b> mieszkańców w ${f.y} r. ${idx !== now ? `<small>(${pp(ch)}% wobec ${N.y})</small>` : ""}</p>
+          <p><span class="tl-tag${f.est ? " est" : ""}">${f.est ? "szacunek z prognozy GUS" : "dane GUS"}</span> Osoby 65+: <b>${fmt(s65, 1)}%</b> · mediana wieku <b>${fmt(medianAge(f.m, f.k), 1)}</b> lat · ${fmt(fem)} kobiet na 100 mężczyzn</p>`;
+        if (cohort != null) {
+          const lbl = `Rocznik ${cohort}–${cohort + 4}`;
+          if (g < 0) html += `<p class="pyr-cmp">${lbl}: w ${f.y} r. jeszcze nie urodzony.</p>`;
+          else {
+            const n = f.m[g] + f.k[g], g0 = groupOf(cohort, N.y), n0 = g0 >= 0 ? N.m[g0] + N.k[g0] : null;
+            html += `<p class="pyr-cmp">${lbl}: w ${f.y} r. ${g === 17 ? "85 lat i więcej" : `w wieku ${T.ages[g]} lat`}, <b>${f.est ? "ok. " + fmt(Math.round(n / 10) * 10) : fmt(n)}</b> ${window.GminaProfile?.plural ? window.GminaProfile.plural(Math.round(n), "osoba", "osoby", "osób") : "osób"}${n0 != null && f.y !== N.y ? ` <small>(w ${N.y} r. ${fmt(n0)})</small>` : ""}${g === 17 && groupOf(cohort, f.y - 5) === 17 ? "<br><small>Grupa 85+ obejmuje też starsze roczniki.</small>" : ""}</p>`;
+          }
+        } else html += `<p class="pyr-hint">Stuknij grupę wieku, aby śledzić rocznik przez lata.</p>`;
+        info.innerHTML = html;
+      };
+      const stop = () => { clearInterval(timer); timer = null; play.innerHTML = Icons.svg("play"); play.setAttribute("aria-label", "Odtwórz"); el.classList.remove("playing"); };
+      const start = () => {
+        if (idx >= frames.length - 1) idx = 0;
+        play.innerHTML = Icons.svg("pause"); play.setAttribute("aria-label", "Zatrzymaj"); el.classList.add("playing");
+        timer = setInterval(() => {
+          if (!el.isConnected) return stop();
+          if (idx >= frames.length - 1) return stop();
+          idx++; paint();
+        }, 280);
+        paint();
+      };
+      play.onclick = () => timer ? stop() : start();
+      range.oninput = () => { stop(); idx = +range.value; paint(); };
+      el.querySelector(".tl-spark svg").onpointerdown = e => { const r = e.currentTarget.getBoundingClientRect(); stop(); idx = Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * (frames.length - 1)); paint(); };
+      el.querySelector(".tl-bars").addEventListener("click", e => {
+        const b = e.target.closest(".tl-row"); if (!b) return;
+        const i = +b.dataset.i, f = frames[idx], born = f.y - i * 5 - 4;
+        cohort = cohort != null && groupOf(cohort, f.y) === i ? null : born; paint();
+      });
+      paint();
     });
   }
 
@@ -150,7 +243,7 @@
       map.addLayer({ id: "ext-flow-lbl", type: "symbol", source: "ext-flow-pts", layout: { "text-field": ["get", "label"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#1c1c1e", "text-halo-color": "#fff", "text-halo-width": 1.6 } });
     }
     map.setPaintProperty("ext-flows", "line-color", dir === "do" ? "#ff6b00" : "#0a84ff");
-    const b = new maplibregl.LngLatBounds(home, home); arr.forEach(x => b.extend(C[x[0]]));
+    const b = new maplibregl.LngLatBounds(home, home); arr.slice(0, 10).forEach(x => b.extend(C[x[0]]));
     document.querySelectorAll("dialog[open]").forEach(d => d.close());
     if (app.isMobile()) app.snap("peek");
     map.fitBounds(b, { padding: app.isMobile() ? { top: 120, bottom: 200, left: 40, right: 40 } : 80, maxZoom: 10, duration: 600 });
@@ -234,11 +327,11 @@
     const nspDoc = await json(`data/nsp/${woj}.json`);
     const N = nspDoc?.gminy?.[g.k] || null, PL = nspDoc?.pl || null;
     let html = "";
-    if (category === "Ludność") html = (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL);
+    if (category === "Ludność") html = (await timeline(g)) + (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL);
     else if (category === "Warunki życia") html = housing(g, N, PL);
     if (!el.isConnected) return;
     el.insertAdjacentHTML("beforeend", html);
-    bindLines(el); bindForecast(el, g); bindCommute(el);
+    bindLines(el); bindForecast(el, g); bindTimeline(el); bindCommute(el);
   }
   window.GminaExtra = { fill, showFlows };
 })();
