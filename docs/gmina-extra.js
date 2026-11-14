@@ -355,7 +355,7 @@
     const z = N.zam;
     if (z && z[0]) {
       const zp = PL?.zam;
-      html += `<p class="ext-sub">Według Spisu 2021: <b>${fmt(pctOf(z[1], z[0]), 1)}%</b> mieszkańców mieszka tu od urodzenia${zp ? ` (Polska ${fmt(pctOf(zp[1], zp[0]), 1)}%)` : ""}, <b>${fmt(pctOf(z[3] + z[4], z[0]), 1)}%</b> przybyło w latach 2011–2021${zp ? ` (Polska ${fmt(pctOf(zp[3] + zp[4], zp[0]), 1)}%)` : ""}, w tym ${fmt(z[4])} z zagranicy.</p>`;
+      html += `<p class="ext-sub">Według Spisu 2021: <b>${fmt(pctOf(z[1], z[0]), 1)}%</b> mieszkańców mieszka tu od urodzenia${zp ? ` (Polska ${fmt(pctOf(zp[1], zp[0]), 1)}%)` : ""}, <b>${fmt(pctOf(z[3] + z[4], z[0]), 1)}%</b> przybyło w latach 2011–2021${zp ? ` (Polska ${fmt(pctOf(zp[3] + zp[4], zp[0]), 1)}%)` : ""}, w tym ${fmt(z[4])} z zagranicy (także powroty z emigracji).</p>`;
     }
     html += `</div>`;
     return section("arrows-left-right", "Migracje", html, "Zameldowania i wymeldowania na pobyt stały (GUS, Bank Danych Lokalnych) oraz okres zamieszkiwania (GUS, NSP 2021). GUS nie publikuje, z której gminy do której ktoś się przeprowadził; przepływy między gminami pokazuje sekcja dojazdów do pracy.");
