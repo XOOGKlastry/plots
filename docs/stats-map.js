@@ -8,6 +8,8 @@
   let geo = null, gminy = null, loading = null, active = false, defs = [], hoverId = null, selectedId = null, popup = null;
   const state = { key: null, year: null, mode: "value", method: "quantile", palette: null, reverse: false, classes: 7, zero: true, manual: {} };
   let current = null; // {def, values: Map(k -> value), years:[], scheme}
+  // Time-lapse: every year of the indicator on one fixed colour scale; "rel" shows the change since the first year.
+  const time = { on: false, frames: null, idx: 0, timer: 0, rel: false, scheme: null, key: null };
 
   function load() {
     if (!loading) loading = (async () => {
@@ -88,10 +90,52 @@
     const palette = state.palette || (signed ? "kontrast" : S.categoryPalette[def.category] || "viridis");
     const manual = state.manual[def.key + ":" + state.mode];
     const scheme = S.classify(raw, { method: state.method === "manual" && !manual ? "quantile" : state.method, breaks: manual, classes: state.classes, zeroClass: state.zero, palette, reverse: state.reverse, diverging: signed && state.method !== "manual" });
-    const usedYears = [...new Set([...values.values()].map(o => o.year).filter(Boolean))].sort((a, b) => a - b);
+    let usedYears = [...new Set([...values.values()].map(o => o.year).filter(Boolean))].sort((a, b) => a - b);
     current = { def, values, years, usedYears, scheme, palette, raw, okChange };
+    if (time.on) {
+      if (time.key !== def.key) buildTime(def);
+      const f = time.frames[time.idx], v = new Map();
+      for (const [k, x] of f.vals) { const y = timeVal(k, x); if (Number.isFinite(y)) v.set(k, { value: y, year: f.y }); }
+      Object.assign(current, { values: v, raw: [...v.values()].map(o => o.value), scheme: time.scheme, usedYears: [f.y], palette: time.rel ? "kontrast" : palette });
+    }
   }
 
+  function timeVal(k, x) {
+    if (!time.rel) return x;
+    const b = time.frames[0].vals.get(k); if (!Number.isFinite(b)) return null;
+    return current.def.unit === "%" ? x - b : b ? (x - b) / Math.abs(b) * 100 : null;
+  }
+  function buildTime(def) {
+    const yrs = [...new Set(series(def, "value").years)].sort((a, b) => a - b);
+    time.frames = yrs.map(y => { const vals = new Map(); for (const g of gminy) { const m = model.metric({ ...g, _selectedYear: y }, def); if (Number.isFinite(m.value)) vals.set(g.k, m.value); } return { y, vals }; }).filter(f => f.vals.size >= 50);
+    time.key = def.key; time.idx = Math.min(time.idx, time.frames.length - 1);
+    const pool = []; time.frames.forEach(f => f.vals.forEach((x, k) => { const y = timeVal(k, x); if (Number.isFinite(y)) pool.push(y); }));
+    const sample = pool.length > 20000 ? pool.filter((_, i) => i % Math.ceil(pool.length / 20000) === 0) : pool;
+    const signed = time.rel || /saldo|przyrost/.test(def.key);
+    time.scheme = S.classify(sample, { method: state.method === "manual" ? "quantile" : state.method, classes: state.classes, zeroClass: state.zero && !time.rel, palette: time.rel ? "kontrast" : state.palette || (signed ? "kontrast" : S.categoryPalette[def.category] || "viridis"), reverse: state.reverse, diverging: signed });
+  }
+  function timeYears(def) { return series(def, "value").years.length; }
+  function timeStart() {
+    stopTime(); time.on = true; time.key = null; time.idx = 0; state.year = null; state.mode = "value";
+    update(); renderTime(); if (app.isMobile()) sheet(false); playTime();
+  }
+  function stopTime() { clearInterval(time.timer); time.timer = 0; const b = $("#statsTimePlay"); if (b) { b.innerHTML = icon("play"); b.setAttribute("aria-label", "Odtwórz lata"); } }
+  function playTime() {
+    if (time.timer) return stopTime();
+    if (time.idx >= time.frames.length - 1) time.idx = 0;
+    const b = $("#statsTimePlay"); b.innerHTML = icon("pause"); b.setAttribute("aria-label", "Zatrzymaj");
+    const step = () => { update(); renderTime(); };
+    step();
+    time.timer = setInterval(() => { if (!active || !time.on || time.idx >= time.frames.length - 1) return stopTime(); time.idx++; step(); }, 900);
+  }
+  function timeExit() { stopTime(); time.on = false; time.frames = null; time.key = null; $("#statsTime").hidden = true; update(); }
+  function renderTime() {
+    const box = $("#statsTime"), f = time.frames; if (!f) return;
+    box.hidden = false;
+    const r = $("#statsTimeRange"); r.max = f.length - 1; r.value = time.idx;
+    $("#statsTimeYear").textContent = f[time.idx].y;
+    box.querySelectorAll("[data-time-rel]").forEach(b => { b.setAttribute("aria-pressed", String(time.rel) === b.dataset.timeRel); if (b.dataset.timeRel === "true") b.textContent = `Zmiana od ${f[0].y}`; });
+  }
   function rankList(sorted) {
     return sorted.map(([k, o]) => { const g = gminy.find(x => x.k === k); return `<li><button type="button" data-stats-gmina="${esc(k)}"><span>${esc(g?.n || k)}<small>${esc(g?.typ || "")}</small></span><b>${esc(S.format(o.value, current.def.digits))}</b></button></li>`; }).join("");
   }
@@ -103,7 +147,7 @@
     const rank = sorted.findIndex(v => v === o.value) + 1;
     return `<div class="stats-selected"><div><strong>${esc(g?.n || selectedId)}</strong><small>${esc(g?.typ || "")}${o.year ? " · " + o.year : ""}</small></div><div><b>${esc(S.format(o.value, current.def.digits))}</b> <small>${esc(unit())}</small><small>${rank.toLocaleString("pl-PL")}. miejsce z ${sorted.length.toLocaleString("pl-PL")}</small></div></div>`;
   }
-  function unit() { return state.mode === "change" ? (current.def.unit === "%" ? "p.p. r/r" : (current.def.unit || "") + " r/r") : current.def.unit || ""; }
+  function unit() { if (time.on && time.rel) return current.def.unit === "%" ? `p.p. od ${time.frames[0].y}` : `% od ${time.frames[0].y}`; return state.mode === "change" ? (current.def.unit === "%" ? "p.p. r/r" : (current.def.unit || "") + " r/r") : current.def.unit || ""; }
 
   function render() {
     if (!current) return;
@@ -119,6 +163,7 @@
       b.setAttribute("aria-pressed", b.dataset.mode === state.mode);
       if (b.dataset.mode === "change") { b.disabled = !current.okChange; b.title = current.okChange ? "" : "Dla tego wskaźnika nie ma danych z poprzedniego roku"; }
     });
+    const tb = $("#statsTimeBtn"); if (tb) { const n = timeYears(def); tb.disabled = n < 3; tb.title = n < 3 ? "Ten wskaźnik ma za mało lat" : `Odtwórz ${n} ${n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "lata" : "lat"} na jednej skali kolorów`; tb.setAttribute("aria-pressed", time.on); }
     $("#statsMethod").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.method === state.method));
     $("#statsClasses").value = String(state.classes); $("#statsClasses").disabled = state.method === "manual"; $("#statsZero").checked = state.zero;
     $("#statsManual").hidden = state.method !== "manual";
@@ -188,6 +233,7 @@
     if (!key && !options.keepView) togglePicker(true);
   }
   function close() {
+    if (time.on) timeExit();
     active = false; panel.hidden = true; document.body.classList.remove("stats-open", "stats-mini"); setVisible(false); popup?.remove(); togglePicker(false); syncUrl();
     window.UIHistory?.dismiss("stats");
     if (app.isMobile()) app.snap("peek");
@@ -230,9 +276,13 @@
     const b = e.target.closest("button"); if (!b || Date.now() - swiped < 400) return;
     if (b.hasAttribute("data-close-stats")) close();
     else if (b.id === "statsCurrent") togglePicker();
-    else if (b.dataset.stat) { state.key = b.dataset.stat; state.palette = null; state.year = null; togglePicker(false); update(); if (app.isMobile()) sheet(false); }
+    else if (b.id === "statsTimeBtn" && !b.disabled) { time.on ? timeExit() : timeStart(); }
+    else if (b.id === "statsTimePlay") playTime();
+    else if (b.id === "statsTimeExit") timeExit();
+    else if (b.dataset.timeRel) { time.rel = b.dataset.timeRel === "true"; time.key = null; update(); renderTime(); }
+    else if (b.dataset.stat) { if (time.on) timeExit(); state.key = b.dataset.stat; state.palette = null; state.year = null; togglePicker(false); update(); if (app.isMobile()) sheet(false); }
     else if (b.id === "statsHandle") sheet(document.body.classList.contains("stats-mini"));
-    else if (b.dataset.mode && !b.disabled) { state.mode = b.dataset.mode; state.palette = null; update(); }
+    else if (b.dataset.mode && !b.disabled) { if (time.on) timeExit(); state.mode = b.dataset.mode; state.palette = null; update(); }
     else if (b.dataset.method) { state.method = b.dataset.method; update(); }
     else if (b.dataset.palette) { state.palette = b.dataset.palette === "auto" ? null : b.dataset.palette; update(); }
     else if (b.hasAttribute("data-pick-cat")) { pickCat = b.dataset.pickCat; pickerList($("#statsSearch").value); }
@@ -254,7 +304,8 @@
     if (!nums.length || nums.some(n => !Number.isFinite(n))) { err.textContent = "Wpisz liczby oddzielone średnikiem, np. 1; 5; 10."; return; }
     err.textContent = ""; state.manual[state.key + ":" + state.mode] = nums; update();
   });
-  $("#statsYear").addEventListener("change", e => { state.year = e.target.value ? Number(e.target.value) : null; update(); });
+  $("#statsTimeRange").addEventListener("input", e => { stopTime(); time.idx = +e.target.value; update(); renderTime(); });
+  $("#statsYear").addEventListener("change", e => { if (time.on) timeExit(); state.year = e.target.value ? Number(e.target.value) : null; update(); });
   $("#statsSearch").addEventListener("input", e => pickerList(e.target.value));
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-open-stats],[data-stat-map]"); if (!b) return;

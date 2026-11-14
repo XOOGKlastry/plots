@@ -221,6 +221,28 @@
       });
     });
   }
+  let dotRaf = 0, dotLines = null;
+  function stopDots() { cancelAnimationFrame(dotRaf); dotRaf = 0; }
+  function runDots(map) {
+    stopDots(); if (!dotLines) return;
+    const src = map.getSource("ext-flow-dots"); if (!src) return;
+    const t0 = performance.now(); let last = 0;
+    const tick = now => {
+      if (!map.getSource("ext-flow-dots")) return;
+      dotRaf = requestAnimationFrame(tick);
+      if (now - last < 33) return; last = now;
+      const feats = [];
+      for (const L of dotLines) {
+        const ph = ((now - t0) / L.ms) % 1;
+        for (let j = 0; j < L.n; j++) {
+          const t = (ph + j / L.n) % 1, x = t * (L.c.length - 1), i = Math.min(L.c.length - 2, Math.floor(x)), f = x - i, a = L.c[i], b = L.c[i + 1];
+          feats.push({ type: "Feature", properties: { r: L.r, o: Math.min(1, t * 6, (1 - t) * 6) }, geometry: { type: "Point", coordinates: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f] } });
+        }
+      }
+      src.setData({ type: "FeatureCollection", features: feats });
+    };
+    dotRaf = requestAnimationFrame(tick);
+  }
   async function showFlows(k, dir) {
     const app = window.PLOTS; if (!app) return;
     const [D, C] = await Promise.all([json(`data/dojazdy/${k.slice(0, 2)}.json`), json("data/gminy-centra.json")]);
@@ -243,15 +265,31 @@
       map.addLayer({ id: "ext-flow-lbl", type: "symbol", source: "ext-flow-pts", layout: { "text-field": ["get", "label"], "text-size": 11.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#1c1c1e", "text-halo-color": "#fff", "text-halo-width": 1.6 } });
     }
     map.setPaintProperty("ext-flows", "line-color", dir === "do" ? "#ff6b00" : "#0a84ff");
-    const b = new maplibregl.LngLatBounds(home, home); arr.slice(0, 10).forEach(x => b.extend(C[x[0]]));
+    // Flowing dots: more and bigger dots on the stronger flows, one trip in about 3-5 s.
+    dotLines = feats.map(f => ({ c: f.geometry.coordinates, n: Math.max(2, Math.round(1 + f.properties.w / 1.6)), r: 2.2 + f.properties.w * .35, ms: 5200 - f.properties.w * 180 }));
+    const empty = { type: "FeatureCollection", features: [] };
+    if (!map.getSource("ext-flow-dots")) {
+      map.addSource("ext-flow-dots", { type: "geojson", data: empty });
+      map.addLayer({ id: "ext-flow-dots", type: "circle", source: "ext-flow-dots", paint: { "circle-radius": ["get", "r"], "circle-color": "#fff", "circle-opacity": ["get", "o"], "circle-stroke-width": 1.4, "circle-stroke-color": dir === "do" ? "#c24e00" : "#005bc4", "circle-stroke-opacity": ["get", "o"] } }, "ext-flow-pts");
+    } else { map.getSource("ext-flow-dots").setData(empty); map.setPaintProperty("ext-flow-dots", "circle-stroke-color", dir === "do" ? "#c24e00" : "#005bc4"); }
+    const moving = !!window.Motion?.on();
+    if (moving) runDots(map); else stopDots();
+    // Frame the places that take 85% of these commuters (at least 3), so one far city does not zoom out to the whole country.
+    const b = new maplibregl.LngLatBounds(home, home), totN = arr.reduce((t, x) => t + x[1], 0); let acc = 0;
+    arr.forEach((x, i) => { if (i < 3 || acc < totN * .85) b.extend(C[x[0]]); acc += x[1]; });
     document.querySelectorAll("dialog[open]").forEach(d => d.close());
     if (app.isMobile()) app.snap("peek");
     map.fitBounds(b, { padding: app.isMobile() ? { top: 120, bottom: 200, left: 40, right: 40 } : 80, maxZoom: 10, duration: 600 });
     let chip = document.getElementById("extFlowChip");
     if (!chip) { chip = document.createElement("div"); chip.id = "extFlowChip"; chip.className = "ext-chip"; document.body.appendChild(chip); }
-    chip.innerHTML = `<span><b>${esc(hn)}</b>: ${dir === "do" ? "dokąd jeżdżą do pracy" : "skąd przyjeżdżają do pracy"}</span><button type="button" aria-label="Zamknij">${Icons.svg("x")}</button>`;
+    chip.innerHTML = `<span><b>${esc(hn)}</b>: ${dir === "do" ? "dokąd jeżdżą do pracy" : "skąd przyjeżdżają do pracy"}</span><button type="button" class="ext-chip-play" aria-label="${moving ? "Zatrzymaj ruch" : "Pokaż ruch"}">${Icons.svg(moving ? "pause" : "play")}</button><button type="button" class="ext-chip-x" aria-label="Zamknij">${Icons.svg("x")}</button>`;
     chip.hidden = false;
-    chip.querySelector("button").onclick = () => { chip.hidden = true; ["ext-flow-lbl", "ext-flow-pts", "ext-flows"].forEach(id => map.getLayer(id) && map.removeLayer(id)); ["ext-flows", "ext-flow-pts"].forEach(id => map.getSource(id) && map.removeSource(id)); };
+    chip.querySelector(".ext-chip-play").onclick = e => {
+      const b = e.currentTarget, run = !dotRaf;
+      if (run) runDots(map); else { stopDots(); map.getSource("ext-flow-dots")?.setData(empty); }
+      b.innerHTML = Icons.svg(run ? "pause" : "play"); b.setAttribute("aria-label", run ? "Zatrzymaj ruch" : "Pokaż ruch");
+    };
+    chip.querySelector(".ext-chip-x").onclick = () => { stopDots(); dotLines = null; chip.hidden = true; ["ext-flow-dots", "ext-flow-lbl", "ext-flow-pts", "ext-flows"].forEach(id => map.getLayer(id) && map.removeLayer(id)); ["ext-flows", "ext-flow-pts", "ext-flow-dots"].forEach(id => map.getSource(id) && map.removeSource(id)); };
   }
 
   /* ---------- Migracje i Spis 2021 ---------- */
@@ -260,6 +298,49 @@
     const PAL = ["#0a84ff", "#30b0c7", "#34c759", "#ffcc00", "#ff9500", "#ff2d55", "#af52de", "#5856d6", "#a2845e", "#8e8e93"];
     return `<div class="bud-bar">${parts.map((x, i) => `<i style="flex:${x.v};background:${x.c || PAL[i % PAL.length]}" title="${esc(x.n)}"></i>`).join("")}</div>
       <ul class="bud-list ext-list">${parts.map((x, i) => `<li><span class="bud-sw" style="background:${x.c || PAL[i % PAL.length]}"></span><span class="bud-n">${esc(x.n)}</span><span class="bud-v"><b>${fmt(pctOf(x.v, total), 1)}%</b>${x.pl != null ? `<small>Polska ${fmt(x.pl, 1)}%</small>` : `<small>${fmt(x.v)}</small>`}</span></li>`).join("")}</ul>`;
+  }
+  /* Rok po roku: zameldowania w górę, wymeldowania w dół; odtwarzanie przechodzi przez lata i pokazuje skąd i dokąd. */
+  function migYears(m) {
+    const n = (m.zw || []).length; if (n < 3) return "";
+    const A = i => (m.zw[i] ?? NaN) + (m.zz?.[i] ?? 0), Dp = i => (m.ww?.[i] ?? NaN) + (m.wz?.[i] ?? 0);
+    const idx = [...Array(n).keys()].filter(i => Number.isFinite(A(i)) && Number.isFinite(Dp(i)));
+    if (idx.length < 3) return "";
+    const mx = Math.max(...idx.map(i => Math.max(A(i), Dp(i)))) || 1, last = idx[idx.length - 1];
+    const cols = idx.map(i => `<button type="button" class="mg-col" data-i="${i}" aria-label="${m.y0 + i}"><span class="mg-up"><i style="height:${(A(i) / mx * 100).toFixed(1)}%"></i></span><span class="mg-dn"><i style="height:${(Dp(i) / mx * 100).toFixed(1)}%"></i></span></button>`).join("");
+    return `<div class="ext-mg" data-mg='${esc(JSON.stringify({ y0: m.y0, idx, zw: m.zw, zz: m.zz, ww: m.ww, wz: m.wz, zm: m.zm, zwies: m.zwies, wm: m.wm, wwies: m.wwies }))}'>
+      <p class="ext-sub"><b>Rok po roku</b></p>
+      <div class="tl-ctl"><button type="button" class="tl-play mg-play" aria-label="Odtwórz lata">${Icons.svg("play")}</button><input type="range" class="tl-range mg-range" min="0" max="${idx.length - 1}" value="${idx.length - 1}" aria-label="Rok"><span class="tl-ylab mg-ylab">${m.y0 + last}</span></div>
+      <div class="mg-bars">${cols}</div>
+      <div class="mg-axis"><span>${m.y0 + idx[0]}</span><span class="mg-key"><i class="up"></i>zameldowania <i class="dn"></i>wymeldowania</span><span>${m.y0 + last}</span></div>
+      <div class="mg-info" aria-live="polite"></div></div>`;
+  }
+  function bindMig(root) {
+    root.querySelectorAll(".ext-mg[data-mg]").forEach(el => {
+      if (el.dataset.bound) return; el.dataset.bound = 1;
+      const d = JSON.parse(el.dataset.mg), range = el.querySelector(".mg-range"), play = el.querySelector(".mg-play"), info = el.querySelector(".mg-info"), ylab = el.querySelector(".mg-ylab");
+      const cols = [...el.querySelectorAll(".mg-col")];
+      let k = d.idx.length - 1, timer = 0;
+      const v = (a, i) => Number.isFinite(d[a]?.[i]) ? d[a][i] : null;
+      const part = (label, x, tot) => x == null ? "" : `<li><span>${label}</span><b>${fmt(x)}</b><small>${tot ? fmt(x / tot * 100) + "%" : ""}</small></li>`;
+      const paint = () => {
+        const i = d.idx[k], y = d.y0 + i, a = (v("zw", i) || 0) + (v("zz", i) || 0), o = (v("ww", i) || 0) + (v("wz", i) || 0), bal = a - o;
+        cols.forEach((c, j) => c.classList.toggle("on", j === k));
+        range.value = k; ylab.textContent = y;
+        info.innerHTML = `<p class="pyr-big"><b>${pp(bal, 0)}</b> <small>saldo w ${y} r.: ${fmt(a)} zameldowań, ${fmt(o)} wymeldowań</small></p>
+          <div class="mg-lists"><ul><li class="h">Skąd przybyli</li>${part("z miast", v("zm", i), a)}${part("ze wsi", v("zwies", i), a)}${part("z zagranicy", v("zz", i), a)}</ul>
+          <ul><li class="h">Dokąd wyjechali</li>${part("do miast", v("wm", i), o)}${part("na wieś", v("wwies", i), o)}${part("za granicę", v("wz", i), o)}</ul></div>`;
+      };
+      const stop = () => { clearInterval(timer); timer = 0; play.innerHTML = Icons.svg("play"); play.setAttribute("aria-label", "Odtwórz lata"); };
+      play.onclick = () => {
+        if (timer) return stop();
+        if (k >= d.idx.length - 1) k = 0;
+        play.innerHTML = Icons.svg("pause"); play.setAttribute("aria-label", "Zatrzymaj"); paint();
+        timer = setInterval(() => { if (!el.isConnected || k >= d.idx.length - 1) return stop(); k++; paint(); }, 650);
+      };
+      range.oninput = () => { stop(); k = +range.value; paint(); };
+      el.querySelector(".mg-bars").addEventListener("click", e => { const c = e.target.closest(".mg-col"); if (!c) return; stop(); k = cols.indexOf(c); paint(); });
+      paint();
+    });
   }
   async function migration(g, N, PL) {
     const m = N?.migr; if (!m) return "";
@@ -270,6 +351,7 @@
     if (s.some(Number.isFinite)) html += `<p class="pop-summary"><strong>${pp(s[last])}</strong> <span>osób na 1000 mieszkańców w ${y0 + last} r. (saldo migracji, na plusie = więcej osób się melduje, niż wymeldowuje)</span></p>${line(s, y0, { zero: true, ref: PL?.migr?.s1000 || [], unit: "‰" })}<p class="ext-legend"><span class="ext-sw"></span>gmina<span class="ext-sw dash"></span>Polska</p>`;
     if (zm + zw + wm + ww) html += `<div class="ext-mig"><div><b>Skąd przybywają</b><small>ostatnie 5 lat</small>${stackBar([{ n: "z miast", v: zm, c: "#0a84ff" }, { n: "ze wsi", v: zw, c: "#34c759" }, { n: "z zagranicy", v: zz, c: "#af52de" }], zm + zw + zz)}</div>
       <div><b>Dokąd wyjeżdżają</b><small>ostatnie 5 lat</small>${stackBar([{ n: "do miast", v: wm, c: "#0a84ff" }, { n: "na wieś", v: ww, c: "#34c759" }, { n: "za granicę", v: wz, c: "#af52de" }], wm + ww + wz)}</div></div>`;
+    html += migYears(m);
     const z = N.zam;
     if (z && z[0]) {
       const zp = PL?.zam;
@@ -331,7 +413,7 @@
     else if (category === "Warunki życia") html = housing(g, N, PL);
     if (!el.isConnected) return;
     el.insertAdjacentHTML("beforeend", html);
-    bindLines(el); bindForecast(el, g); bindTimeline(el); bindCommute(el);
+    bindLines(el); bindForecast(el, g); bindTimeline(el); bindMig(el); bindCommute(el);
   }
   window.GminaExtra = { fill, showFlows };
 })();

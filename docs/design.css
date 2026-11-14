@@ -411,3 +411,29 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .tl.est .pyr-bar.m i.base{background:repeating-linear-gradient(135deg,#0a84ff 0 4px,#5aa9ff 4px 7px)}.tl.est .pyr-bar.k i.base{background:repeating-linear-gradient(135deg,#ff375f 0 4px,#ff8aa0 4px 7px)}
 .tl-tag{display:inline-block;padding:2px 7px;border-radius:7px;background:#e8f5ec;color:#1e7b34;font-size:11px;font-weight:600;margin-right:4px}.tl-tag.est{background:#fff4e5;color:#a05a00}
 @media (prefers-reduced-motion:reduce){.tl .pyr-bar i.base{transition:none}}
+
+/* Animacje (motion.js); body.no-anim wyłącza wszystkie */
+.m-clip{transition:clip-path .9s cubic-bezier(.2,.7,.2,1)}.m-pre.m-clip{clip-path:inset(0 100% 0 0)}
+.m-pyr .pyr-bar{transition:transform .6s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0ms)}.m-pyr .pyr-bar.m{transform-origin:right center}.m-pyr .pyr-bar.k{transform-origin:left center}.m-pre.m-pyr .pyr-bar{transform:scaleX(0)}
+body.no-anim .m-clip,body.no-anim .m-pyr .pyr-bar,body.no-anim .tl .pyr-bar i.base{transition:none!important}body.no-anim .m-pre.m-clip{clip-path:none}body.no-anim .m-pre.m-pyr .pyr-bar{transform:none}
+/* Mapa w czasie */
+.stats-time-btn{display:inline-flex;align-items:center;gap:5px;border:0;background:#e8f0fe;color:#0a84ff;font:inherit;font-size:12.5px;font-weight:600;padding:6px 10px;border-radius:10px;cursor:pointer;white-space:nowrap}.stats-time-btn svg{width:13px;height:13px}.stats-time-btn[aria-pressed=true]{background:#0a84ff;color:#fff}.stats-time-btn:disabled{opacity:.4;cursor:default}
+.stats-time{margin:10px 0 2px;padding:10px;background:#f2f2f7;border-radius:14px;display:flex;flex-direction:column;gap:8px}
+.stats-time-row{display:flex;align-items:center;gap:9px}.stats-time-row input{flex:1;min-width:0;accent-color:#0a84ff}.stats-time-row b{font-size:17px;font-variant-numeric:tabular-nums;width:2.6em;text-align:right}
+.stats-time-play{flex:none;width:38px;height:38px;border-radius:50%;border:0;background:#0a84ff;color:#fff;display:grid;place-items:center;cursor:pointer}.stats-time-play svg{width:17px;height:17px}
+.stats-time-x{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:#fff;display:grid;place-items:center;cursor:pointer;color:#3a3a3c}.stats-time-x .ic{width:14px;height:14px}
+.stats-time-seg{display:flex}.stats-time-seg button{flex:1;font-size:12px;padding:5px 4px}
+body.stats-mini .stats-panel>#statsTime:not([hidden]){display:flex!important;margin-top:10px}body.stats-mini .stats-time-seg{display:none!important}
+.stats-controls{flex-wrap:wrap}
+.ext-chip .ext-chip-play{background:#e8f0fe;color:#0a84ff}
+
+/* Migracje rok po roku */
+.ext-mg{margin-top:12px}.ext-mg .tl-ctl{margin-bottom:8px}
+.mg-bars{display:flex;gap:2px;height:132px}
+.mg-col{flex:1;min-width:0;display:flex;flex-direction:column;border:0;background:none;padding:0;cursor:pointer;border-radius:4px;-webkit-tap-highlight-color:transparent}
+.mg-up,.mg-dn{flex:1;display:flex}.mg-up{align-items:flex-end;border-bottom:1px solid #c7c7cc}.mg-dn{align-items:flex-start}
+.mg-col i{display:block;width:100%;transition:opacity .2s}.mg-up i{background:#0a84ff;border-radius:3px 3px 0 0}.mg-dn i{background:#ff9500;border-radius:0 0 3px 3px}
+.mg-col:not(.on) i{opacity:.45}.mg-col.on{background:#e8f0fe}
+.mg-axis{display:flex;justify-content:space-between;font-size:10px;color:#8e8e93;margin-top:4px}.mg-key i{display:inline-block;width:8px;height:8px;border-radius:2px;margin:0 3px 0 6px}.mg-key i.up{background:#0a84ff}.mg-key i.dn{background:#ff9500}
+.mg-info{margin-top:10px;font-size:13px}
+.mg-lists{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mg-lists ul{list-style:none;margin:0;padding:0}.mg-lists li{display:grid;grid-template-columns:1fr auto 2.6em;gap:6px;font-size:12.5px;padding:2px 0}.mg-lists li.h{display:block;font-weight:600;color:#3a3a3c;margin-bottom:2px}.mg-lists small{color:#8e8e93;text-align:right}

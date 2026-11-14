@@ -15,13 +15,23 @@
  }
  async function select(id,fit=false){
   if(current!==id){current=id;revision++;data=null;render();}const run=revision,moves=gesture;if(!id)return false;
-  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit&&gesture===moves&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){app.frame(value.bbox,16);return true;}return true;}
+  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit&&gesture===moves&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){const anim=window.Motion?.on(),far=map.getZoom()<8.5;app.frame(value.bbox,16,anim?{duration:far?2300:1100}:{});if(anim)map.once('moveend',()=>{if(run===revision)flash();});return true;}if(window.Motion?.on())flash();return true;}
   catch(error){if(run===revision&&fit)app.toast('Granice gminy są chwilowo niedostępne');return false;}
+ }
+ // Short glow of the outline and fill when a gmina is shown (only with animations on).
+ let glow=0;
+ function flash(){
+  if(!map.getLayer('municipal-boundary-glow'))return;const id=++glow,t0=performance.now(),dur=1700;
+  const step=now=>{if(id!==glow||!map.getLayer('municipal-boundary-glow'))return;const t=Math.min(1,(now-t0)/dur),a=Math.sin(Math.PI*t);
+   map.setPaintProperty('municipal-boundary-glow','line-opacity',.55*a);map.setPaintProperty('municipal-boundary-fill','fill-opacity',.06+.16*a);
+   if(t<1)requestAnimationFrame(step);};
+  requestAnimationFrame(step);
  }
  function initialize(){
   app.registerOverlaySource('municipal-boundaries');map.addSource('municipal-boundaries',{type:'geojson',data:empty(),attribution:'© GUGiK · PRG'});
   map.addLayer({id:'municipal-boundary-fill',type:'fill',source:'municipal-boundaries',paint:{'fill-color':['match',['get','kind'],'miasto','#8b5cf6','#087cfc'],'fill-opacity':.06}},map.getLayer('dz-fill')?'dz-fill':undefined);
   map.addLayer({id:'municipal-boundary-line',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'gmina'],paint:{'line-color':'#087cfc','line-width':3}});
+  map.addLayer({id:'municipal-boundary-glow',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'gmina'],paint:{'line-color':'#087cfc','line-width':16,'line-blur':10,'line-opacity':0}},'municipal-boundary-line');
   map.addLayer({id:'municipal-city-line',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'miasto'],paint:{'line-color':'#8b5cf6','line-width':2.5,'line-dasharray':[3,2]}});render();
  }
  if(map.loaded())initialize();else map.once('load',initialize);

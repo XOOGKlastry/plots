@@ -323,7 +323,7 @@
   function addressAt(e){const r=isMobile()?18:9,box=[[e.point.x-r,e.point.y-r],[e.point.x+r,e.point.y+r]],layers=['adr-pt','adr-hit','adr-lbl'].filter(id=>map.getLayer(id));if(!layers.length)return null;const hit=AddressPicking.closest(map.queryRenderedFeatures(box,{layers}),e.point,c=>map.project(c));if(!hit)return null;const p={...hit.properties,lon:hit.geometry.coordinates[0],lat:hit.geometry.coordinates[1]};return {...p,label:adrText(p)};}
   function padding() { const distance=window.DistanceModule?.isOpen();return isMobile() ? { top: distance?150:140, bottom: distance?window.DistanceModule.height()+35:visibleSheet()+80, left:24,right:65 } : { top:90,bottom:40,left:distance?380:document.body.classList.contains("collapsed")?40:380,right:70 }; }
 
-  function frame(bounds,maxZoom=18) {if(isMobile()&&visibleSheet()>window.innerHeight*.6)snap('peek');map.stop();map.setPadding({top:0,bottom:0,left:0,right:0});map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]],{padding:padding(),maxZoom,duration:650,retainPadding:false});}
+  function frame(bounds,maxZoom=18,opts={}) {if(isMobile()&&visibleSheet()>window.innerHeight*.6)snap('peek');map.stop();map.setPadding({top:0,bottom:0,left:0,right:0});map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]],{padding:padding(),maxZoom,duration:opts.duration||650,retainPadding:false});}
   function framePoint(lon,lat,zoom=18){frame([lon-.00003,lat-.00003,lon+.00003,lat+.00003],zoom);}
   async function showAddress(p) {
     if(window.DistanceModule?.isOpen()){window.DistanceModule.setOrigin({...p,label:adrText(p)});framePoint(+p.lon,+p.lat,16);return;}
