@@ -1,5 +1,5 @@
 {
- "built": "2026-11-14T12:22Z",
+ "built": "2026-11-14T16:23Z",
  "regions": [
   {
    "id": "slask",
@@ -14,23 +14,23 @@
     "rob": {
      "file": "slask-rob.bin.gz",
      "date": "20261118",
-     "trips": 23918,
-     "stops": 8402,
-     "bytes": 318070
+     "trips": 32329,
+     "stops": 13028,
+     "bytes": 443982
     },
     "sob": {
      "file": "slask-sob.bin.gz",
      "date": "20261121",
-     "trips": 15115,
-     "stops": 7751,
-     "bytes": 244035
+     "trips": 20128,
+     "stops": 11764,
+     "bytes": 334035
     },
     "nie": {
      "file": "slask-nie.bin.gz",
      "date": "20261115",
-     "trips": 13839,
-     "stops": 7584,
-     "bytes": 232296
+     "trips": 17866,
+     "stops": 11514,
+     "bytes": 317194
     }
    },
    "sources": [
@@ -39,8 +39,48 @@
      "url": "https://mkuran.pl/gtfs/gzm.zip"
     },
     {
-     "name": "PKP PLK i przewoźnicy kolejowi",
+     "name": "Kolej: PKP PLK i przewoźnicy (PKP Intercity, Koleje Śląskie, POLREGIO i inni)",
      "url": "https://mkuran.pl/gtfs/polish_trains.zip"
+    },
+    {
+     "name": "MPK Częstochowa",
+     "url": "https://api.zbiorkom.live/api6-open/czestochowa/gtfs/default"
+    },
+    {
+     "name": "Komunikacja Miejska Rybnik",
+     "url": "https://api.zbiorkom.live/api6-open/rybnik/gtfs/default"
+    },
+    {
+     "name": "MZK Bielsko-Biała",
+     "url": "https://files.girlc.at/gtfs/bielsko_biala.zip"
+    },
+    {
+     "name": "Wodzisławska Komunikacja Powiatowa",
+     "url": "https://files.girlc.at/gtfs/powiat_wodzislawski.zip"
+    },
+    {
+     "name": "ZGK Cieszyn",
+     "url": "https://api.zbiorkom.live/api6-open/cieszyn/gtfs/default"
+    },
+    {
+     "name": "MZK Żywiec",
+     "url": "https://api.zbiorkom.live/api6-open/zywiec/gtfs/default"
+    },
+    {
+     "name": "Komunikacja Gminna Ornontowice",
+     "url": "https://feed.gtfs.cc/ornontowice/gtfs.zip"
+    },
+    {
+     "name": "MZK Oświęcim",
+     "url": "https://api.zbiorkom.live/api6-open/oswiecim/gtfs/default"
+    },
+    {
+     "name": "Komunikacja Międzygminna Chrzanów",
+     "url": "https://data.odt.org.pl/gtfs/zkkm-gtfs.zip"
+    },
+    {
+     "name": "Komunikacja Międzygminna Olkusz",
+     "url": "https://data.odt.org.pl/gtfs/olkusz-gtfs.zip"
     }
    ]
   }

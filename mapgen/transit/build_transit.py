@@ -13,7 +13,18 @@ REGIONS = [
     {"id": "slask", "name": "Śląskie", "bbox": [18.0, 49.35, 19.98, 51.12],
      "feeds": [
          {"id": "gzm", "name": "ZTM, Górnośląsko-Zagłębiowska Metropolia", "url": "https://mkuran.pl/gtfs/gzm.zip", "clip": False},
-         {"id": "kolej", "name": "PKP PLK i przewoźnicy kolejowi", "url": "https://mkuran.pl/gtfs/polish_trains.zip", "clip": True},
+         {"id": "kolej", "name": "Kolej: PKP PLK i przewoźnicy (PKP Intercity, Koleje Śląskie, POLREGIO i inni)", "url": "https://mkuran.pl/gtfs/polish_trains.zip", "clip": True},
+         {"id": "czestochowa", "name": "MPK Częstochowa", "url": "https://api.zbiorkom.live/api6-open/czestochowa/gtfs/default", "clip": False},
+         {"id": "rybnik", "name": "Komunikacja Miejska Rybnik", "url": "https://api.zbiorkom.live/api6-open/rybnik/gtfs/default", "clip": False},
+         {"id": "jastrzebie", "name": "MZK Jastrzębie-Zdrój", "url": "https://cdn.zbiorkom.live/gtfs/rybnik-jastrzebie.zip", "clip": False},
+         {"id": "bielsko", "name": "MZK Bielsko-Biała", "url": "https://files.girlc.at/gtfs/bielsko_biala.zip", "clip": False},
+         {"id": "wodzislaw", "name": "Wodzisławska Komunikacja Powiatowa", "url": "https://files.girlc.at/gtfs/powiat_wodzislawski.zip", "clip": False},
+         {"id": "cieszyn", "name": "ZGK Cieszyn", "url": "https://api.zbiorkom.live/api6-open/cieszyn/gtfs/default", "clip": False},
+         {"id": "zywiec", "name": "MZK Żywiec", "url": "https://api.zbiorkom.live/api6-open/zywiec/gtfs/default", "clip": False},
+         {"id": "ornontowice", "name": "Komunikacja Gminna Ornontowice", "url": "https://feed.gtfs.cc/ornontowice/gtfs.zip", "clip": False},
+         {"id": "oswiecim", "name": "MZK Oświęcim", "url": "https://api.zbiorkom.live/api6-open/oswiecim/gtfs/default", "clip": True},
+         {"id": "chrzanow", "name": "Komunikacja Międzygminna Chrzanów", "url": "https://data.odt.org.pl/gtfs/zkkm-gtfs.zip", "clip": True},
+         {"id": "olkusz", "name": "Komunikacja Międzygminna Olkusz", "url": "https://data.odt.org.pl/gtfs/olkusz-gtfs.zip", "clip": True},
      ]},
 ]
 DAYS = [("rob", 2, "dzień roboczy"), ("sob", 5, "sobota"), ("nie", 6, "niedziela")]
@@ -134,7 +145,7 @@ def write_region(region, key, date, day_name, feeds_data, outdir):
     header = {"v": 1, "region": region["id"], "name": region["name"], "day": key, "dayName": day_name, "date": date,
               "nStops": len(names), "nTrips": len(troute), "nRoutes": len(routes), "nTimes": len(sidx),
               "routes": routes, "names": names, "feeds": [f["name"] for f, _ in feeds_data],
-              "built": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ")}
+              "built": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")}
     hb = json.dumps(header, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     hb += b" " * (-len(hb) % 4)
     body = b"PTR1" + struct.pack("<I", len(hb)) + hb
@@ -156,20 +167,25 @@ def main():
     cache = sys.argv[sys.argv.index("--cache") + 1] if "--cache" in sys.argv else os.path.join(outdir, "_gtfs")
     os.makedirs(outdir, exist_ok=True); os.makedirs(cache, exist_ok=True)
     dates = pick_dates(dt.date.today() + dt.timedelta(days=1))
-    index = {"built": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"), "regions": []}
+    index = {"built": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "regions": []}
     for region in REGIONS:
         feeds_data = []
         for feed in region["feeds"]:
             t = time.time()
-            z = fetch(feed, cache)
-            feeds_data.append((feed, load_feed(feed, z, dates, region["bbox"])))
-            print(f"{region['id']} {feed['id']}: {time.time() - t:.0f} s", flush=True)
+            try:
+                z = fetch(feed, cache)
+                data = load_feed(feed, z, dates, region["bbox"])
+            except Exception as e:  # one broken source must not stop the whole region
+                print(f"{region['id']} {feed['id']}: POMINIĘTE ({e})", flush=True)
+                continue
+            feeds_data.append((feed, data))
+            print(f"{region['id']} {feed['id']}: {time.time() - t:.0f} s, kursy {', '.join(str(len(v)) for v in data[0].values())}", flush=True)
         days = {}
         for key, _, day_name in DAYS:
             days[key] = write_region(region, key, dates[key], day_name, feeds_data, outdir)
             print(" ", days[key], flush=True)
         index["regions"].append({"id": region["id"], "name": region["name"], "bbox": region["bbox"], "days": days,
-                                 "sources": [{"name": f["name"], "url": f["url"]} for f in region["feeds"]]})
+                                 "sources": [{"name": f["name"], "url": f["url"]} for f, _ in feeds_data]})
     with open(os.path.join(outdir, "index.json"), "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=1)
 

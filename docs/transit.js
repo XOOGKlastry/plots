@@ -18,16 +18,17 @@
   { const d = new Date(), m = d.getHours() * 60 + Math.ceil(d.getMinutes() / 5) * 5; state.time = (m >= 240 && m <= 1380 ? m : 450) * 60; }
 
   /* ---------- data ---------- */
+  // Own gzip decoder (gunzip-lite.js): works on every phone, also where the browser has no DecompressionStream.
   async function gunzip(response) {
-    if (!("DecompressionStream" in window)) throw Error("Ta przeglądarka nie obsługuje rozpakowywania danych");
-    return new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    const u = new Uint8Array(await response.arrayBuffer());
+    return u[0] === 0x1f && u[1] === 0x8b ? window.GunzipLite.gunzip(u).buffer : u.buffer;
   }
   let indexPromise = null;
   const loadIndex = () => indexPromise || (indexPromise = fetch(BASE + "index.json", { cache: "no-cache" }).then(r => { if (!r.ok) throw Error("HTTP " + r.status); return r.json(); }).catch(e => { indexPromise = null; throw e; }));
   const nets = new Map();
-  function loadNet(region, day) {
+  function loadNet(region, day, built) {
     const key = region.id + "-" + day;
-    if (!nets.has(key)) nets.set(key, fetch(BASE + region.days[day].file + "?v=" + encodeURIComponent(region.days[day].date), { cache: "force-cache" })
+    if (!nets.has(key)) nets.set(key, fetch(BASE + region.days[day].file + "?v=" + encodeURIComponent(built || region.days[day].date))
       .then(r => { if (!r.ok) throw Error("HTTP " + r.status); return gunzip(r); }).then(parseNet).catch(e => { nets.delete(key); throw e; }));
     return nets.get(key);
   }
@@ -44,21 +45,22 @@
     for (let i = 0; i < h.nStops; i++) { X[i] = R * lon[i] / 1e6 * RAD * k; Y[i] = R * Math.log(Math.tan(Math.PI / 4 + lat[i] / 2e6 * RAD)) * k; }
     // Connections (stop i -> stop i+1 of every trip), sorted by departure.
     const nC = h.nTimes - h.nTrips, dep = new Int32Array(nC), arr = new Int32Array(nC), from = new Uint16Array(nC), to = new Uint16Array(nC), trip = new Uint32Array(nC), fl = new Uint8Array(nC);
-    const stopRoutes = Array.from({ length: h.nStops }, () => null);
+    const stopRoutes = Array.from({ length: h.nStops }, () => null), rail = new Uint8Array(h.nStops), counts = { rail: 0, other: 0 };
     let c = 0;
     for (let t = 0; t < h.nTrips; t++) {
+      const isRail = h.routes[tripRoute[t]][1] === 2; counts[isRail ? "rail" : "other"]++;
       let time = t0[t] - run[start[t]], prevDep = 0;
       for (let i = start[t]; i < start[t + 1]; i++) {
         const a = time + run[i], d = a + dwell[i];
         if (i > start[t]) { dep[c] = prevDep; arr[c] = a; from[c] = sidx[i - 1]; to[c] = sidx[i]; trip[c] = t; fl[c] = (flags[i - 1] & 1) | (flags[i] & 2); c++; }
-        const s = sidx[i]; (stopRoutes[s] || (stopRoutes[s] = new Set())).add(tripRoute[t]);
+        const s = sidx[i]; (stopRoutes[s] || (stopRoutes[s] = new Set())).add(tripRoute[t]); if (isRail) rail[s] = 1;
         prevDep = d; time = d;
       }
     }
     const order = new Uint32Array(nC); for (let i = 0; i < nC; i++) order[i] = i;
     order.sort((a, b) => dep[a] - dep[b]);
     const pick = (src, T) => { const out = new T(nC); for (let i = 0; i < nC; i++) out[i] = src[order[i]]; return out; };
-    const net = { h, k, lat0, X, Y, nC, dep: pick(dep, Int32Array), arr: pick(arr, Int32Array), from: pick(from, Uint16Array), to: pick(to, Uint16Array), trip: pick(trip, Uint32Array), fl: pick(fl, Uint8Array), stopRoutes };
+    const net = { h, k, lat0, X, Y, nC, dep: pick(dep, Int32Array), arr: pick(arr, Int32Array), from: pick(from, Uint16Array), to: pick(to, Uint16Array), trip: pick(trip, Uint32Array), fl: pick(fl, Uint8Array), stopRoutes, rail, counts };
     // Stops hashed into 400 m boxes: walking transfers and "stops near a point".
     const hash = new Map(), hk = i => Math.floor(X[i] / TRANSFER_M) * 100003 + Math.floor(Y[i] / TRANSFER_M);
     for (let i = 0; i < h.nStops; i++) { const key = hk(i); (hash.get(key) || hash.set(key, []).get(key)).push(i); }
@@ -147,13 +149,35 @@
     }
     if (map.getLayer(SRC)) map.setLayoutProperty(SRC, "visibility", "visible");
   }
-  function hide() { if (map.getLayer(SRC)) map.setLayoutProperty(SRC, "visibility", "none"); }
-  map.on("styledata", () => { if (state.active && lastImage && !map.getSource(SRC)) setTimeout(() => { if (!map.getSource(SRC)) show(); }, 150); });
+  /* Railway stations inside the reach, with the travel time: makes the trains visible on the map. */
+  const STA = "transit-stations";
+  let lastStations = null;
+  function stationsIn(net, arrive, t0) {
+    const best = new Map();
+    for (let i = 0; i < arrive.length; i++) { if (!net.rail[i] || arrive[i] === INF) continue; const nm = net.h.names[i], m = (arrive[i] - t0) / 60, b = best.get(nm); if (!b || m < b.m) best.set(nm, { nm, m, i }); }
+    return [...best.values()].sort((a, b) => a.m - b.m);
+  }
+  function drawStations(net, list) {
+    lastStations = { type: "FeatureCollection", features: list.map(s => ({ type: "Feature", properties: { label: `${s.nm}\n${Math.max(1, Math.round(s.m))} min`, m: s.m }, geometry: { type: "Point", coordinates: unproject(net, net.X[s.i], net.Y[s.i]) } })) };
+    showStations();
+  }
+  function showStations() {
+    if (!lastStations || !state.active) return;
+    if (map.getSource(STA)) map.getSource(STA).setData(lastStations);
+    else {
+      map.addSource(STA, { type: "geojson", data: lastStations });
+      map.addLayer({ id: STA, type: "circle", source: STA, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3, 12, 5.5], "circle-color": "#fff", "circle-stroke-color": "#1c1c1e", "circle-stroke-width": 2 } });
+      if (map.getStyle().glyphs) map.addLayer({ id: STA + "-lbl", type: "symbol", source: STA, layout: { "text-field": ["get", "label"], "text-font": ["Noto Sans Regular"], "text-size": 11, "text-offset": [0, .9], "text-anchor": "top", "text-max-width": 9, "symbol-sort-key": ["get", "m"] }, paint: { "text-color": "#1c1c1e", "text-halo-color": "#fff", "text-halo-width": 1.8 } });
+    }
+    for (const id of [STA, STA + "-lbl"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible");
+  }
+  function hide() { for (const id of [SRC, STA, STA + "-lbl"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none"); }
+  map.on("styledata", () => { if (state.active && lastImage && !map.getSource(SRC)) setTimeout(() => { if (!map.getSource(SRC)) show(); if (!map.getSource(STA)) showStations(); }, 150); });
 
   /* ---------- what is inside the reach ---------- */
   const popCache = new Map();
   function loadPop(region) {
-    if (!popCache.has(region.id)) popCache.set(region.id, fetch(BASE + region.id + "-lud.bin.gz", { cache: "force-cache" }).then(r => { if (!r.ok) throw Error(r.status); return gunzip(r); }).then(buf => {
+    if (!popCache.has(region.id)) popCache.set(region.id, fetch(BASE + region.id + "-lud.bin.gz").then(r => { if (!r.ok) throw Error(r.status); return gunzip(r); }).then(buf => {
       const n = new DataView(buf).getUint32(4, true); return { n, lon: new Int32Array(buf, 8, n), lat: new Int32Array(buf, 8 + 4 * n, n), pop: new Uint16Array(buf, 8 + 8 * n, n) };
     }).catch(() => null));
     return popCache.get(region.id);
@@ -217,20 +241,21 @@
     if (!region) { status(`Rozkłady są na razie dostępne dla: ${index.regions.map(r => r.name).join(", ")}. Wskaż punkt w tym regionie.`); document.getElementById("trResult").innerHTML = ""; hide(); return; }
     document.getElementById("trSources").innerHTML = `<p>Rozkłady jazdy: ${region.sources.map(s => esc(s.name)).join("; ")}. Opracowanie plików GTFS: mkuran.pl. Stan na ${esc(index.built.slice(0, 10))}, dzień ${esc(region.days[state.day].date.replace(/(\d{4})(\d\d)(\d\d)/, "$3.$2.$1"))}. Mieszkańcy: GUS, Narodowy Spis Powszechny 2021.</p>`;
     if (!nets.has(region.id + "-" + state.day)) status("Wczytuję rozkłady…");
-    let net; try { net = await loadNet(region, state.day); } catch (e) { if (my === seq) status("Nie udało się wczytać rozkładu: " + e.message); return; }
+    let net; try { net = await loadNet(region, state.day, index.built); } catch (e) { if (my === seq) status("Nie udało się wczytać rozkładu: " + e.message); return; }
     if (my !== seq) return;
     const t = performance.now(), [ox, oy] = project(net, origin.lon, origin.lat);
     const arrive = scan(net, ox, oy, state.time, state.limit), g = raster(net, ox, oy, state.time, state.limit, arrive);
     const bounds = draw(net, g, state.limit), ms = Math.round(performance.now() - t);
+    const stations = stationsIn(net, arrive, state.time); drawStations(net, stations);
     current = { net, g, region, origin, bounds };
     status("");
     const key = origin.lon + "," + origin.lat + "," + state.limit;
     if (state.fitted !== key) { state.fitted = key; const mobile = app.isMobile?.(); map.fitBounds(bounds, { padding: mobile ? { top: 90, left: 20, right: 20, bottom: Math.min(innerHeight * .62, (document.getElementById("distancePanel")?.offsetHeight || 300)) + 20 } : { top: 60, bottom: 60, right: 60, left: 400 }, duration: window.Motion?.on() ? 600 : 0, maxZoom: 13 }); }
     const pop = await loadPop(region); if (my !== seq) return;
-    renderResult(net, g, region, origin, arrive, pop, ms);
+    renderResult(net, g, region, origin, arrive, pop, ms, stations);
     if (!quick) { countPoi(my, net, g, bounds); dayChart(my, net, ox, oy, pop); }
   }
-  function renderResult(net, g, region, origin, arrive, pop, ms) {
+  function renderResult(net, g, region, origin, arrive, pop, ms, stations) {
     const band = bandOf(state.limit), cols = bandColors(state.limit), area = new Float64Array(cols.length), people = popByBand(net, g, pop, state.limit);
     for (let i = 0; i < g.T.length; i++) if (g.T[i] !== 65535) area[Math.min(cols.length - 1, Math.floor(g.T[i] / band))] += CELL * CELL / 1e6;
     let a = 0, p = 0; const rows = cols.map((c, i) => { a += area[i]; if (people) p += people[i]; const m = Math.min(state.limit, (i + 1) * band) / 60; return `<tr><td><i style="background:${c}"></i>do ${m} min</td><td>${a < 10 ? a.toFixed(1).replace(".", ",") : fmt(a)} km²</td>${people ? `<td>${fmt(p)}</td>` : ""}</tr>`; }).join("");
@@ -243,9 +268,15 @@
     const kind = t => t === 0 ? "tram" : t === 2 ? "train" : t === 11 ? "bus" : "bus";
     const lineChips = set => { const all = [...set].map(r => net.h.routes[r]).sort((x, y) => x[1] - y[1] || String(x[0]).localeCompare(String(y[0]), "pl", { numeric: true })); return all.slice(0, 10).map(r => `<span class="tr-line t${r[1]}">${esc(r[0])}</span>`).join("") + (all.length > 10 ? `<span class="tr-line more">+${all.length - 10}</span>` : ""); };
     const stopsHTML = stops.length ? `<h4>Najbliższe przystanki</h4><ul class="tr-stops">${stops.map(s => `<li>${window.Icons.svg(kind(Math.min(...[...s.routes].map(r => net.h.routes[r][1]))))}<div><b>${esc(s.nm)}</b><small>${Math.max(1, Math.round(s.d * DETOUR / WALK / 60))} min pieszo · ${fmt(s.d * DETOUR)} m</small><div class="tr-lines">${lineChips(s.routes)}</div></div></li>`).join("")}</ul>` : `<p class="source-note">W promieniu 800 m nie ma przystanku z kursami tego dnia.</p>`;
+    // Trains: the nearest station and the stations inside the reach.
+    let nearSt = null;
+    for (let i = 0; i < net.h.nStops; i++) { if (!net.rail[i]) continue; const d = Math.hypot(net.X[i] - ox, net.Y[i] - oy); if (!nearSt || d < nearSt.d) nearSt = { d, i }; }
+    const walkTxt = d => d * DETOUR / WALK <= 1800 ? `${Math.max(1, Math.round(d * DETOUR / WALK / 60))} min pieszo` : `${(d / 1000).toFixed(1).replace(".", ",")} km stąd`;
+    const railHTML = `<h4>Kolej</h4>` + (nearSt && nearSt.d < 15000 ? `<ul class="tr-stops"><li>${window.Icons.svg("train")}<div><b>${esc(net.h.names[nearSt.i])}</b><small>najbliższa stacja · ${walkTxt(nearSt.d)}</small><div class="tr-lines">${lineChips(new Set([...net.stopRoutes[nearSt.i]].filter(r => net.h.routes[r][1] === 2)))}</div></div></li></ul>` : "") +
+      (stations.length ? `<p class="source-note">Stacje w zasięgu ${state.limit / 60} min (czas od startu):</p><div class="tr-poi">${stations.slice(0, 14).map(s => `<span class="tr-chip st"><b>${Math.max(1, Math.round(s.m))} min</b> ${esc(s.nm)}</span>`).join("")}${stations.length > 14 ? `<span class="tr-chip st">+${stations.length - 14}</span>` : ""}</div>` : `<p class="source-note">W tym czasie nie dojedziesz stąd do żadnej stacji kolejowej.</p>`);
     document.getElementById("trResult").innerHTML = `<p class="tr-head">Wyjazd o <b>${hhmm(state.time)}</b>, ${DAY_LABEL[state.day].toLowerCase()}${people ? `: w ${state.limit / 60} min dojedziesz do <b>${fmt(p)}</b> mieszkańców` : ""}.</p>
       <table class="tr-table"><thead><tr><th>Czas dojazdu</th><th>Obszar</th>${people ? "<th>Mieszkańcy</th>" : ""}</tr></thead><tbody>${rows}</tbody></table>
-      <div id="trPoi" class="tr-poi"></div><div id="trDay"></div>${stopsHTML}<small class="tr-ms">obliczono w ${ms} ms</small>`;
+      ${railHTML}<div id="trPoi" class="tr-poi"></div><div id="trDay"></div>${stopsHTML}<small class="tr-ms">W obliczeniu ${fmt(net.counts.other)} kursów autobusów, tramwajów i trolejbusów oraz ${fmt(net.counts.rail)} kursów pociągów. Obliczono w ${ms} ms.</small>`;
   }
   async function countPoi(my, net, g, bounds) {
     const out = [];
