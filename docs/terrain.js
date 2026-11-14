@@ -14,7 +14,22 @@
   const FUN = { GOSP: "gospodarczy", OCHR: "ochronny", REZ: "rezerwat", "OCH": "ochronny" };
   const KAT = { I: "dom jednorodzinny", XIII: "budynek wielorodzinny", XVII: "budynek przemysłowy", XVIII: "magazyn", XVI: "budynek handlowy lub biurowy", XIV: "hotel", XII: "budynek użyteczności publicznej", IX: "kultura, nauka, sport", XI: "szkoła, szpital", II: "budynek gospodarczy", III: "budynek gospodarczy", IV: "budynek gospodarczy", XXX: "stacja paliw", XXVIII: "elektrownia" };
   const katName = k => KAT[k] || "inny obiekt";
-  const katColor = ["match", ["get", "kat"], "I", "#2e7d32", "XIII", "#1565c0", ["XVII", "XVIII"], "#6d4c41", ["XVI", "XIV", "XII", "IX", "XI"], "#8e24aa", "#9e9e9e"];
+  /* Nowe inwestycje: kwadratowe znaczki z budynkiem, żeby nie myliły się z okrągłymi znaczkami usług z modułu odległości. */
+  const GLYPH = {"house": "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z", "buildings": "M240,208H224V96a16,16,0,0,0-16-16H144V32a16,16,0,0,0-24.88-13.32L39.12,72A16,16,0,0,0,32,85.34V208H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM208,96V208H144V96ZM48,85.34,128,32V208H48ZM112,112v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm-32,0v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm0,56v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Zm32,0v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Z", "factory": "M116,176a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16h28A8,8,0,0,1,116,176Zm60-8H148a8,8,0,0,0,0,16h28a8,8,0,0,0,0-16Zm64,48a8,8,0,0,1-8,8H24a8,8,0,0,1,0-16h8V88a8,8,0,0,1,12.8-6.4L96,120V88a8,8,0,0,1,12.8-6.4l38.74,29.05L159.1,29.74A16.08,16.08,0,0,1,174.94,16h18.12A16.08,16.08,0,0,1,208.9,29.74l15,105.13s.08.78.08,1.13v72h8A8,8,0,0,1,240,216Zm-77.86-94.4,8.53,6.4h36.11L193.06,32H174.94ZM48,208H208V144H168a8,8,0,0,1-4.8-1.6l-14.4-10.8,0,0L112,104v32a8,8,0,0,1-12.8,6.4L48,104Z", "storefront": "M232,96a7.89,7.89,0,0,0-.3-2.2L217.35,43.6A16.07,16.07,0,0,0,202,32H54A16.07,16.07,0,0,0,38.65,43.6L24.31,93.8A7.89,7.89,0,0,0,24,96h0v16a40,40,0,0,0,16,32v72a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V144a40,40,0,0,0,16-32V96ZM54,48H202l11.42,40H42.61Zm50,56h48v8a24,24,0,0,1-48,0Zm-16,0v8a24,24,0,0,1-35.12,21.26,7.88,7.88,0,0,0-1.82-1.06A24,24,0,0,1,40,112v-8ZM200,208H56V151.2a40.57,40.57,0,0,0,8,.8,40,40,0,0,0,32-16,40,40,0,0,0,64,0,40,40,0,0,0,32,16,40.57,40.57,0,0,0,8-.8Zm4.93-75.8a8.08,8.08,0,0,0-1.8,1.05A24,24,0,0,1,168,112v-8h48v8A24,24,0,0,1,204.93,132.2Z", "crane": "M228.12,17.14a8,8,0,0,0-7.88-.2L102,80H32A16,16,0,0,0,16,96V200a16,16,0,0,0,16,16h88a16,16,0,0,0,16-16V168a7.81,7.81,0,0,0-.34-2.3L113.54,92,216,37.33V160H200v-8a8,8,0,0,0-16,0v8a16,16,0,0,0,16,16h16a16,16,0,0,0,16-16V24A8,8,0,0,0,228.12,17.14ZM98.05,96l19.2,64H64V96ZM48,96v64H32V96ZM32,200h0V176h88v24Z"};
+  const GUNB = [["dom", "#2e7d32", "house", "domy"], ["blok", "#1565c0", "buildings", "bloki"], ["prz", "#6d4c41", "factory", "przemysł, magazyny"], ["usl", "#8e24aa", "storefront", "usługi"], ["inne", "#757575", "crane", "inne"]];
+  const gunbKey = ["match", ["get", "kat"], "I", "gunb-dom", "XIII", "gunb-blok", ["XVII", "XVIII"], "gunb-prz", ["XVI", "XIV", "XII", "IX", "XI"], "gunb-usl", "gunb-inne"];
+  const SQ = 22, SPR = 2, sqCache = {};
+  function sqBadge(col, glyph) {
+    const n = SQ * SPR, c = document.createElement("canvas"); c.width = c.height = n; const x = c.getContext("2d");
+    const rr = (o, rad) => { x.beginPath(); x.roundRect(o, o, n - 2 * o, n - 2 * o, rad); };
+    x.shadowColor = "rgba(0,0,0,.3)"; x.shadowBlur = 2 * SPR; x.shadowOffsetY = SPR * .6; rr(1.5 * SPR, 5 * SPR); x.fillStyle = "#fff"; x.fill();
+    x.shadowColor = "transparent"; rr(3 * SPR, 3.6 * SPR); x.fillStyle = col; x.fill();
+    const k = (12.5 * SPR) / 256; x.save(); x.translate(n / 2 - 128 * k, n / 2 - 128 * k); x.scale(k, k); x.fillStyle = "#fff"; x.fill(new Path2D(GLYPH[glyph])); x.restore();
+    return c;
+  }
+  const sqUrl = (col, glyph) => sqCache[glyph] || (sqCache[glyph] = sqBadge(col, glyph).toDataURL());
+  function addGunbImages() { for (const [id, col, glyph] of GUNB) if (!map.hasImage("gunb-" + id)) { const c = sqBadge(col, glyph); map.addImage("gunb-" + id, c.getContext("2d").getImageData(0, 0, c.width, c.height), { pixelRatio: SPR }); } }
+  map.on("styleimagemissing", e => { if (e.id.startsWith("gunb-")) addGunbImages(); });
   const spisModes = {
     gest: { label: "Gęstość", unit: "os./km²", field: "gest", stops: [50, 150, 500, 1500, 4000, 10000], colors: ["#fff5eb", "#fdd0a2", "#fdae6b", "#fd8d3c", "#e6550d", "#a63603", "#6b2104"] },
     senior: { label: "Seniorzy", unit: "% w wieku poprodukcyjnym", field: "p_senior", stops: [15, 20, 25, 30, 35], colors: ["#f2f0f7", "#dadaeb", "#bcbddc", "#9e9ac8", "#756bb1", "#54278f"] },
@@ -37,8 +52,9 @@
       ids: ["terr-spis", "terr-spis-lbl", "terr-spis-sel"], legend: spisLegend },
     { id: "gunb", label: "Nowe inwestycje", desc: "Pozwolenia na budowę i zgłoszenia od 2021 r. (GUNB)", kw: "pozwolenia na budowę inwestycje gunb zgłoszenia budowy deweloper",
       add() { map.addSource("terr-gunb", { type: "vector", tiles: [BASE + "/tiles/gunb/{z}/{x}/{y}.pbf"], minzoom: 12, maxzoom: 16, attribution: "GUNB, RWDZ" });
-        map.addLayer({ id: "terr-gunb", type: "circle", source: "terr-gunb", "source-layer": "gunb", paint: { "circle-color": katColor, "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 2.5, 16, 6], "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": .9 } }); },
-      ids: ["terr-gunb"], legend: () => legendRow(["#2e7d32", "#1565c0", "#6d4c41", "#8e24aa", "#9e9e9e"], ["domy", "bloki", "przemysł, magazyny", "usługi", "inne"]) + `<small class="terr-unit">Widoczne po przybliżeniu. Punkt to środek działki z wniosku.</small>` },
+        addGunbImages();
+        map.addLayer({ id: "terr-gunb", type: "symbol", source: "terr-gunb", "source-layer": "gunb", layout: { "icon-image": gunbKey, "icon-size": ["interpolate", ["linear"], ["zoom"], 12, .5, 14, .75, 17, 1], "icon-allow-overlap": ["step", ["zoom"], false, 15, true], "icon-padding": 0 } }); },
+      ids: ["terr-gunb"], legend: () => `<div class="terr-legend">${GUNB.map(([, col, glyph, lab]) => `<span><img class="terr-sq" src="${sqUrl(col, glyph)}" alt="">${esc(lab)}</span>`).join("")}</div>` + `<small class="terr-unit">Widoczne po przybliżeniu. Punkt to środek działki z wniosku.</small>` },
     { id: "egms", label: "Ruchy terenu", desc: "Osiadanie i wypiętrzanie 2016–2020 (Copernicus EGMS)", kw: "osiadanie ruchy terenu szkody górnicze egms satelita",
       add() { map.addSource("terr-egms", { type: "raster", tiles: [BASE + "/tiles/egms/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 13, attribution: "Copernicus EGMS · PIG-PIB" });
         map.addLayer({ id: "terr-egms", type: "raster", source: "terr-egms", paint: { "raster-opacity": .8 } }, firstSymbol()); },

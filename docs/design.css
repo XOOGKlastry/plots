@@ -442,3 +442,7 @@ body.stats-mini .stats-panel>#statsTime:not([hidden]){display:flex!important;mar
 .ext-chip{padding:0;background:none;box-shadow:none}
 .ext-chip .ext-back{display:inline-flex;align-items:center;gap:6px;width:auto;height:auto;border-radius:14px;background:#fff;color:#0a84ff;font:inherit;font-size:14px;font-weight:600;padding:10px 16px 10px 12px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
 .ext-chip .ext-back .ic{width:16px;height:16px}
+
+/* Teren i otoczenie: kwadratowe, ziemiste znaczki (moduł odległości ma okrągłe) */
+.terr-row>svg{width:30px;height:30px;padding:6px;box-sizing:border-box;border-radius:8px;background:#f3ece2;color:#8a5a2b;margin-top:0}
+.terr-legend img.terr-sq{width:16px;height:16px;display:inline-block}

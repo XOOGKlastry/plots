@@ -53,5 +53,6 @@
     }catch(error){if(current===revision&&el.isConnected)el.innerHTML=`<p class="inline-error">${esc(error.name==='AbortError'?'Dojście jest chwilowo niedostępne. Wybierz kategorię, aby spróbować ponownie.':error.message)}</p>`;}finally{clearTimeout(timeout);}
   }
   document.addEventListener('click',e=>{const facility=e.target.closest('[data-facility]');if(facility){const point=currentResults[Number(facility.dataset.facility)];if(point)window.DistanceModule?.showService(point);}});
+  document.addEventListener('plots:mode',e=>{if(e.detail!=='distance')clear();});
   window.AddressAccess={choose,clear,handleClick(e){const hit=map.getLayer('address-direction-points')?map.queryRenderedFeatures([[e.point.x-14,e.point.y-14],[e.point.x+14,e.point.y+14]],{layers:['address-direction-points']})[0]:null;const point=hit&&currentResults[Number(hit.properties.rank)-1];if(!point)return false;window.DistanceModule?.showService(point);return true;},setOrigin:p=>{origin={lon:+p.lon,lat:+p.lat};}};
 })();
