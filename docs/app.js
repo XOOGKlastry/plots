@@ -494,7 +494,7 @@
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
   map.on("error", (e) => { if (e && e.sourceId === "dzialki" && !window.__dzErr) { window.__dzErr = 1; toast("Dane działek są chwilowo niedostępne. Mapa i dane gmin pozostają dostępne.", 5000); } });
-  window.PLOTS = { map, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, clearPlace, addressAt, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();document.dispatchEvent(new CustomEvent('plots:parcel-colors',{detail:mode}));},
+  window.PLOTS = { map, base: BASE, store, esc, toast, tab, snap, isMobile, padding, openLayers, closeLayers, showAddress, markPoint:mark, currentTab:()=>curTab, focusMap, api, frame, framePoint, setDistanceMode, clearPlace, addressAt, currentPlace:()=>currentPlace, setCurrentPlace:p=>{currentPlace=p;}, setParcelColors(mode){parcelColors=mode;store.set('parcelColors',mode);applyParcelColors();document.dispatchEvent(new CustomEvent('plots:parcel-colors',{detail:mode}));},
     registerOverlaySource(id) { overlaySourceIds.add(id); },
     showInfo(html) { showCard(html); },
     showGmina() { tab("gmina"); document.body.classList.remove("collapsed"); if (isMobile()) snap("half"); } };

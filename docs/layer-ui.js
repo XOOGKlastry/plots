@@ -12,6 +12,7 @@
   panel.dataset.grouped='true';
 
   group(document.getElementById('planningLayers'),'Planowanie przestrzenne','map-trifold');
+  if(document.getElementById('terrainLayers'))group(document.getElementById('terrainLayers'),'Dane o terenie','mountains');
   const services=document.getElementById('surroundingsLayers'),priceEntry=document.getElementById('surPrices').closest('.layer-entry'),legend=document.getElementById('priceLegend');
   const prices=document.createElement('div');prices.id='priceLayers';prices.className='layer-group';services.after(prices);prices.append(priceEntry,legend);
   group(prices,'Ceny nieruchomości','buildings');

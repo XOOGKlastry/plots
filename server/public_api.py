@@ -299,6 +299,178 @@ def api_adresy_meta():
     except Exception as e:
         return {"error": str(e)}, 503
 
+# ---------- Spis 2021: obwody spisowe (gisss spis.obwody_2021) ----------
+SPIS_TILE_SQL = """
+WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (SELECT ST_Transform(e,2180) e2 FROM b)
+SELECT ST_AsMVT(q, 'spis', 4096, 'g') FROM (
+  SELECT o.id, o.lud, round(o.gestosc)::int AS gest, o.p_senior, o.p_dzieci, o.p_70,
+         ST_AsMVTGeom(ST_Transform(ST_SimplifyPreserveTopology(o.geom, %(tol)s),3857), b.e, 4096, 16, true) g
+  FROM spis.obwody_2021 o, b, b2
+  WHERE o.geom && b2.e2 AND o.lud IS NOT NULL
+) q WHERE g IS NOT NULL
+"""
+
+@app.route("/tiles/spis/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
+def tile_spis(z, x, y):
+    if request.method == "OPTIONS":
+        return Response(status=204)
+    if z < 8 or z > 22:
+        return Response(b"", mimetype="application/x-protobuf")
+    tol = max(0.0, 40075016 / (4096 * 2 ** z) * 0.5)
+    with POOL.connection() as c:
+        b = c.execute(SPIS_TILE_SQL, {"z": z, "x": x, "y": y, "tol": tol}).fetchone()[0]
+    return Response(bytes(b or b""), mimetype="application/x-protobuf",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+@app.get("/api/ludnosc")
+def api_ludnosc():
+    """Residents around a point: census districts weighted by the share of their area inside each circle."""
+    try:
+        lon, lat = float(request.args["lon"]), float(request.args["lat"])
+    except (KeyError, ValueError):
+        return {"error": "lon, lat"}, 400
+    out = {}
+    with POOL.connection() as c:
+        for r in (500, 1000, 3000):
+            row = c.execute("""
+              WITH p AS (SELECT ST_Buffer(ST_Transform(ST_SetSRID(ST_MakePoint(%(lon)s,%(lat)s),4326),2180), %(r)s, 32) g)
+              SELECT sum(o.lud * f), sum(o.w0*f), sum(o.w10*f), sum(o.w20*f), sum(o.w30*f), sum(o.w40*f), sum(o.w50*f), sum(o.w60*f), sum(o.w70*f), sum(o.w80*f)
+              FROM (SELECT o.*, ST_Area(ST_Intersection(o.geom, p.g)) / NULLIF(ST_Area(o.geom),0) f FROM spis.obwody_2021 o, p WHERE o.geom && p.g AND ST_Intersects(o.geom, p.g) AND o.lud IS NOT NULL) o
+            """, {"lon": lon, "lat": lat, "r": r}).fetchone()
+            out[str(r)] = {"lud": round(float(row[0] or 0)), "wiek": [round(float(v or 0)) for v in row[1:]]}
+    return {"r": out, "source": "GUS, Narodowy Spis Powszechny 2021 (obwody spisowe)"}
+
+# ---------- Lasy (Bank Danych o Lasach), pozwolenia (GUNB RWDZ), teren w punkcie ----------
+LASY_TILE_SQL = """
+WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (SELECT ST_Transform(e,2180) e2 FROM b)
+SELECT ST_AsMVT(q, 'lasy', 4096, 'g') FROM (
+  SELECT split_part(coalesce(w.species_cd,''),'.',1) AS gat, w.spec_age AS wiek, w.forest_fun AS fun,
+         ST_AsMVTGeom(ST_Transform(ST_SimplifyPreserveTopology(w.geom, %(tol)s),3857), b.e, 4096, 16, true) g
+  FROM lasy.wydzielenia w, b, b2
+  WHERE w.geom && b2.e2 AND w.area_type = 'D-STAN'
+) q WHERE g IS NOT NULL
+"""
+GUNB_TILE_SQL = """
+WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (SELECT ST_Transform(e,2180) e2 FROM b)
+SELECT ST_AsMVT(q, 'gunb', 4096, 'g') FROM (
+  SELECT w.typ, w.kategoria AS kat, extract(year from w.data_wplywu)::int AS rok, w.zamierzenie AS zam,
+         left(w.opis, 140) AS opis,
+         ST_AsMVTGeom(ST_Transform(w.geom,3857), b.e, 4096, 16, true) g
+  FROM gunb.wnioski w, b, b2
+  WHERE w.geom && b2.e2 AND w.data_wplywu >= %(od)s
+    AND (w.zamierzenie ILIKE 'budowa%%' OR w.zamierzenie ILIKE 'rozbudowa%%' OR w.zamierzenie ILIKE 'nadbudowa%%')
+    AND w.kategoria NOT IN ('XXVI','XXV','VIII')
+) q WHERE g IS NOT NULL
+"""
+
+def _mvt(sql, params, name_cache=3600):
+    with POOL.connection() as c:
+        b = c.execute(sql, params).fetchone()[0]
+    return Response(bytes(b or b""), mimetype="application/x-protobuf", headers={"Cache-Control": f"public, max-age={name_cache}"})
+
+@app.route("/tiles/lasy/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
+def tile_lasy(z, x, y):
+    if request.method == "OPTIONS": return Response(status=204)
+    if z < 11 or z > 22: return Response(b"", mimetype="application/x-protobuf")
+    return _mvt(LASY_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 0.5}, 86400)
+
+@app.route("/tiles/gunb/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
+def tile_gunb(z, x, y):
+    if request.method == "OPTIONS": return Response(status=204)
+    if z < 12 or z > 22: return Response(b"", mimetype="application/x-protobuf")
+    od = request.args.get("od", "2021-01-01")
+    if not re.match(r"^\d{4}-\d\d-\d\d$", od): od = "2021-01-01"
+    return _mvt(GUNB_TILE_SQL, {"z": z, "x": x, "y": y, "od": od}, 3600)
+
+def _pig_identify(url, lon, lat, extra):
+    import urllib.request, urllib.parse
+    sr = extra.pop("sr", 4326)
+    q = {"geometry": json.dumps({"x": lon, "y": lat, "spatialReference": {"wkid": sr}}), "geometryType": "esriGeometryPoint", "sr": sr, "f": "json"}
+    q.update(extra)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url + "?" + urllib.parse.urlencode(q), headers={"User-Agent": "plots/1.0"}), timeout=8) as r:
+            return json.loads(r.read())
+    except Exception:
+        return None
+
+@app.get("/api/teren")
+def api_teren():
+    """Everything known about the ground at a point: forest stand, mining area / deposit, ground motion, landslides,
+    shallow geothermal conditions, traffic on the nearest national road and recent building permits nearby."""
+    try:
+        lon, lat = float(request.args["lon"]), float(request.args["lat"])
+    except (KeyError, ValueError):
+        return {"error": "lon, lat"}, 400
+    out = {}
+    P = {"lon": lon, "lat": lat}
+    pt = "ST_Transform(ST_SetSRID(ST_MakePoint(%(lon)s,%(lat)s),4326),2180)"
+    with POOL.connection() as c:
+        r = c.execute(f"""SELECT species_cd, spec_age, forest_fun, site_type, prot_categ, sub_area, adr_for, a_year, nazwa FROM lasy.wydzielenia
+                          WHERE geom && {pt} AND ST_Intersects(geom, {pt}) ORDER BY sub_area LIMIT 1""", P).fetchone()
+        if r: out["las"] = dict(zip(["gatunek", "wiek", "funkcja", "siedlisko", "ochronnosc", "pow_ha", "adres", "rok", "nadlesnictwo"], [str(v) if v is not None else None for v in r]))
+        r = c.execute(f"""SELECT species_cd, spec_age, ST_Distance(geom, {pt}) FROM lasy.wydzielenia WHERE area_type='D-STAN' AND ST_DWithin(geom, {pt}, 3000) ORDER BY geom <-> {pt} LIMIT 1""", P).fetchone()
+        if r: out["las_najblizszy"] = {"gatunek": r[0], "wiek": r[1], "m": round(r[2])}
+        out["tereny_gornicze"] = [dict(zip(["nazwa", "kopalina", "status", "zloze"], r)) for r in c.execute(
+            f"SELECT nazwa_tg, kopalina, status, nazwa_zloza FROM pig.midas_tereny WHERE geom && {pt} AND ST_Intersects(geom, {pt}) LIMIT 3", P).fetchall()]
+        out["zloza"] = [dict(zip(["nazwa", "kopalina"], r)) for r in c.execute(
+            f"SELECT nazwa_zl, kopalina FROM pig.midas_zloza WHERE geom && {pt} AND ST_Intersects(geom, {pt}) LIMIT 3", P).fetchall()]
+        r = c.execute(f"""SELECT nrdrogi, nazwa_odc, sdrr2025, ST_Distance(geom, {pt}) FROM gpr.dk2025 WHERE ST_DWithin(geom, {pt}, 1500)
+                          ORDER BY geom <-> {pt} LIMIT 1""", P).fetchone()
+        if r: out["ruch"] = {"droga": r[0], "odcinek": r[1], "sdrr": r[2], "m": round(r[3]), "rok": 2025}
+        rows = c.execute(f"""SELECT typ, kategoria, zamierzenie, left(opis,160), data_wplywu, round(ST_Distance(geom, {pt})) FROM gunb.wnioski
+                             WHERE ST_DWithin(geom, {pt}, 500) AND data_wplywu >= now() - interval '3 years'
+                               AND (zamierzenie ILIKE 'budowa%%' OR zamierzenie ILIKE 'rozbudowa%%' OR zamierzenie ILIKE 'nadbudowa%%') AND kategoria NOT IN ('XXVI','XXV','VIII')
+                             ORDER BY data_wplywu DESC LIMIT 60""", P).fetchall()
+        out["pozwolenia"] = [{"typ": r[0], "kat": r[1], "zam": r[2], "opis": r[3], "data": r[4].isoformat() if r[4] else None, "m": int(r[5])} for r in rows]
+    B = "https://cbdgmapa.pgi.gov.pl/arcgis/rest/services"
+    import math
+    mx, my = lon * 20037508.34 / 180, math.log(math.tan((90 + lat) * math.pi / 360)) * 6378137
+    e = _pig_identify(B + "/geozagrozenia/egms_2016_2020_pion_interpol/ImageServer/identify", mx, my, {"returnGeometry": "false", "sr": 3857})
+    try: out["egms"] = float(e["value"])
+    except Exception: out["egms"] = None
+    o = _pig_identify(B + "/geozagrozenia/sopo_obszary/MapServer/identify", lon, lat,
+                      {"layers": "all:14,12", "tolerance": 2, "mapExtent": f"{lon-0.01},{lat-0.01},{lon+0.01},{lat+0.01}", "imageDisplay": "400,400,96", "returnGeometry": "false"})
+    out["osuwiska"] = [{"warstwa": x.get("layerName"), "aktywnosc": (x.get("attributes") or {}).get("Stopień aktywności")} for x in (o or {}).get("results", [])][:3]
+    g = _pig_identify(B + "/geotermia/mpgn/MapServer/identify", lon, lat,
+                      {"layers": "all:7", "tolerance": 0, "mapExtent": f"{lon-0.01},{lat-0.01},{lon+0.01},{lat+0.01}", "imageDisplay": "400,400,96", "returnGeometry": "false"})
+    out["geotermia"] = [{k: v for k, v in (x.get("attributes") or {}).items() if k not in ("OBJECTID", "Shape", "SHAPE", "Shape.STArea()", "Shape.STLength()")} for x in (g or {}).get("results", [])][:1]
+    return out
+
+# ---------- EGMS: ruch pionowy 2016-2020 (Copernicus, raster 150 m z PIG-PIB) jako kafelki PNG ----------
+_EGMS = {}
+def _egms():
+    if "a" not in _EGMS:
+        import numpy as np
+        from pyproj import Transformer
+        path = os.environ.get("PLOTS_EGMS", r"C:\Users\kompu\Documents\mapgen\egms\egms_pion_150m.npy")
+        a = np.load(path)
+        # colour lookup: index = value + 128
+        lut = np.zeros((256, 4), np.uint8)
+        for v in range(-128, 128):
+            if v == -128: continue
+            c = ((127,0,0) if v <= -20 else (179,0,0) if v <= -10 else (215,48,31) if v <= -5 else (252,141,89) if v <= -3 else
+                 (253,204,138) if v <= -2 else None if v < 2 else (158,202,225) if v < 3 else (33,113,181))
+            if c: lut[v + 128] = (*c, 215)
+        _EGMS.update(a=a, lut=lut, tr=Transformer.from_crs(3857, 2180, always_xy=True), np=np)
+    return _EGMS
+
+@app.route("/tiles/egms/<int:z>/<int:x>/<int:y>.png", methods=["GET", "OPTIONS"])
+def tile_egms(z, x, y):
+    if request.method == "OPTIONS": return Response(status=204)
+    import io as _io
+    from PIL import Image
+    E = _egms(); np = E["np"]; a = E["a"]
+    n = 2 ** z; R = 20037508.342789244; size = 2 * R / n
+    xs = -R + (x + (np.arange(256) + .5) / 256) * size; ys = R - (y + (np.arange(256) + .5) / 256) * size
+    X, Y = np.meshgrid(xs, ys)
+    ex, ey = E["tr"].transform(X.ravel(), Y.ravel())
+    c = ((np.asarray(ex) - 140000) // 150).astype(int); r = ((800000 - np.asarray(ey)) // 150).astype(int)
+    ok = (c >= 0) & (c < a.shape[1]) & (r >= 0) & (r < a.shape[0])
+    v = np.full(c.shape, -128, np.int16); v[ok] = a[r[ok], c[ok]]
+    rgba = E["lut"][(v + 128).clip(0, 255)].reshape(256, 256, 4)
+    buf = _io.BytesIO(); Image.fromarray(rgba, "RGBA").save(buf, "PNG", optimize=False)
+    return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=604800"})
+
 @app.get("/health")
 def health():
     return {"ok": True, "minzoom": MINZ, "port": PORT}
