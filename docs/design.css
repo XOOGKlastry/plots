@@ -706,3 +706,24 @@ body.urz-open .side-mods{display:none}
  .urz-panel{top:auto;bottom:0;left:0;right:0;width:auto;max-height:78dvh;border-radius:22px 22px 0 0;padding-bottom:var(--sb)}
  body.urz-open #panel{visibility:hidden}
 }
+
+/* Panel urzędu: akcje, włodarz; przy otwartym panelu znikają przyciski warstw */
+body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body.urz-open .side-mods{display:none!important}
+.urz-actions{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;margin:12px 0 0}
+.urz-act{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:14px;background:#eaf3ff;color:var(--acc,#087cfc);font-size:12.5px;font-weight:650;text-decoration:none}
+.urz-act>svg{width:22px;height:22px}
+.urz-act:first-child{background:var(--acc,#087cfc);color:#fff}
+.urz-wl{margin:16px 0 0;padding:14px;border-radius:18px;background:var(--bg,#f2f2f7)}
+.urz-wl-top{display:flex;gap:12px;align-items:center}
+.urz-wl-ph{flex:none;width:64px;height:64px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#d7e6fb}
+.urz-wl-ph img{width:100%;height:100%;object-fit:cover}
+.urz-wl-ini{font-size:22px;font-weight:750;color:#0a5bc4}
+.urz-wl-top small{display:block;font-size:11.5px;color:#6b6b70;text-transform:uppercase;letter-spacing:.4px}
+.urz-wl-top b{display:block;font-size:18px;letter-spacing:-.3px}
+.urz-wl-top em{display:block;font-style:normal;font-size:13px;color:#3a3a3c}
+.urz-wl-dl{margin-top:8px}
+.urz-wl-dl .urz-row dd{font-size:12.5px}
+.urz-wl-links{display:flex;gap:8px;margin:10px 0 0;flex-wrap:wrap}
+.urz-wl-links a{display:inline-flex;align-items:center;gap:5px;padding:8px 12px;border-radius:999px;background:#fff;color:var(--acc,#087cfc);font-size:12.5px;font-weight:650;text-decoration:none}
+.urz-wl-links a>svg{width:15px;height:15px}
+.nz-one{columns:2;column-gap:18px}.nz-one li{break-inside:avoid}

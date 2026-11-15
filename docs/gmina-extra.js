@@ -429,6 +429,16 @@
   }
 
   /* Surnames: PESEL publishes them only per voivodeship, so the section says plainly that this is not gmina data. */
+  /* Surnames in the powiat: PESEL as of 2002 (Z. Bronk's dictionary service); the most frequent names were fetched. */
+  async function surnamesPow(g) {
+    const d = await json("data/nazwiska-pow.json"), p = d?.pow?.[g.k.slice(0, 4)];
+    if (!p?.top?.length) return "";
+    const city = g.k.slice(2, 4) >= "61", where = city ? `w mieście ${p.n}` : `w powiecie ${p.n}`;
+    return section("users", `Najczęstsze nazwiska ${where}`, `<div class="ext-card"><p class="nz-note">Dane dla całego ${city ? "miasta na prawach powiatu" : "powiatu"}, stan rejestru PESEL z 2002 r.</p>
+      <ol class="nz-list nz-one">${p.top.map(([n, c]) => `<li><b>${esc(n)}</b><span>${fmt(c)} osób</span></li>`).join("")}</ol>
+      ${p.ch?.length ? `<p class="ext-sub"><b>Nazwiska typowe dla tego ${city ? "miasta" : "powiatu"}</b>: mieszka tu duża część wszystkich ich nosicieli w Polsce.</p><p>${p.ch.map(([n, c, pr]) => `<span class="terr-chip">${esc(n)} <small>${fmt(c)} os. · ${fmt(pr)}% w Polsce</small></span>`).join(" ")}</p>` : ""}</div>`,
+      `${esc(d.zrodlo)}. <a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">Serwis nazwisk</a>. Policzono ${fmt(d.nazwisk)} najczęstszych nazwisk.`);
+  }
   async function surnames(g) {
     const d = await json("data/nazwiska-woj.json"), w = d?.woj?.[g.k.slice(0, 2)];
     if (!w?.topK) return "";
@@ -447,7 +457,7 @@
     const nspDoc = await json(`data/nsp/${woj}.json`);
     const N = nspDoc?.gminy?.[g.k] || null, PL = nspDoc?.pl || null;
     let html = "";
-    if (category === "Ludność") html = (await timeline(g)) + (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL) + (await surnames(g));
+    if (category === "Ludność") html = (await timeline(g)) + (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL) + (await surnamesPow(g)) + (await surnames(g));
     else if (category === "Warunki życia") html = housing(g, N, PL);
     if (!el.isConnected) return;
     el.insertAdjacentHTML("beforeend", html);

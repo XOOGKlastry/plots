@@ -105,6 +105,27 @@
     if (!value) return "";
     return `<div class="urz-row"><dt>${esc(label)}</dt><dd>${href ? `<a href="${esc(href)}" ${href.startsWith("http") ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(value)}</a>` : esc(value)}</dd></div>`;
   }
+  // Phone numbers: the main one from the public-entity catalogue, then any found on the gmina's website (labelled).
+  function phones(u) {
+    const tel = n => "tel:+48" + String(n).replace(/\D/g, "").replace(/^48(?=\d{9}$)/, "");
+    let h = row("Telefon", u.tel, u.tel ? tel(u.tel) : null);
+    (u.tels || []).filter(t => t.n !== u.tel).slice(0, 12).forEach(t => { h += row(t.l || "Telefon", t.n, tel(t.n)); });
+    return h;
+  }
+  const g = q => "https://www.google.com/search?q=" + encodeURIComponent(q);
+  // The head of the gmina elected in 2024 (PKW): name, committee, party; photo from Wikidata when it is the same person.
+  function head(u) {
+    const w = u.w; if (!w) return "";
+    const where = (cur && document.querySelector("#gminaCard h2")?.firstChild?.textContent?.trim()) || u.n.replace(/^Urząd\s+/i, "");
+    const ini = w.n.split(" ").map(x => x[0]).join("").slice(0, 2);
+    const role = { Wójt: w.plec === "K" ? "Wójt" : "Wójt", Burmistrz: w.plec === "K" ? "Burmistrz" : "Burmistrz", Prezydent: w.plec === "K" ? "Prezydentka miasta" : "Prezydent miasta" }[w.f] || w.f;
+    const party = w.partia ? w.partia : (w.plec === "K" ? "bezpartyjna" : "bezpartyjny");
+    return `<section class="urz-wl"><div class="urz-wl-top">${w.foto ? `<a class="urz-wl-ph" href="${esc(w.wd || w.foto)}" target="_blank" rel="noopener noreferrer"><img alt="${esc(w.n)}" src="${esc(w.foto)}"></a>` : `<span class="urz-wl-ph urz-wl-ini">${esc(ini)}</span>`}
+      <div><small>${esc(role)}</small><b>${esc(w.n)}</b><em>${esc(party)}</em></div></div>
+      <dl class="urz-kontakt urz-wl-dl">${row("Komitet", w.kom)}${w.pop ? row("Poparcie", w.pop) : ""}${w.proc != null ? row("Wynik w 2024", `${String(w.proc).replace(".", ",")}%${w.tura === 2 ? " w II turze" : " w I turze"}`) : ""}${w.wiek ? row("Wiek w 2024", w.wiek + " lat") : ""}</dl>
+      <div class="urz-wl-links"><a href="${g(`${w.n} ${w.urzad || where}`)}" target="_blank" rel="noopener noreferrer">${ic("magnifying-glass")}Szukaj w Google</a><a href="${g(`${w.n} ${w.f}`)}&tbm=isch" target="_blank" rel="noopener noreferrer">${ic("image")}Zdjęcia w Google</a></div>
+      <p class="urz-src">Wybrany w wyborach samorządowych 2024 (PKW). Późniejsze zmiany, np. przedterminowe wybory, nie są tu uwzględnione.</p></section>`;
+  }
   let panel = null, src = null;
   function ensurePanel() {
     if (panel) return panel;
@@ -125,19 +146,22 @@
       <button type="button" class="urz-hero" data-urz-open="0">${hero}<span class="urz-grad"></span><span class="urz-ttl"><small>Siedziba urzędu</small><b>${esc(u.n)}</b><em>${esc(u.a)}, ${esc(u.pc)}</em></span>${n ? `<span class="urz-cnt">${ic("image")}${n + 1}</span>` : ""}</button>
       ${n ? `<div class="urz-thumbs" aria-label="Okolica urzędu">${u.okolica.map((f, j) => `<button type="button" data-urz-open="${j + 1}" aria-label="Okolica, zdjęcie ${j + 1}"><img alt="" loading="lazy" src="${esc(small(f.u))}"></button>`).join("")}</div>` : ""}
       ${poza ? `<p class="urz-poza">${ic("map-pin")}<span>Urząd stoi poza gminą, w gminie ${esc(poza)}. To częste w gminach wiejskich otaczających miasto. Na mapie łączy go przerywana linia ze środkiem gminy.</span></p>` : ""}
+      <div class="urz-actions">${u.tel ? `<a class="urz-act" href="tel:+48${u.tel.replace(/\D/g, "")}">${ic("phone")}Zadzwoń</a>` : ""}<a class="urz-act" href="https://www.google.com/maps/dir/?api=1&destination=${u.c[1]},${u.c[0]}" target="_blank" rel="noopener noreferrer">${ic("navigation-arrow")}Prowadź</a>${u.www ? `<a class="urz-act" href="${esc(u.www)}" target="_blank" rel="noopener noreferrer">${ic("link")}Strona</a>` : ""}</div>
+      ${head(u)}
       <h3 class="urz-h">Kontakt</h3>
       <dl class="urz-kontakt">
-        ${row("Adres", `${u.a}, ${u.pc}`)}${row("Telefon", u.tel, u.tel ? "tel:+48" + u.tel.replace(/\D/g, "") : null)}${row("Faks", u.fax)}
-        ${row("Strona", u.www?.replace(/^https?:\/\//, "").replace(/\/$/, ""), u.www)}${row("ePUAP", u.esp)}${row("e-Doręczenia", u.ade)}${row("REGON", u.regon)}${row("NIP", u.nip)}${bip}
+        ${row("Adres", `${u.a}, ${u.pc}`)}${phones(u)}
+        ${row("Strona", u.www?.replace(/^https?:\/\//, "").replace(/\/$/, ""), u.www)}${u.mail ? row("E-mail", u.mail, "mailto:" + u.mail) : ""}${bip}
       </dl>
-      ${bip ? "" : `<p class="urz-soon">${ic("clock")}Wkrótce tu: wójt lub burmistrz, sekretariat, e-mail i godziny pracy z BIP gminy.</p>`}
+      ${u.tels?.length ? `<p class="urz-src">Dodatkowe numery zebrano automatycznie ze <a href="${esc(u.tsrc || u.www)}" target="_blank" rel="noopener noreferrer">strony gminy</a>. Mogą być nieaktualne.</p>` : ""}
+      ${bip ? "" : `<p class="urz-soon">${ic("clock")}Wkrótce tu: sekretariat, referaty i godziny pracy z BIP gminy.</p>`}
       <button type="button" class="urz-map" data-urz-map>${ic("map-pin")}Pokaż urząd na mapie</button>
       <p class="urz-src">Dane: <a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a>${u.q === 2 ? " · położenie przybliżone" : ""}${u.foto ? ` · fot. ${credit(u.foto)}, Wikimedia Commons` : " · widok: ortofotomapa GUGiK"}</p>
      </section></div>`;
   }
   function openPanel() {
     if (!cur) return;
-    window.StatsMap?.isOpen() && window.StatsMap.close();
+    window.StatsMap?.isOpen() && window.StatsMap.close(); window.PLOTS?.closeLayers?.();
     if (window.DistanceModule?.isOpen()) window.DistanceModule.close();
     const was = !ensurePanel().hidden;
     panel.hidden = false; document.body.classList.add("urz-open"); renderPanel(); panel.querySelector(".urz-body")?.scrollTo(0, 0);

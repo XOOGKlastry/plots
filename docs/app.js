@@ -520,7 +520,8 @@
     }
     updStatus();
   });
-  function syncMapScale(){const far=map.getZoom()<MINZ;document.body.classList.toggle("municipality-scale",far);if(far&&curTab!=="gmina"&&!window.DistanceModule?.isOpen())tab("gmina");}
+  function syncMapScale(){const far=map.getZoom()<MINZ;document.body.classList.toggle("municipality-scale",far);// A chosen point or parcel keeps its card when zooming out; only an empty card gives way to the gmina view.
+    if(far&&curTab!=="gmina"&&!currentPlace&&!window.DistanceModule?.isOpen())tab("gmina");}
   map.on("load",syncMapScale);map.on("zoomend",syncMapScale);
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });
