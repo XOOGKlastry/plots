@@ -8,7 +8,8 @@
  panel.innerHTML=`<button id="distanceHandle" class="distance-handle" aria-label="Przeciągnij, aby zmienić wysokość panelu"><span></span></button><header class="distance-heading"><img id="distanceBadge" class="distance-badge" alt="" hidden><div><small id="distanceEyebrow">ODLEGŁOŚCI · PIESZO</small><h2 id="distanceTitle">Odległości</h2></div><button class="icbtn" type="button" data-distance-gmina aria-label="Dane gminy punktu" title="Dane gminy">${icon('buildings')}</button><button class="icbtn" type="button" data-distance-collapse aria-label="Zwiń moduł">${icon('caret-down')}</button><button type="button" data-distance-back class="icbtn" aria-label="Wyłącz moduł odległości">${icon('x')}</button></header>
  <div class="analysis-origin"><button id="focusAnalysisOrigin" aria-label="Pokaż punkt analizy">${icon('map-pin')}<span><small>PUNKT ANALIZY</small><b id="analysisOriginLabel">Wskaż na mapie</b></span></button><button id="changeAnalysisOrigin" aria-pressed="false">Zmień</button></div>
  <div class="distance-body">
- <section class="dv-sec dv-pick"><div class="dv-head"><h3>Czego szukasz?</h3>${arrows('distanceChips')}</div><div id="dvCats" class="dv-cats" role="tablist" aria-label="Rodzaj obiektów"></div><div id="distanceChips" class="dv-tiles" aria-label="Obiekty"></div></section>
+ <section id="dvPicker" class="dv-picker" aria-label="Wybór obiektów"><h3 class="dv-big">Czego szukasz?</h3><p class="dv-lead">Wybierz rodzaj miejsca. Pokażemy trzy najbliższe i czas dojścia z każdego budynku.</p><label class="dv-search">${icon('magnifying-glass')}<input id="dvSearch" type="search" placeholder="Szukaj, np. apteka, paczkomat, basen" aria-label="Szukaj rodzaju miejsca" autocomplete="off"></label><div id="distanceChips"></div><p id="dvNone" class="muted small" hidden>Nic nie pasuje. Spróbuj innego słowa.</p></section>
+ <button type="button" id="dvChosen" class="dv-chosen" aria-label="Zmień rodzaj szukanych miejsc"></button>
  <div class="transport-switch" role="group" aria-label="Sposób podróży"><button data-transport="pedestrian" aria-pressed="true">${icon('person-simple-walk')}<span>Pieszo</span></button><button data-transport="auto" aria-pressed="false">${icon('car')}<span>Samochodem</span></button><button data-transport="bicycle" aria-pressed="false">${icon('bicycle')}<span>Rowerem</span></button></div>
  <p id="transportNote" hidden>Dojazd liczony po drogach od punktu analizy. Kolory budynków pokazujemy dla dojść pieszych.</p>
  <section class="dv-sec dv-near"><div class="dv-head"><h3><span>Najbliżej</span><small id="dvNearSub">pieszo od punktu analizy</small></h3>${arrows('dvCarousel')}</div><div id="accessResults" aria-live="polite"></div><p id="distanceSelection" class="distance-selection" hidden></p><button type="button" id="showNearest" class="module-nearest" hidden>${icon('path')}Trzy najbliższe od punktu analizy${icon('caret-right')}</button></section>
@@ -47,24 +48,42 @@
  const MODE_TXT={pedestrian:'pieszo',auto:'samochodem',bicycle:'rowerem'};
  const shortLabel=l=>String(l).split(/\s[(\/]|\s–\s|\slub\s/)[0].replace(/\s*\(.*$/,'').trim();
  const badge=id=>window.PoiIcons?`<img class="poi-badge" src="${window.PoiIcons.url(id)}" alt="">`:'';
- let pickCat=app.store.get('distance.cat','pop');
+ let choosing=false;
+ const fold=t=>String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ł/g,'l');
  function current(){return document.getElementById('networkSelect')?.value;}
  function nearSub(){const n=config?.networks.find(x=>x.id===current());document.getElementById('dvNearSub').textContent=`${n?shortLabel(n.label)+' · ':''}${MODE_TXT[transport]||''} od punktu analizy`;}
  function updArrows(){panel.querySelectorAll('.dv-arrows').forEach(box=>{const el=scroller(box.querySelector('[data-scroll]').dataset.scroll);const can=el&&el.scrollWidth>el.clientWidth+4;box.hidden=!can;if(!can)return;box.querySelector('[data-dir="-1"]').disabled=el.scrollLeft<4;box.querySelector('[data-dir="1"]').disabled=el.scrollLeft+el.clientWidth>=el.scrollWidth-4;});}
  function scroller(id){return document.getElementById(id);}
- function renderPicker(){
+ /* The big chooser: every kind of place, grouped, as large buttons. It opens every time the module starts. */
+ function renderGrid(){
   if(!config)return;const sel=current(),byId=new Map(config.networks.map(n=>[n.id,n]));
-  const cats=config.categories.filter(c=>config.networks.some(n=>n.cat===c.id));if(pickCat!=='pop'&&!cats.some(c=>c.id===pickCat))pickCat='pop';
-  document.getElementById('dvCats').innerHTML=[{id:'pop',label:'Popularne'},...cats].map(c=>`<button type="button" role="tab" data-dvcat="${app.esc(c.id)}" aria-selected="${c.id===pickCat}">${icon(c.id==='pop'?'heart':CAT_ICON[c.id]||'map-pin')}<span>${app.esc(CAT_SHORT[c.id]||c.label)}</span></button>`).join('');
-  const list=pickCat==='pop'?[...(POPULAR.includes(sel)||!byId.has(sel)?[]:[sel]),...POPULAR].filter(id=>byId.has(id)):config.networks.filter(n=>n.cat===pickCat).map(n=>n.id);
-  const tiles=document.getElementById('distanceChips');
-  tiles.innerHTML=list.map(id=>{const n=byId.get(id);return `<button type="button" class="dv-tile" data-net="${app.esc(id)}" aria-pressed="${id===sel}" title="${app.esc(n.label)}"><span class="dv-ic">${badge(id)}</span><span class="dv-lbl">${app.esc(shortLabel(n.label))}</span></button>`;}).join('');
-  const n=byId.get(sel);if(n){document.getElementById('distanceTitle').textContent=shortLabel(n.label);const b=document.getElementById('distanceBadge');if(window.PoiIcons){b.src=window.PoiIcons.url(sel);b.hidden=false;}}
-  nearSub();
-  requestAnimationFrame(()=>{const t=tiles.querySelector('[aria-pressed=true]');if(t&&(t.offsetLeft<tiles.scrollLeft||t.offsetLeft+t.offsetWidth>tiles.scrollLeft+tiles.clientWidth))tiles.scrollLeft=t.offsetLeft-12;const c=document.querySelector('#dvCats [aria-selected=true]'),bar=document.getElementById('dvCats');if(c&&(c.offsetLeft<bar.scrollLeft||c.offsetLeft+c.offsetWidth>bar.scrollLeft+bar.clientWidth))bar.scrollLeft=c.offsetLeft-12;updArrows();});
+  const tile=id=>{const n=byId.get(id);return `<button type="button" class="dv-tile" data-net="${app.esc(id)}" data-q="${app.esc(fold(n.label))}" aria-pressed="${id===sel}" title="${app.esc(n.label)}"><span class="dv-ic">${badge(id)}</span><span class="dv-lbl">${app.esc(shortLabel(n.label))}</span></button>`;};
+  const groups=[{id:'pop',label:'Popularne',ids:POPULAR.filter(id=>byId.has(id))},...config.categories.map(c=>({id:c.id,label:CAT_SHORT[c.id]||c.label,ids:config.networks.filter(n=>n.cat===c.id).map(n=>n.id)})).filter(g=>g.ids.length)];
+  document.getElementById('distanceChips').innerHTML=groups.map(g=>`<section class="dv-group" data-g="${g.id}"><h4>${icon(g.id==='pop'?'heart':CAT_ICON[g.id]||'map-pin')}${app.esc(g.label)}</h4><div class="dv-grid">${g.ids.map(tile).join('')}</div></section>`).join('');
  }
- function pickNetwork(id){const select=document.getElementById('networkSelect');if(!select||select.value===id)return;select.value=id;select.dispatchEvent(new Event('change'));renderPicker();}
- panel.addEventListener('scroll',e=>{if(e.target.matches?.('.dv-tiles,.dv-carousel'))updArrows();},true);
+ function filterGrid(q){
+  q=fold(q.trim());let any=false;
+  panel.querySelectorAll('.dv-group').forEach(g=>{
+   // While searching, the "Popularne" group would only repeat matches from the categories below.
+   if(q&&g.dataset.g==='pop'){g.hidden=true;return;}
+   let n=0;g.querySelectorAll('.dv-tile').forEach(t=>{const ok=!q||t.dataset.q.includes(q);t.hidden=!ok;if(ok)n++;});g.hidden=!n;if(n)any=true;});
+  document.getElementById('dvNone').hidden=any;
+ }
+ function setChoosing(v){
+  choosing=!!v&&!transit;panel.classList.toggle('choosing',choosing);document.body.classList.toggle('distance-choosing',choosing);renderPicker();
+  if(choosing){renderGrid();const q=document.getElementById('dvSearch');q.value='';filterGrid('');panel.querySelector('.distance-body').scrollTop=0;if(app.isMobile())setSnap('full');}
+  sync();
+ }
+ function renderPicker(){
+  if(!config)return;const sel=current(),n=config.networks.find(x=>x.id===sel);
+  if(n){document.getElementById('distanceTitle').textContent=choosing?'Wybierz miejsca':shortLabel(n.label);const b=document.getElementById('distanceBadge');if(window.PoiIcons){b.src=window.PoiIcons.url(sel);b.hidden=choosing;}
+   document.getElementById('dvChosen').innerHTML=`<span class="dv-ic">${badge(sel)}</span><span class="dv-chosen-txt"><small>Szukasz</small><b>${app.esc(shortLabel(n.label))}</b></span><span class="dv-change">${icon('squares-four')}Zmień</span>`;}
+  if(choosing)panel.querySelectorAll('#distanceChips .dv-tile').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.net===sel)));
+  nearSub();requestAnimationFrame(updArrows);
+ }
+ function pickNetwork(id){const select=document.getElementById('networkSelect');const same=!select||select.value===id;setChoosing(false);if(!same){select.value=id;select.dispatchEvent(new Event('change'));}renderPicker();setSnap(app.isMobile()&&innerHeight<700?'peek':'half');if(!origin)setPicking(true);else if(same)scheduleNearest();}
+ panel.addEventListener('scroll',e=>{if(e.target.matches?.('.dv-carousel'))updArrows();},true);
+ document.getElementById('dvSearch').addEventListener('input',e=>filterGrid(e.target.value));
  function queue(){revision++;clearTimeout(timer);if(opened)timer=setTimeout(update,180);}
  function setPicking(value){if(value&&!picking)pickWasCompact=document.body.classList.contains('distance-compact');if(!value&&picking)setSnap(pickWasCompact?'peek':'half');picking=value;document.body.classList.toggle('distance-picking',value);pickHint.hidden=!value;document.getElementById('changeAnalysisOrigin').setAttribute('aria-pressed',String(value));if(value){setSnap('peek');map.getCanvas().style.cursor='crosshair';}else map.getCanvas().style.cursor='';sync();}
  function drawOrigin(){
@@ -72,7 +91,7 @@
   if(!originMarker){const el=document.createElement('div');el.className='analysis-origin-marker';el.innerHTML=`<span>Punkt analizy</span><i>${icon('crosshair')}</i>`;originMarker=new maplibregl.Marker({element:el,anchor:'bottom'});}
   originMarker.setLngLat([origin.lon,origin.lat]).addTo(map);
  }
- function scheduleNearest(){clearTimeout(autoTimer);if(opened&&origin&&config&&transport!=='transit')autoTimer=setTimeout(()=>window.AddressAccess?.choose(document.getElementById('networkSelect').value,transport),450);}
+ function scheduleNearest(){clearTimeout(autoTimer);if(opened&&origin&&config&&!choosing&&transport!=='transit')autoTimer=setTimeout(()=>window.AddressAccess?.choose(document.getElementById('networkSelect').value,transport),450);}
  async function resolveOriginAddress(at,version){try{const data=await app.api('/api/adres-punkt?lon='+at.lon+'&lat='+at.lat);if(version===originRevision&&opened&&data.address){origin.label=data.address;document.getElementById('analysisOriginLabel').textContent=data.address;}}catch{/* Coordinates remain valid when address service is unavailable. */}}
  function setOrigin(value){
   const valid=value&&Number.isFinite(+value.lon)&&Number.isFinite(+value.lat);if(value&&!valid)return;
@@ -93,7 +112,7 @@
   panel.querySelectorAll('[data-transport]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.transport===transport)));
   panel.classList.toggle('motor-mode',transport!=='pedestrian');
   document.getElementById('distanceEyebrow').textContent=transit?'KOMUNIKACJA PUBLICZNA':transport==='auto'?'ODLEGŁOŚCI · SAMOCHODEM':transport==='bicycle'?'ODLEGŁOŚCI · ROWEREM':'ODLEGŁOŚCI · PIESZO';
-  if(transit){window.AddressAccess?.clear();document.getElementById('accessResults').innerHTML='';}
+  if(transit){setChoosing(false);window.AddressAccess?.clear();document.getElementById('accessResults').innerHTML='';}
   window.Transit?.setActive(transit);
  }
  function open(value=null,network=null,options={}){
@@ -104,10 +123,12 @@
   const poi=document.getElementById('surPoi');if(poi){poi.checked=true;poi.dispatchEvent(new Event('change',{bubbles:true}));}
   app.closeLayers();window.PlaceUI?.closePalette();sync();
   if(transit){/* the reach map frames itself */}else if(origin)app.framePoint(origin.lon,origin.lat,Math.max(14,map.getZoom()));else if(map.getZoom()<13){const at=map.getCenter();app.framePoint(at.lng,at.lat,14);}
-  setSnap(app.isMobile()&&innerHeight<700?'peek':'half');if(!origin)setPicking(true);queue();scheduleNearest();
+  setSnap(app.isMobile()&&innerHeight<700?'peek':'half');
+  // Every start shows the big chooser first; a module opened for a given category (or public transport) skips it.
+  if(!transit&&!network){setPicking(false);setChoosing(true);}else{setChoosing(false);if(!origin)setPicking(true);}queue();scheduleNearest();
  }
  function close(options={}){
-  if(!opened)return;opened=false;if(transit)setTransit(false);clearTimeout(autoTimer);originRevision++;revision++;serviceRevision++;clearTimeout(timer);setPicking(false);document.body.classList.remove('distance-results');originMarker?.remove();origin=null;document.getElementById('accessResults').innerHTML='';document.getElementById('distanceSelection').hidden=true;panel.hidden=true;
+  if(!opened)return;opened=false;if(transit)setTransit(false);choosing=false;panel.classList.remove('choosing');document.body.classList.remove('distance-choosing');clearTimeout(autoTimer);originRevision++;revision++;serviceRevision++;clearTimeout(timer);setPicking(false);document.body.classList.remove('distance-results');originMarker?.remove();origin=null;document.getElementById('accessResults').innerHTML='';document.getElementById('distanceSelection').hidden=true;panel.hidden=true;
   map.stop();map.setPadding({top:0,bottom:0,left:0,right:0});app.clearPlace();app.setDistanceMode(false);map.getSource('distance-buildings')?.setData({type:'FeatureCollection',features:[]});window.AddressAccess?.clear();
   const poi=document.getElementById('surPoi');if(poi){poi.checked=previousPoi;poi.dispatchEvent(new Event('change',{bubbles:true}));}
   if(options.history!==false)window.UIHistory?.dismiss('distance');
@@ -126,7 +147,7 @@
  panel.addEventListener('click',e=>{
   if(e.target.closest('[data-distance-back],[data-distance-map]'))close();
   const net=e.target.closest('[data-net]');if(net){pickNetwork(net.dataset.net);return;}
-  const cat=e.target.closest('[data-dvcat]');if(cat){pickCat=cat.dataset.dvcat;app.store.set('distance.cat',pickCat);renderPicker();document.getElementById('distanceChips').scrollLeft=0;requestAnimationFrame(updArrows);return;}
+  if(e.target.closest('#dvChosen')){setChoosing(true);return;}
   const arr=e.target.closest('[data-scroll]');if(arr){const el=scroller(arr.dataset.scroll);if(el)el.scrollBy({left:Number(arr.dataset.dir)*Math.max(120,el.clientWidth*.8),behavior:window.Motion?.on()===false?'auto':'smooth'});return;}
   if(e.target.closest('[data-distance-gmina]'))toGmina().catch(()=>app.toast('Dane gminy są chwilowo niedostępne'));
   if(e.target.closest('[data-distance-collapse],#distanceHandle'))setSnap(panel.dataset.snap==='peek'?'half':'peek');

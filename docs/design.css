@@ -585,3 +585,95 @@ body.stats-open #bmToggle,body.stats-open #layersFab,body.distance-picking #bmTo
 .dv2 #distanceSources #surroundingsLayers{display:none}
 .sw>span.lk-ic{width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--c) 15%,#fff);box-shadow:none;position:static;transition:none}
 .sw>span.lk-ic:after,.sw>span.lk-ic:before{display:none!important;content:none}
+
+/* ===== Odległości: duży wybór kategorii przy każdym otwarciu ===== */
+.dv2.choosing .distance-body>:not(#dvPicker){display:none!important}
+.dv2:not(.choosing) #dvPicker{display:none}
+.dv2 .dv-big{margin:2px 0 4px;font-size:24px;font-weight:750;letter-spacing:-.6px}
+.dv2 .dv-lead{margin:0 0 12px;font-size:13px;line-height:1.45;color:var(--mut)}
+.dv2 .dv-search{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:13px;padding:0 12px;min-height:44px;margin:0 0 6px}
+.dv2 .dv-search>svg{width:18px;height:18px;color:var(--mut);flex:none}
+.dv2 .dv-search input{flex:1;border:0;background:none;font:inherit;font-size:16px;color:var(--fg);outline:none;min-width:0}
+.dv2 .dv-group{margin:16px 0 0}
+.dv2 .dv-group h4{display:flex;align-items:center;gap:7px;margin:0 0 8px;font-size:13px;font-weight:700;color:var(--fg)}
+.dv2 .dv-group h4>svg{width:17px;height:17px;color:var(--acc)}
+.dv2 .dv-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 4px}
+.dv2 .dv-grid .dv-tile{padding:6px 0}
+.dv2 .dv-grid .dv-ic{width:58px;height:58px;border-radius:18px}
+.dv2 .dv-grid .dv-ic .poi-badge{width:36px;height:36px}
+.dv2 .dv-grid .dv-lbl{font-size:11.5px}
+.dv2 .dv-chosen{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;border-radius:18px;background:var(--bg);padding:10px 12px;margin:0 0 14px;cursor:pointer;color:var(--fg)}
+.dv2 .dv-chosen .dv-ic{width:48px;height:48px;border-radius:15px;background:#fff;flex:none}
+.dv2 .dv-chosen .dv-ic .poi-badge{width:32px;height:32px}
+.dv2 .dv-chosen-txt{flex:1;min-width:0}
+.dv2 .dv-chosen-txt small{display:block;font-size:11px;color:var(--mut)}
+.dv2 .dv-chosen-txt b{display:block;font-size:17px;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dv2 .dv-change{display:inline-flex;align-items:center;gap:5px;flex:none;background:var(--acc);color:#fff;border-radius:999px;padding:8px 13px;font-size:12.5px;font-weight:650}
+.dv2 .dv-change>svg{width:15px;height:15px}
+@media (max-width:760px){body.distance-choosing #layersFab,body.distance-choosing .bm-toggle{display:none!important}}
+
+/* ===== Urząd gminy: znacznik, karta, przeglądarka zdjęć ===== */
+.urz-pin{cursor:pointer}
+.urz-pin-b{display:flex;align-items:center;gap:6px;border:0;background:#1c1c1e;color:#fff;border-radius:999px;padding:7px 12px 7px 9px;font:inherit;font-size:13px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;position:relative}
+.urz-pin-b>svg{width:18px;height:18px}
+.urz-pin-b::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:#1c1c1e}
+.urz-pin{padding-bottom:6px}
+.urz-peek{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);width:240px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25);pointer-events:none}
+.urz-peek>img,.urz-peek>.urz-orto{display:block;width:100%;height:140px;object-fit:cover}
+.urz-peek>span{display:block;padding:8px 11px 10px;font-size:13px;font-weight:650;color:#1c1c1e;line-height:1.3}
+.urz-peek small{display:block;font-weight:400;color:#6b6b70;font-size:11.5px}
+@media (hover:hover){.urz-pin:hover .urz-peek{display:block}}
+.urz-orto{position:relative;overflow:hidden;background:#d9d6cf}
+.urz-orto>img{position:absolute;width:256px;height:256px;max-width:none}
+.urz-orto-pin{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#ff3b30;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.urz{margin:14px 0 4px}
+.urz-hero{position:relative;display:block;width:100%;height:200px;border:0;padding:0;border-radius:18px;overflow:hidden;cursor:zoom-in;background:#ddd}
+.urz-hero>img,.urz-hero>.urz-orto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.urz-grad{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.72))}
+.urz-ttl{position:absolute;left:14px;right:14px;bottom:12px;text-align:left;color:#fff}
+.urz-ttl small{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:650;letter-spacing:.4px;text-transform:uppercase;opacity:.9}
+.urz-ttl small>svg{width:14px;height:14px}
+.urz-ttl b{display:block;font-size:19px;letter-spacing:-.3px;line-height:1.2;margin-top:2px}
+.urz-ttl em{display:block;font-style:normal;font-size:12.5px;opacity:.9}
+.urz-cnt{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:650}
+.urz-cnt>svg{width:14px;height:14px}
+.urz-thumbs{display:flex;gap:6px;overflow-x:auto;margin:8px 0 0;scrollbar-width:none}
+.urz-thumbs button{flex:none;width:76px;height:56px;border:0;padding:0;border-radius:10px;overflow:hidden;cursor:pointer}
+.urz-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.urz-poza{display:flex;gap:8px;align-items:flex-start;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#fff6e0;font-size:13px;line-height:1.4}
+.urz-poza>svg{flex:none;width:18px;height:18px;color:#b26a00;margin-top:1px}
+.urz-kontakt{margin:12px 0 0;padding:0}
+.urz-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.07);font-size:13.5px}
+.urz-row dt{flex:none;width:96px;color:#6b6b70}
+.urz-row dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.urz-soon{display:flex;gap:7px;align-items:flex-start;margin:10px 0 0;font-size:12.5px;color:#6b6b70;line-height:1.4}
+.urz-soon>svg{flex:none;width:16px;height:16px;margin-top:1px}
+.urz-map{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:12px 0 0;min-height:44px;border:0;border-radius:12px;background:var(--bg,#f2f2f7);font:inherit;font-weight:650;color:var(--acc,#0a84ff);cursor:pointer}
+.urz-map>svg{width:18px;height:18px}
+.urz-src{margin:8px 0 0;font-size:11.5px;color:#6b6b70;line-height:1.4}
+.urz-view{position:fixed;inset:0;z-index:5000;background:rgba(10,10,12,.92);display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));color:#fff}
+.urz-view-top{display:flex;align-items:center;gap:10px;max-width:1100px;width:100%;margin:0 auto}
+.urz-view-top>div{flex:1;min-width:0}
+.urz-view-top small{display:block;font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.4px}
+.urz-view-top b{display:block;font-size:17px}
+.urz-x{width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;display:grid;place-items:center}
+.urz-x>svg{width:22px;height:22px}
+.urz-stage{position:relative;flex:1;min-height:0;max-width:1100px;width:100%;margin:10px auto;display:grid;place-items:center}
+.urz-stage>img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+.urz-stage>.urz-orto{width:100%;height:100%;border-radius:8px}
+.urz-nav{position:absolute;top:50%;margin-top:-24px;left:4px;width:48px;height:48px;border:0;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;cursor:pointer;display:grid;place-items:center}
+.urz-nav.nx{left:auto;right:4px}.urz-nav[disabled]{opacity:.25;cursor:default}
+.urz-nav>svg{width:24px;height:24px}
+.urz-cap{max-width:1100px;width:100%;margin:0 auto;font-size:13px;line-height:1.4}
+.urz-cap span{opacity:.75;font-size:12px}.urz-cap a{color:#9fd0ff}
+.urz-strip{display:flex;gap:6px;overflow-x:auto;max-width:1100px;width:100%;margin:10px auto 0;scrollbar-width:none}
+.urz-strip button{flex:none;width:72px;height:52px;border:2px solid transparent;padding:0;border-radius:9px;overflow:hidden;cursor:pointer;background:#333}
+.urz-strip button[aria-pressed=true]{border-color:#fff}
+.urz-strip img,.urz-strip .urz-orto{width:100%;height:100%;object-fit:cover;display:block}
+
+/* Nazwiska w województwie */
+.nz-note{margin:0 0 10px;padding:8px 11px;border-radius:10px;background:#fff6e0;font-size:12.5px;line-height:1.4}
+.nz-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.nz-list{margin:0;padding:0 0 0 20px;font-size:13px}
+.nz-list li{padding:3px 0}
+.nz-list li span{display:block;color:#6b6b70;font-size:11.5px}

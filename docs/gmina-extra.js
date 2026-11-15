@@ -277,6 +277,10 @@
     }
   }
   document.addEventListener("plots:gmina", e => { if (flow && e.detail?.id !== flow.k) clearFlows(false); });
+  // Commuting arcs live only while you look at them: opening another module (Odległości, Komunikacja, Polska) or another place turns them off.
+  new MutationObserver(() => { if (flow && /\b(stats-open|distance-mode|transit-module)\b/.test(document.body.className)) clearFlows(false); })
+    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  document.addEventListener("plots:selection", () => { if (flow) clearFlows(false); });
   let flowRestyle = 0, flowHooked = false;
   function hookRestyle(map) {
     if (flowHooked) return; flowHooked = true;
@@ -424,13 +428,26 @@
       "Mieszkania zamieszkane. GUS, NSP 2021.");
   }
 
+  /* Surnames: PESEL publishes them only per voivodeship, so the section says plainly that this is not gmina data. */
+  async function surnames(g) {
+    const d = await json("data/nazwiska-woj.json"), w = d?.woj?.[g.k.slice(0, 2)];
+    if (!w?.topK) return "";
+    const list = (a, unit) => `<ol class="nz-list">${a.slice(0, 10).map(([n, c, r]) => `<li><b>${esc(n)}</b><span>${fmt(c)} <small>${unit(r)}</small></span></li>`).join("")}</ol>`;
+    const per = r => `${fmt(r, 1)} na 1000`;
+    const seen = new Set(), ch = [...(w.chK || []), ...(w.chM || [])].filter(([n]) => !seen.has(n) && seen.add(n)).slice(0, 10);
+    return section("users", `Najczęstsze nazwiska w województwie ${w.n}`, `<div class="ext-card"><p class="nz-note">To dane dla całego województwa, nie dla gminy. Rejestr PESEL nie publikuje nazwisk dla gmin.</p>
+      <div class="nz-cols"><div><p class="ext-sub"><b>Kobiety</b></p>${list(w.topK, per)}</div><div><p class="ext-sub"><b>Mężczyźni</b></p>${list(w.topM || [], per)}</div></div>
+      ${ch.length ? `<p class="ext-sub"><b>Nazwiska typowe dla regionu</b>: większość ich nosicieli w Polsce mieszka w tym województwie.</p><p>${ch.map(([n, c, p]) => `<span class="terr-chip">${esc(n)} <small>${fmt(p, 0)}% w woj.</small></span>`).join(" ")}</p>` : ""}</div>`,
+      `Mieszkańcy z adresem zameldowania na pobyt stały. <a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">${esc(d.zrodlo)}</a>.`);
+  }
+
   async function fill(g, el, category, lud) {
     if (!el || !g) return;
     const woj = g.k.slice(0, 2);
     const nspDoc = await json(`data/nsp/${woj}.json`);
     const N = nspDoc?.gminy?.[g.k] || null, PL = nspDoc?.pl || null;
     let html = "";
-    if (category === "Ludność") html = (await timeline(g)) + (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL);
+    if (category === "Ludność") html = (await timeline(g)) + (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL) + (await surnames(g));
     else if (category === "Warunki życia") html = housing(g, N, PL);
     if (!el.isConnected) return;
     el.insertAdjacentHTML("beforeend", html);
