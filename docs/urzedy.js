@@ -133,6 +133,7 @@
     return `<section class="urz-wl"><div class="urz-wl-top"><span class="urz-wl-av">${ph}</span>
       <div><small>${esc(role)}</small><b>${esc(w.n)}</b><em>${esc(party)}</em>${staz(w)}</div></div>
       <dl class="urz-kontakt urz-wl-dl">${row("Komitet", w.kom)}${w.pop ? row("Poparcie", w.pop) : ""}${w.proc != null ? row("Wynik w 2024", `${String(w.proc).replace(".", ",")}%${w.tura === 2 ? " w II turze" : " w I turze"}`) : ""}${w.wiek ? row("Wiek w 2024", w.wiek + " lat") : ""}</dl>
+      <div class="urz-wl-acts"><button type="button" data-wl-pl>${ic("poland")}Pokaż komitet w Polsce</button><button type="button" data-wl-hist>${ic("clock")}Zobacz historię</button></div>
       <div class="urz-wl-links"><a href="${g(`${w.n} ${w.urzad || where}`)}" target="_blank" rel="noopener noreferrer">${ic("magnifying-glass")}Szukaj w Google</a><a href="${g(`${w.n} ${w.f}`)}&tbm=isch" target="_blank" rel="noopener noreferrer">${ic("image")}Zdjęcia w Google</a></div>
       <p class="urz-src">Wybrany w wyborach samorządowych 2024 (PKW). Staż liczony z wyborów powszechnych od 2002 r. (PKW, danewyborcze.kbw.gov.pl); objęcie urzędu w wyborach przedterminowych nie jest liczone. Późniejsze zmiany nie są uwzględnione.${w.logo ? " Znaczki partii: Wikimedia Commons." : ""}</p></section>`;
   }
@@ -254,6 +255,8 @@
     const o = e.target.closest("[data-urz-open]"); if (o) { openViewer(+o.dataset.urzOpen); return; }
     if (e.target.closest("[data-urz-panel-close]")) { closePanel(); return; }
     const all = e.target.closest("[data-sp-all]"); if (all) { all.previousElementSibling?.classList.add("sp-open"); all.remove(); return; }
+    if (e.target.closest("[data-wl-pl]") && cur?.u.w) { const w = cur.u.w; closePanel(); window.StatsMap?.open("wl_komitet", { hl: w.komn || w.kom }); return; }
+    if (e.target.closest("[data-wl-hist]") && cur) { closePanel(); window.PLOTS_GMINY?.openDetails(false, "Wybory"); return; }
     if (e.target.closest("[data-urz-map]") && cur) { draw(); window.PLOTS?.framePoint(cur.u.c[0], cur.u.c[1], 16.5); }
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !viewer && panel && !panel.hidden) closePanel(); });

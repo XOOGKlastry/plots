@@ -8,6 +8,10 @@
   let geo = null, gminy = null, loading = null, active = false, defs = [], hoverId = null, selectedId = null, popup = null;
   const state = { key: null, year: null, mode: "value", method: "quantile", palette: null, reverse: false, classes: 7, zero: true, manual: {} };
   let current = null; // {def, values: Map(k -> value), years:[], scheme}
+  /* Categorical map: who won the 2024 election of wójt / burmistrz / prezydent, by committee (data/wojtowie.json, PKW). */
+  const WL = { key: "wl_komitet", label: "Wójt, burmistrz, prezydent: komitet wyborczy", category: "Wybory", group: "Włodarze gmin", icon: "bank", unit: "", cat: true, source: "PKW, wybory samorządowe 2024 (wybory2024.pkw.gov.pl)" };
+  const CATS = [["kww", "Komitet wyborców (lokalny)", "#8a8f98"], ["pis", "Prawo i Sprawiedliwość", "#1f3a93"], ["ko", "Koalicja Obywatelska", "#f08c00"], ["td", "Trzecia Droga, PSL, Polska 2050", "#2f9e44"], ["lewica", "Lewica", "#c2255c"], ["inne", "Stowarzyszenia i inne komitety", "#7048e8"]];
+  let wl = null, hl = null; // hl: committee name to outline
   // Time-lapse: every year of the indicator on one fixed colour scale; "rel" shows the change since the first year.
   const time = { on: false, frames: null, idx: 0, timer: 0, rel: false, scheme: null, key: null };
 
@@ -17,13 +21,15 @@
         fetch("data/municipalities.topojson").then(r => { if (!r.ok) throw Error("Granice gmin niedostępne"); return r.json(); }),
         window.PLOTS_GMINY.all(),
         window.GusClient.ready().catch(() => {}),
-        window.GusClient.energy().catch(() => {})
+        window.GusClient.energy().catch(() => {}),
+        fetch("data/wojtowie.json").then(r => r.ok ? r.json() : null).then(d => { wl = d?.g || null; }).catch(() => {})
       ]);
       gminy = list;
       geo = { type: "FeatureCollection", features: window.MunicipalityModel.decode(topology).map(f => ({ type: "Feature", properties: { k: f.id }, geometry: { type: "MultiPolygon", coordinates: f.polygons } })) };
       const names = new Map(gminy.map(g => [g.k, g]));
       geo.features.forEach(f => { const g = names.get(f.properties.k); f.properties.n = g ? g.n : f.properties.k; });
       defs = model.definitions.map(d => ({ d, n: gminy.reduce((n, g) => n + (Number.isFinite(model.metric(g, d).value) ? 1 : 0), 0) })).filter(x => x.n >= 50).map(x => x.d);
+      if (wl) defs.push(WL);
     })().catch(e => { loading = null; throw e; });
     return loading;
   }
@@ -37,14 +43,16 @@
     const before = firstSymbol();
     if (!map.getLayer("stats-fill")) map.addLayer({ id: "stats-fill", type: "fill", source: "stats-gminy", paint: { "fill-color": ["coalesce", ["feature-state", "c"], S.NODATA], "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.98, 0.88] } }, before);
     if (!map.getLayer("stats-line")) map.addLayer({ id: "stats-line", type: "line", source: "stats-gminy", paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.15, 8, 0.6, 11, 1.2], "line-opacity": 0.75 } }, before);
+    if (!map.getLayer("stats-hl")) map.addLayer({ id: "stats-hl", type: "line", source: "stats-gminy", paint: { "line-color": "#111318", "line-width": ["case", ["boolean", ["feature-state", "hl"], false], ["interpolate", ["linear"], ["zoom"], 5, 1.6, 9, 3], 0] } });
     if (!map.getLayer("stats-focus")) map.addLayer({ id: "stats-focus", type: "line", source: "stats-gminy", paint: { "line-color": "#111318", "line-width": ["case", ["boolean", ["feature-state", "sel"], false], 2.6, ["boolean", ["feature-state", "hover"], false], 1.6, 0] } });
   }
   function setVisible(on) {
-    for (const id of ["stats-fill", "stats-line", "stats-focus"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+    for (const id of ["stats-fill", "stats-line", "stats-hl", "stats-focus"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
   }
 
   function series(def, mode = state.mode) {
     const values = new Map(), years = new Set();
+    if (def.cat) { for (const k in wl || {}) values.set(k, { value: CATS.findIndex(c => c[0] === wl[k][0]), year: 2024, w: wl[k] }); return { values, years: [2024] }; }
     for (const g of gminy) {
       const m = model.metric(state.year && mode === "value" ? { ...g, _selectedYear: state.year } : g, def);
       (m.history || []).forEach(h => years.add(h.year));
@@ -63,7 +71,11 @@
   function paint() {
     if (!active || !current || !map.getSource("stats-gminy")) return;
     map.removeFeatureState({ source: "stats-gminy" });
-    for (const [k, o] of current.values) map.setFeatureState({ source: "stats-gminy", id: k }, { c: S.colorOf(o.value, current.scheme) });
+    const dim = current.def.cat && hl;
+    for (const [k, o] of current.values) {
+      const on = !!dim && o.w[1] === hl;
+      map.setFeatureState({ source: "stats-gminy", id: k }, { c: current.def.cat ? (dim && !on ? CATS[o.value][2] + "40" : CATS[o.value][2]) : S.colorOf(o.value, current.scheme), hl: on });
+    }
     if (selectedId) map.setFeatureState({ source: "stats-gminy", id: selectedId }, { sel: true });
   }
 
@@ -82,6 +94,13 @@
     const def = defs.find(d => d.key === state.key) || defs[0];
     if (!def) return;
     state.key = def.key;
+    panel.classList.toggle("stats-cat", !!def.cat);
+    if (def.cat) {
+      if (time.on) { stopTime(); time.on = false; time.frames = null; time.key = null; $("#statsTime").hidden = true; }
+      const { values } = series(def);
+      current = { def, values, years: [2024], usedYears: [2024], scheme: null, palette: null, raw: [], okChange: false };
+      return;
+    }
     const okChange = changeOk(def);
     if (!okChange && state.mode === "change") { state.mode = "value"; state.palette = null; }
     const { values, years } = series(def);
@@ -142,6 +161,9 @@
   function selectedHtml() {
     if (!selectedId) return `<p class="muted small">Kliknij gminę na mapie, aby zobaczyć jej wartość i miejsce w rankingu.</p>`;
     const g = gminy.find(x => x.k === selectedId), o = current.values.get(selectedId);
+    if (o && current.def.cat) { const w = o.w, c = CATS[o.value];
+      return `<div class="stats-selected"><div><strong>${esc(g?.n || selectedId)}</strong><small>${esc(w[5])}: ${esc(w[2])}${w[6] ? ` · rządzi od ${w[6]}` : ""}</small></div><div><b style="color:${c[2]}">${esc(c[1])}</b><small>${esc(w[1])}${w[3] != null ? ` · ${String(w[3]).replace(".", ",")}%${w[4] === 2 ? " w II turze" : ""}` : ""}</small></div></div>
+        <div class="stats-wl-acts"><button type="button" data-wl-hl="${esc(w[1])}" aria-pressed="${hl === w[1]}">${icon("poland")}${hl === w[1] ? "Pokaż wszystkie" : "Gdzie jeszcze wygrał ten komitet"}</button><button type="button" data-wl-hist="${esc(selectedId)}">${icon("clock")}Zobacz historię</button></div>`; }
     if (!o) return `<div class="stats-selected"><strong>${esc(g?.n || selectedId)}</strong><span>Brak danych</span></div>`;
     const lower = current.def.lowerBetter, sorted = [...current.values.values()].map(v => v.value).sort((a, b) => lower ? a - b : b - a);
     const rank = sorted.findIndex(v => v === o.value) + 1;
@@ -149,8 +171,23 @@
   }
   function unit() { if (time.on && time.rel) return current.def.unit === "%" ? `p.p. od ${time.frames[0].y}` : `% od ${time.frames[0].y}`; return state.mode === "change" ? (current.def.unit === "%" ? "p.p. r/r" : (current.def.unit || "") + " r/r") : current.def.unit || ""; }
 
+  function renderCat() {
+    const { def } = current, cnt = CATS.map(() => 0);
+    for (const o of current.values.values()) cnt[o.value]++;
+    const I = window.IndicatorIcons.of(def);
+    $("#statsCurrent").innerHTML = `<small style="--cat:${I.color}">${icon(I.icon)}${esc(def.category)} · ${esc(I.group)}</small><strong>${esc(def.label)}</strong><span>2024</span>${icon("caret-down", "stats-caret")}`;
+    const same = hl ? [...current.values].filter(([, o]) => o.w[1] === hl) : [];
+    $("#statsLegend").innerHTML = `<ol class="stats-catleg">${CATS.map((c, i) => `<li><i style="background:${c[2]}"></i><span>${esc(c[1])}</span><small>${cnt[i].toLocaleString("pl-PL")}</small></li>`).join("")}</ol>` +
+      (hl ? `<div class="stats-hlbox"><p><b>${esc(hl)}</b>: ${same.length === 1 ? "wygrał tylko w tej gminie" : `wygrał w ${same.length} gminach`}.</p>${same.length > 1 ? `<ol>${same.slice(0, 40).map(([k, o]) => `<li><button type="button" data-stats-gmina="${esc(k)}"><span>${esc(gminy.find(x => x.k === k)?.n || k)}<small>${esc(o.w[2])}</small></span><b>${o.w[3] != null ? String(o.w[3]).replace(".", ",") + "%" : ""}</b></button></li>`).join("")}</ol>` : ""}<button type="button" class="stats-hlx" data-wl-hl="">Pokaż wszystkie gminy</button></div>` : "");
+    $("#statsHist").innerHTML = "";
+    $("#statsSelected").innerHTML = selectedHtml();
+    document.dispatchEvent(new CustomEvent("stats:render", { detail: { def, values: current.values, selectedId } }));
+    $("#statsSource").textContent = `Źródło: ${def.source}. Kolor według komitetu, z którego wygrał kandydat; wielu włodarzy z komitetów wyborców należy do partii. ${current.values.size.toLocaleString("pl-PL")} gmin.`;
+    syncUrl();
+  }
   function render() {
     if (!current) return;
+    if (current.def.cat) return renderCat();
     const { def, scheme } = current;
     const items = S.legend(scheme, current.raw, def.digits);
     const hist = S.histogram(current.raw), peak = Math.max(1, ...hist.map(b => b.count));
@@ -241,14 +278,25 @@
     if (!defs.length) { app.toast("Brak wskaźników do pokazania"); return; }
     ensureLayers();
     if (key) { state.key = key; state.palette = null; }
+    hl = options.hl || null;
     if (!state.key) state.key = (defs.find(d => d.key === "gaz_proc") || defs[0]).key;
     if (options.year) state.year = options.year;
     const wasActive = active; active = true; setVisible(true);
     selectedId = window.PLOTS_GMINY.current();
     update();
-    if (!wasActive) { window.UIHistory?.open("stats", () => close()); if (!options.keepView) map.fitBounds(POLAND, { padding: app.isMobile() ? { top: 84, bottom: 236, left: 10, right: 10 } : { top: 40, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 400, right: 410 }, duration: 900 }); }
+    const hlKeys = hl ? [...current.values].filter(([, o]) => o.w?.[1] === hl).map(([k]) => k) : [];
+    if (hlKeys.length > 1) fitKeys(hlKeys); // a local committee that won in one gmina: show the whole country
+    if (!wasActive) { window.UIHistory?.open("stats", () => close()); if (!options.keepView && hlKeys.length < 2) map.fitBounds(POLAND, { padding: app.isMobile() ? { top: 84, bottom: 236, left: 10, right: 10 } : { top: 40, bottom: 40, left: document.body.classList.contains("collapsed") ? 40 : 400, right: 410 }, duration: 900 }); }
     if (app.isMobile()) { app.snap("hidden"); sheet(false); document.querySelectorAll(".maplibregl-compact-show").forEach(el => el.classList.remove("maplibregl-compact-show")); }
     if (!key && !options.keepView) togglePicker(true);
+  }
+  /* Zoom to a set of gminy (e.g. where one committee won); a single small gmina is shown with its surroundings. */
+  function fitKeys(keys) {
+    const set = new Set(keys), xs = [], ys = [];
+    for (const f of geo.features) if (set.has(f.properties.k)) for (const p of f.geometry.coordinates.flat(2)) { xs.push(p[0]); ys.push(p[1]); }
+    if (!xs.length) return;
+    let b = [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
+    map.fitBounds(b, { padding: app.isMobile() ? { top: 90, bottom: 260, left: 30, right: 30 } : { top: 60, bottom: 60, left: 420, right: 430 }, maxZoom: 8.5, duration: 900 });
   }
   function close() {
     if (time.on) timeExit();
@@ -271,7 +319,7 @@
     hover(f.id); map.getCanvas().style.cursor = "pointer";
     const o = current.values.get(f.id);
     popup = popup || new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: "stats-popup", offset: 12 });
-    popup.setLngLat(e.lngLat).setHTML(`<strong>${esc(f.properties.n)}</strong><span>${o ? `<b>${esc(S.format(o.value, current.def.digits))}</b> ${esc(unit())}${o.year ? " · " + o.year : ""}` : "Brak danych"}</span>`).addTo(map);
+    popup.setLngLat(e.lngLat).setHTML(current.def.cat ? `<strong>${esc(f.properties.n)}</strong><span>${o ? `${esc(o.w[2])}<br><b style="color:${CATS[o.value][2]}">${esc(o.w[1])}</b>` : "Brak danych"}</span>` : `<strong>${esc(f.properties.n)}</strong><span>${o ? `<b>${esc(S.format(o.value, current.def.digits))}</b> ${esc(unit())}${o.year ? " · " + o.year : ""}` : "Brak danych"}</span>`).addTo(map);
   });
   map.on("mouseleave", "stats-fill", () => { hover(null); map.getCanvas().style.cursor = ""; popup?.remove(); });
   map.on("click", "stats-fill", e => {
@@ -299,7 +347,9 @@
     else if (b.id === "statsTimePlay") playTime();
     else if (b.id === "statsTimeExit") timeExit();
     else if (b.dataset.timeRel) { time.rel = b.dataset.timeRel === "true"; time.key = null; update(); renderTime(); }
-    else if (b.dataset.stat) { if (time.on) timeExit(); state.key = b.dataset.stat; state.palette = null; state.year = null; togglePicker(false); update(); if (app.isMobile()) sheet(false); }
+    else if (b.hasAttribute("data-wl-hl")) { hl = b.dataset.wlHl && b.dataset.wlHl !== hl ? b.dataset.wlHl : null; render(); paint(); if (hl) fitKeys([...current.values].filter(([, o]) => o.w?.[1] === hl).map(([k]) => k)); }
+    else if (b.dataset.wlHist) window.PLOTS_GMINY.setContext(b.dataset.wlHist).then(() => window.PLOTS_GMINY.openDetails(false, "Wybory"));
+    else if (b.dataset.stat) { hl = null; if (time.on) timeExit(); state.key = b.dataset.stat; state.palette = null; state.year = null; togglePicker(false); update(); if (app.isMobile()) sheet(false); }
     else if (b.id === "statsHandle") sheet(document.body.classList.contains("stats-mini"));
     else if (b.dataset.mode && !b.disabled) { if (time.on) timeExit(); state.mode = b.dataset.mode; state.palette = null; update(); }
     else if (b.dataset.method) { state.method = b.dataset.method; update(); }

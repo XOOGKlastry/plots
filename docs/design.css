@@ -803,3 +803,34 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .sp-h4{margin:14px 0 6px;font-size:13px;color:var(--mut,#6e6e73);font-weight:650}
 .sp-units{list-style:none;margin:0;padding:0}
 .sp-units li{display:grid;gap:2px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.07);font-size:13px}.sp-units li span{color:var(--mut,#6e6e73);font-size:12.5px}
+
+/* gmina card: former voivodeship capital */
+.gmina-capital{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 9px;border-radius:999px;background:#fff4e6;color:#a8530a;font-size:12px;font-weight:600}
+.gmina-capital .ic,.gmina-capital svg{width:14px;height:14px}
+/* Polska map: factors (zabory, cities) */
+.zab-fs{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.zab-f>button{display:grid;grid-template-columns:minmax(0,1fr) 64px auto;gap:10px;align-items:center;width:100%;padding:9px 10px;border:1px solid var(--line,#d1d1d6);border-radius:12px;background:var(--solid,#fff);font:inherit;text-align:left;color:var(--fg,#1d1d1f);cursor:pointer}
+.zab-f>button span{font-size:13px;font-weight:600;min-width:0}.zab-f>button small{display:block;font-weight:400;font-size:11px;color:var(--mut,#6e6e73)}
+.zab-f>button em{height:6px;border-radius:3px;background:rgba(0,0,0,.07);overflow:hidden}.zab-f>button em s{display:block;height:100%;background:#adb5bd;text-decoration:none;border-radius:3px}
+.zab-f.is-strong>button em s{background:#c92a2a}.zab-f.is-weak>button em s{background:#f08c00}
+.zab-f>button i{font-style:normal;font-size:12px;font-weight:650;color:var(--acc,#0a84ff)}
+.zab-f>button.is-suggested{border-color:var(--acc,#0a84ff);box-shadow:0 0 0 3px rgba(10,132,255,.18);animation:zabPulse 1.6s ease-in-out 3}
+.zab-f.is-open>button{border-color:#1d1d1f}.zab-f .zab-med{margin:8px 4px 4px}
+.zab-chips{display:flex;gap:6px;overflow-x:auto;margin:8px 0 0;padding-bottom:2px}
+.zab-chips button{flex:none;padding:6px 10px;border:1px solid var(--line,#d1d1d6);border-radius:999px;background:var(--solid,#fff);font:inherit;font-size:12px;cursor:pointer}
+.zab-chips button[aria-pressed=true]{background:#1d1d1f;color:#fff;border-color:transparent}
+/* Polska map: categorical (mayors by committee) */
+.stats-cat .stats-controls,.stats-cat .stats-style,.stats-cat .stats-rank,.stats-cat #statsTime,.stats-cat #statsHist{display:none!important}
+.stats-legend ol.stats-catleg li span{font-size:12px}
+.stats-hlbox{margin-top:10px;padding:10px;border-radius:12px;background:var(--bg,#f2f2f7);font-size:12.5px}
+.stats-hlbox p{margin:0 0 6px}.stats-hlbox ol{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto}
+.stats-hlbox li button{display:flex;width:100%;justify-content:space-between;gap:8px;border:0;border-bottom:1px solid rgba(0,0,0,.06);background:none;padding:6px 0;font:inherit;font-size:12.5px;text-align:left;cursor:pointer;color:var(--fg,#1d1d1f)}
+.stats-hlbox li small{display:block;color:var(--mut,#6e6e73);font-size:10.5px}
+.stats-hlx{margin-top:8px;border:0;background:none;padding:0;font:inherit;font-size:12.5px;font-weight:600;color:var(--acc,#0a84ff);cursor:pointer}
+.stats-wl-acts,.urz-wl-acts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.stats-wl-acts button,.urz-wl-acts button{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:7px 12px;border:1px solid var(--line,#d1d1d6);border-radius:12px;background:var(--solid,#fff);font:inherit;font-size:12.5px;font-weight:650;color:var(--acc,#0a84ff);cursor:pointer}
+.stats-wl-acts button[aria-pressed=true]{background:#1d1d1f;color:#fff;border-color:transparent}
+.stats-wl-acts svg,.urz-wl-acts svg{width:16px;height:16px}
+@media(max-width:767px){.stats-wl-acts button,.urz-wl-acts button{min-height:44px}.zab-f>button{min-height:48px}}
+.stats-legend .stats-hlbox li{display:block}
+.zab-f>button:disabled{cursor:default;opacity:.55}.zab-f>button:disabled i{display:none}
