@@ -646,8 +646,6 @@ body.stats-open #bmToggle,body.stats-open #layersFab,body.distance-picking #bmTo
 .urz-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.07);font-size:13.5px}
 .urz-row dt{flex:none;width:96px;color:#6b6b70}
 .urz-row dd{margin:0;min-width:0;overflow-wrap:anywhere}
-.urz-soon{display:flex;gap:7px;align-items:flex-start;margin:10px 0 0;font-size:12.5px;color:#6b6b70;line-height:1.4}
-.urz-soon>svg{flex:none;width:16px;height:16px;margin-top:1px}
 .urz-map{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:12px 0 0;min-height:44px;border:0;border-radius:12px;background:var(--bg,#f2f2f7);font:inherit;font-weight:650;color:var(--acc,#0a84ff);cursor:pointer}
 .urz-map>svg{width:18px;height:18px}
 .urz-src{margin:8px 0 0;font-size:11.5px;color:#6b6b70;line-height:1.4}
@@ -752,14 +750,21 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .urz-my-main p{margin:2px 0 0;font-size:13px;color:#3a3a3c;white-space:pre-wrap}
 .urz-my-tel{display:inline-flex;align-items:center;gap:6px;color:#0a84ff;font-size:14.5px;text-decoration:none;font-weight:600}
 .urz-my-tel svg{width:15px;height:15px}
-.urz-my-btns{display:flex;gap:4px}
-.urz-my-btns .icbtn{width:32px;height:32px}
-.urz-my-empty{margin:0 0 10px;font-size:13.5px;color:var(--mut,#6e6e73)}
-.urz-my-add{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;border:1.5px dashed #9cc3f5;border-radius:14px;background:#f4f8ff;color:#0a5bc4;font:inherit;font-weight:650;cursor:pointer}
-.urz-my-add svg{width:18px;height:18px}
-.urz-my-form{display:grid;gap:8px;background:var(--bg,#f2f2f7);border-radius:14px;padding:12px}
-.urz-my-form label{display:grid;gap:3px;font-size:12px;color:var(--mut,#6e6e73)}
-.urz-my-form input,.urz-my-form textarea{font:inherit;font-size:16px;border:1px solid #d1d1d6;border-radius:10px;padding:8px 10px;background:#fff;color:#1c1c1e}
-.urz-my-fbtn{display:flex;gap:8px}
-.urz-my-fbtn .urz-act{flex:1;border:0;cursor:pointer;font:inherit}
-.linkish{background:none;border:0;padding:0;font:inherit;color:#0a84ff;cursor:pointer;text-decoration:underline}
+
+.urz-godz .is-today{background:#e8f2ff;border-radius:10px;margin:0 -8px;padding-left:8px;padding-right:8px}.urz-godz .is-today dt,.urz-godz .is-today dd{color:#0a5bd6;font-weight:600}
+.urz-ref dt{flex:1 1 auto;width:auto;color:var(--fg,#1d1d1f)}.urz-ref dd{flex:none;white-space:nowrap}.stats-secs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:2px 0 8px}
+.stats-secs button{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:64px;padding:8px 4px;border:1px solid var(--line);border-radius:14px;background:var(--solid);color:var(--fg);font-size:11.5px;font-weight:600;line-height:1.15;text-align:center;cursor:pointer}
+.stats-secs button .ic{width:20px;height:20px;color:var(--acc)}
+.stats-secs button small{font-size:10px;font-weight:500;color:var(--mut)}
+.stats-secs button[aria-pressed=true]{background:var(--acc);border-color:transparent;color:#fff}.stats-secs button[aria-pressed=true] .ic,.stats-secs button[aria-pressed=true] small{color:#fff}
+.stats-cats[hidden]{display:none}
+@media(min-width:768px){.stats-picker{max-height:calc(100dvh - 250px)}.stats-cats{top:46px}}
+.rl{margin:4px 0 18px}.rl h3{font-size:17px;margin:0 0 4px}
+.rl-list{list-style:none;margin:10px 0 6px;padding:0}
+.rl-row{display:grid;grid-template-columns:48px 1fr auto;gap:10px;align-items:center;padding:9px 10px 9px 12px;border-left:4px solid var(--rl);background:var(--solid,#fff);border-radius:0 12px 12px 0;margin-bottom:6px}
+.rl-row.rl-same{margin-bottom:0;border-bottom-right-radius:0;box-shadow:0 1px 0 rgba(0,0,0,.05)}
+.rl-row.rl-same+.rl-row{border-top-right-radius:0}
+.rl-year{font-weight:700;font-variant-numeric:tabular-nums;color:var(--rl)}
+.rl-row a{font-weight:600;color:var(--fg,#1d1d1f);text-decoration:none}.rl-row a:hover{text-decoration:underline}
+.rl-row small{display:block;font-size:11.5px;color:var(--mut,#6e6e73);line-height:1.3;margin-top:1px}
+.rl-row b{font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}

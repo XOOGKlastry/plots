@@ -181,20 +181,37 @@
   }
 
   const ORDER = ["Ludność", "Migracje", "Dojazdy", "Rodziny", "Finanse i firmy", "Warunki życia", "Handel", "Paczki", "Transport", "Zdrowie i służby", "Szkoły i rekreacja", "Turystyka", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Wybory"];
-  let pickCat = "";
+  /* Four sections on top, then the categories of the chosen section, then its indicators. */
+  const SECTIONS = [
+    { name: "Ludzie", icon: "users", cats: ["Przegląd", "Ludność", "Migracje", "Dojazdy", "Rodziny", "Wybory"] },
+    { name: "Gospodarka", icon: "coins", cats: ["Finanse i firmy", "Warunki życia", "Handel", "Paczki"] },
+    { name: "Usługi", icon: "first-aid-kit", cats: ["Transport", "Zdrowie i służby", "Szkoły i rekreacja", "Edukacja i kultura", "Turystyka"] },
+    { name: "Energia i teren", icon: "lightning", cats: ["Energia i ciepło", "Infrastruktura", "Planowanie", "Środowisko"] }
+  ];
+  const sectionOf = cat => SECTIONS.find(s => s.cats.includes(cat)) || SECTIONS[SECTIONS.length - 1];
+  let pickSec = SECTIONS[0].name, pickCat = "";
   function pickerList(q) {
     const I = window.IndicatorIcons, needle = model.normalize(q || "");
-    const all = I.group(defs, ORDER);
-    $("#statsCats").innerHTML = `<button type="button" role="tab" data-pick-cat="" aria-selected="${!pickCat}">${icon("squares-four")}<span>Wszystkie</span></button>` + all.map(c => `<button type="button" role="tab" data-pick-cat="${esc(c.category)}" aria-selected="${pickCat === c.category}" style="--cat:${c.color}">${icon(c.icon)}<span>${esc(c.category)}</span></button>`).join("");
+    const all = I.group(defs, ORDER), sec = SECTIONS.find(s => s.name === pickSec) || SECTIONS[0];
+    const count = s => defs.filter(d => sectionOf(d.category) === s).length;
+    $("#statsSecs").innerHTML = SECTIONS.map(s => `<button type="button" data-pick-sec="${esc(s.name)}" aria-pressed="${!needle && s === sec}">${icon(s.icon)}<span>${esc(s.name)}</span><small>${count(s)}</small></button>`).join("");
+    const inSec = all.filter(c => sectionOf(c.category) === sec);
+    $("#statsCats").hidden = !!needle;
+    $("#statsCats").innerHTML = inSec.map(c => `<button type="button" role="tab" data-pick-cat="${esc(c.category)}" aria-selected="${pickCat === c.category}" style="--cat:${c.color}">${icon(c.icon)}<span>${esc(c.category)}</span></button>`).join("");
     const chip = $("#statsCats [aria-selected=true]"), bar = $("#statsCats"); if (chip) requestAnimationFrame(() => { bar.scrollLeft += chip.getBoundingClientRect().left - bar.getBoundingClientRect().left - 40; });
     const match = d => !needle || model.normalize(d.label + " " + d.category + " " + I.of(d).group + " " + (d.unit || "")).includes(needle);
-    const cats = I.group(defs.filter(d => match(d) && (needle || !pickCat || d.category === pickCat)), ORDER);
+    const cats = I.group(defs.filter(d => match(d) && (needle || d.category === pickCat)), ORDER);
     $("#statsList").innerHTML = cats.map(c => `<h3 style="--cat:${c.color}">${icon(c.icon)}${esc(c.category)}</h3>${c.groups.map(g => `${c.groups.length > 1 ? `<h4>${esc(g.label)}</h4>` : ""}<ul>${g.items.map(d => `<li><button type="button" data-stat="${esc(d.key)}" aria-current="${d.key === state.key}"><span class="stats-ico" style="--cat:${c.color}">${icon(I.of(d).icon)}</span><span>${esc(d.label)}<small>${esc(d.unit || "")}${d.level === 5 ? " · dane powiatu" : ""}</small></span></button></li>`).join("")}</ul>`).join("")}`).join("") || `<p class="muted small">Brak pasujących wskaźników.</p>`;
+  }
+  function pickSection(name) {
+    pickSec = name;
+    const first = window.IndicatorIcons.group(defs, ORDER).find(c => sectionOf(c.category).name === name);
+    pickCat = first?.category || "";
   }
   function togglePicker(open) {
     const picker = $("#statsPicker"), show = open ?? picker.hidden;
     picker.hidden = !show; $("#statsCurrent").setAttribute("aria-expanded", show);
-    if (show) { pickCat = current?.def?.category || ""; pickerList($("#statsSearch").value); if (!app.isMobile()) $("#statsSearch").focus(); else { sheet(true); panel.scrollTop = 0; } }
+    if (show) { pickCat = current?.def?.category || ""; if (pickCat) pickSec = sectionOf(pickCat).name; else pickSection(SECTIONS[0].name); pickerList($("#statsSearch").value); if (!app.isMobile()) $("#statsSearch").focus(); else { sheet(true); panel.scrollTop = 0; } }
   }
   function update() { compute(); render(); paint(); }
   /* Phone: the panel is a bottom sheet with a compact state (indicator, colour bar, chosen gmina) and an expanded one. */
@@ -286,6 +303,7 @@
     else if (b.dataset.method) { state.method = b.dataset.method; update(); }
     else if (b.dataset.palette) { state.palette = b.dataset.palette === "auto" ? null : b.dataset.palette; update(); }
     else if (b.hasAttribute("data-pick-cat")) { pickCat = b.dataset.pickCat; pickerList($("#statsSearch").value); }
+    else if (b.dataset.pickSec) { pickSection(b.dataset.pickSec); $("#statsSearch").value = ""; pickerList(""); $("#statsPicker").scrollTop = 0; }
     else if (b.dataset.statsGmina) { const id = b.dataset.statsGmina, f = geo.features.find(x => x.properties.k === id); choose(id); if (f) { const pts = f.geometry.coordinates.flat(2); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: app.isMobile() ? { top: 90, bottom: 250, left: 30, right: 30 } : 80, maxZoom: 10, duration: 800 }); if (app.isMobile()) sheet(false); } }
   });
   let swipeY = null, swiped = 0;

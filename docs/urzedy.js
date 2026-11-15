@@ -145,26 +145,38 @@
     const txt = w.od >= 2024 ? `Pierwsza kadencja, od ${w.od} r.` : `Rządzi od ${w.od} r. · ${lat} ${lw} · ${kad}. kadencja${w.od === 2002 ? " (od pierwszych wyborów bezpośrednich)" : ""}`;
     return `<span class="urz-wl-staz">${ic("clock")}${esc(txt)}</span>`;
   }
-  /* "Moje kontakty": the user's own people and numbers for a gmina, kept only on this device (localStorage), with export and import. */
-  const MK = "urzedy.moje";
-  function mine() { try { return JSON.parse(localStorage.getItem(MK) || "{}") || {}; } catch { return {}; } }
-  function saveMine(all) { try { localStorage.setItem(MK, JSON.stringify(all)); return true; } catch { return false; } }
-  let editing = null;
-  const whereOf = u => u.n;
-  function mySection(k, where) {
-    const list = mine()[k] || [];
-    const item = (p, i) => `<li class="urz-my-item"><div class="urz-my-main">${p.n ? `<a class="urz-my-name" href="${g(`${p.n} ${p.r || ""} ${where}`.replace(/\s+/g, " ").trim())}" target="_blank" rel="noopener noreferrer">${esc(p.n)}${ic("magnifying-glass")}</a>` : ""}${p.r ? `<small>${esc(p.r)}</small>` : ""}
-        ${p.t ? `<a class="urz-my-tel" href="tel:${esc(p.t.replace(/[^\d+]/g, ""))}">${ic("phone")}${esc(p.t)}</a>` : ""}${p.m ? `<a class="urz-my-tel" href="mailto:${esc(p.m)}">${ic("envelope")}${esc(p.m)}</a>` : ""}${p.x ? `<p>${esc(p.x)}</p>` : ""}</div>
-        <div class="urz-my-btns"><button type="button" class="icbtn" data-my-edit="${i}" aria-label="Edytuj">${ic("sliders-horizontal")}</button><button type="button" class="icbtn" data-my-del="${i}" aria-label="Usuń">${ic("x")}</button></div></li>`;
-    const p = editing && editing.k === k ? (list[editing.i] || {}) : null;
-    const form = p ? `<form class="urz-my-form" data-my-form><label>Imię i nazwisko<input name="n" value="${esc(p.n)}" autocomplete="off"></label><label>Funkcja lub wydział<input name="r" value="${esc(p.r)}" placeholder="np. sekretarz gminy" autocomplete="off"></label>
-        <label>Telefon<input name="t" type="tel" value="${esc(p.t)}" autocomplete="off"></label><label>E-mail<input name="m" type="email" value="${esc(p.m)}" autocomplete="off"></label><label>Notatka<textarea name="x" rows="2">${esc(p.x)}</textarea></label>
-        <div class="urz-my-fbtn"><button type="submit" class="urz-act">${ic("check-circle")}Zapisz</button><button type="button" class="urz-act" data-my-cancel>Anuluj</button></div></form>` : "";
-    return `<h3 class="urz-h">Moje kontakty</h3><section class="urz-my">${list.length ? `<ul>${list.map(item).join("")}</ul>` : p ? "" : `<p class="urz-my-empty">Dopisz własne osoby i numery do tej gminy. Nazwisko otworzy wyszukiwanie w Google.</p>`}
-      ${form || `<button type="button" class="urz-my-add" data-my-add>${ic("users")}Dodaj osobę lub numer</button>`}
-      <p class="urz-src">Zapisane tylko na tym urządzeniu. <button type="button" class="linkish" data-my-export>Zapisz kopię do pliku</button> · <label class="linkish">Wczytaj z pliku<input type="file" accept="application/json,.json" data-my-import hidden></label></p></section>`;
+  /* Who ran the gmina since 2002 (PKW general elections), for the Wybory tab: one row per election, same person joined. */
+  function rulers(u) {
+    const w = u?.w; if (!w) return "";
+    const rows = [[2024, w.n, w.komn || w.kom, w.proc, w.tura], ...(w.hist || [])];
+    const people = [...new Set(rows.map(r => r[1]))];
+    const hue = n => ["#0a84ff", "#e8590c", "#2f9e44", "#ae3ec9", "#c2255c", "#1098ad", "#f08c00"][people.indexOf(n) % 7];
+    const where = u.n.replace(/^Urząd\s+/i, "");
+    const li = (r, i) => {
+      const same = rows[i + 1] && rows[i + 1][1] === r[1];
+      const pr = r[3] != null ? `${String(r[3]).replace(".", ",")}%${r[4] === 2 ? " w II turze" : ""}` : r[4] === 2 ? "w II turze" : "";
+      return `<li class="rl-row${same ? " rl-same" : ""}" style="--rl:${hue(r[1])}"><span class="rl-year">${r[0]}</span><div><a href="${g(`${r[1]} ${where}`)}" target="_blank" rel="noopener noreferrer">${esc(r[1])}</a><small>${esc(r[2] || "")}</small></div><b>${esc(pr)}</b></li>`;
+    };
+    const n = people.length;
+    return `<section class="rl"><h3>Kto rządził gminą</h3><p class="muted small">Od 2002 r. ${n === 1 ? "rządzi ta sama osoba" : `${n < 5 ? `rządziły ${n} osoby` : `rządziło ${n} osób`}`}. Wyniki zwycięzców w wyborach powszechnych, nazwisko otwiera wyszukiwanie w Google.</p>
+      <ol class="rl-list">${rows.map(li).join("")}</ol>
+      <p class="urz-src">Źródło: PKW (danewyborcze.kbw.gov.pl, wybory2018.pkw.gov.pl, wybory2024.pkw.gov.pl). Wybory przedterminowe i odwołania w referendum nie są ujęte.</p></section>`;
   }
-  function myRefresh() { const box = panel?.querySelector("[data-my-box]"); if (!box || !cur) return; box.innerHTML = mySection(cur.k, whereOf(cur.u)); box.querySelector("[data-my-form] input")?.focus(); }
+  /* People we add ourselves (osoby.json in the generator): name links to a Google search. */
+  function people(u) {
+    if (!u.os?.length) return "";
+    const item = p => `<li class="urz-my-item"><div class="urz-my-main">${p.n ? `<a class="urz-my-name" href="${g(`${p.n} ${p.r || ""} ${u.n}`.replace(/\s+/g, " ").trim())}" target="_blank" rel="noopener noreferrer">${esc(p.n)}${ic("magnifying-glass")}</a>` : ""}${p.r ? `<small>${esc(p.r)}</small>` : ""}
+        ${p.t ? `<a class="urz-my-tel" href="${telHref(p.t)}">${ic("phone")}${esc(fmtTel(p.t))}</a>` : ""}${p.m ? `<a class="urz-my-tel" href="mailto:${esc(p.m)}">${ic("envelope")}${esc(p.m)}</a>` : ""}${p.x ? `<p>${esc(p.x)}</p>` : ""}</div></li>`;
+    return `<h3 class="urz-h">Osoby do kontaktu</h3><section class="urz-my"><ul>${u.os.map(item).join("")}</ul></section>`;
+  }
+  /* From the gmina's BIP: office hours (today highlighted) and departments with their phones. */
+  function bipBlock(u) {
+    if (!u.godz?.length && !u.ref?.length) return "";
+    const today = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"][new Date().getDay()];
+    const hours = u.godz?.length ? `<h3 class="urz-h">Godziny pracy</h3><dl class="urz-kontakt urz-godz">${u.godz.map(([d, h]) => `<div class="urz-row${d === today ? " is-today" : ""}"><dt>${esc(d)}${d === today ? " · dziś" : ""}</dt><dd>${esc(h)}</dd></div>`).join("")}</dl>` : "";
+    const refs = u.ref?.length ? `<h3 class="urz-h">Referaty i wydziały</h3><dl class="urz-kontakt urz-ref">${u.ref.map(r => `<div class="urz-row"><dt>${esc(r.n)}</dt><dd>${r.t ? `<a href="${telHref(r.t)}">${esc(fmtTel(r.t))}</a>` : ""}</dd></div>`).join("")}</dl>` : "";
+    return hours + refs + `<p class="urz-src">Z <a href="${esc(u.bipu)}" target="_blank" rel="noopener noreferrer">Biuletynu Informacji Publicznej gminy</a>, zebrane automatycznie. Mogą być nieaktualne.</p>`;
+  }
   let panel = null, src = null;
   function ensurePanel() {
     if (panel) return panel;
@@ -179,7 +191,6 @@
     if (!cur || cur.k !== k) return;
     const hero = u.foto ? `<img alt="Budynek: ${esc(u.n)}" src="${esc(px(u.foto.u, 960))}">` : orto(u.c[0], u.c[1], 18);
     const n = (u.okolica || []).length;
-    const bip = u.bip && typeof u.bip === "object" ? Object.entries(u.bip).map(([a, b]) => row(a, String(b))).join("") : "";
     p.innerHTML = `<header class="section-head urz-head"><h2>${ic("bank")}Urząd gminy</h2><button class="icbtn" type="button" data-urz-panel-close aria-label="Zamknij panel urzędu">${ic("x")}</button></header>
      <div class="urz-body"><section class="urz">
       <button type="button" class="urz-hero" data-urz-open="0">${hero}<span class="urz-grad"></span><span class="urz-ttl"><small>Siedziba urzędu</small><b>${esc(u.n)}</b><em>${esc(u.a)}, ${esc(u.pc)}</em></span>${n ? `<span class="urz-cnt">${ic("image")}${n + 1}</span>` : ""}</button>
@@ -190,11 +201,11 @@
       <h3 class="urz-h">Kontakt</h3>
       <dl class="urz-kontakt">
         ${row("Adres", `${u.a}, ${u.pc}`)}${phones(u)}
-        ${row("Strona", u.www?.replace(/^https?:\/\//, "").replace(/\/$/, ""), u.www)}${u.mail ? row("E-mail", u.mail, "mailto:" + u.mail) : ""}${bip}
+        ${row("Strona", u.www?.replace(/^https?:\/\//, "").replace(/\/$/, ""), u.www)}${u.mail ? row("E-mail", u.mail, "mailto:" + u.mail) : ""}${u.bipu ? row("BIP", u.bipu.replace(/^https?:\/\//, "").replace(/\/$/, ""), u.bipu) : ""}
       </dl>
       ${u.tels?.length ? `<p class="urz-src">Dodatkowe numery zebrano automatycznie ze <a href="${esc(u.tsrc || u.www)}" target="_blank" rel="noopener noreferrer">strony gminy</a>. Mogą być nieaktualne.</p>` : ""}
-      <div data-my-box>${mySection(k, whereOf(u))}</div>
-      ${bip ? "" : `<p class="urz-soon">${ic("clock")}Wkrótce tu: sekretariat, referaty i godziny pracy z BIP gminy.</p>`}
+      ${bipBlock(u)}
+      ${people(u)}
       <button type="button" class="urz-map" data-urz-map>${ic("map-pin")}Pokaż urząd na mapie</button>
       <p class="urz-src">Dane: <a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a>${u.q === 2 ? " · położenie przybliżone" : ""}${u.foto ? ` · fot. ${credit(u.foto)}, Wikimedia Commons` : " · widok: ortofotomapa GUGiK"}</p>
      </section></div>`;
@@ -215,29 +226,7 @@
   document.addEventListener("click", e => {
     const o = e.target.closest("[data-urz-open]"); if (o) { openViewer(+o.dataset.urzOpen); return; }
     if (e.target.closest("[data-urz-panel-close]")) { closePanel(); return; }
-    if (e.target.closest("[data-my-add]") && cur) { editing = { k: cur.k, i: (mine()[cur.k] || []).length }; myRefresh(); return; }
-    const ed = e.target.closest("[data-my-edit]"); if (ed && cur) { editing = { k: cur.k, i: +ed.dataset.myEdit }; myRefresh(); return; }
-    if (e.target.closest("[data-my-cancel]")) { editing = null; myRefresh(); return; }
-    const del = e.target.closest("[data-my-del]");
-    if (del && cur) { const all = mine(), l = all[cur.k] || [], p = l[+del.dataset.myDel]; if (p && confirm(`Usunąć ${p.n || p.t || "ten kontakt"}?`)) { l.splice(+del.dataset.myDel, 1); if (l.length) all[cur.k] = l; else delete all[cur.k]; saveMine(all); editing = null; myRefresh(); } return; }
-    if (e.target.closest("[data-my-export]")) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify({ moje_kontakty: mine(), zapisano: new Date().toISOString() }, null, 1)], { type: "application/json" })); a.download = "moje-kontakty-gmin.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return; }
     if (e.target.closest("[data-urz-map]") && cur) { draw(); window.PLOTS?.framePoint(cur.u.c[0], cur.u.c[1], 16.5); }
-  });
-  document.addEventListener("submit", e => {
-    const f = e.target.closest("[data-my-form]"); if (!f || !cur || !editing) return; e.preventDefault();
-    const p = Object.fromEntries(["n", "r", "t", "m", "x"].map(n => [n, f.elements[n].value.trim()]).filter(([, v]) => v));
-    const all = mine(), l = all[cur.k] || [];
-    if (Object.keys(p).length) { l[editing.i] = p; all[cur.k] = l; if (!saveMine(all)) alert("Nie udało się zapisać na tym urządzeniu."); }
-    editing = null; myRefresh();
-  });
-  document.addEventListener("change", e => {
-    const inp = e.target.closest("[data-my-import]"); if (!inp?.files?.[0]) return;
-    inp.files[0].text().then(t => {
-      const d = JSON.parse(t).moje_kontakty; if (!d || typeof d !== "object") throw 0;
-      const all = mine(); let n = 0;
-      for (const [k, l] of Object.entries(d)) if (Array.isArray(l)) { const have = new Set((all[k] || []).map(x => JSON.stringify(x))); all[k] = (all[k] || []).concat(l.filter(x => x && typeof x === "object" && !have.has(JSON.stringify(x)) && ++n)); }
-      saveMine(all); myRefresh(); alert(`Wczytano ${n} ${n === 1 ? "kontakt" : "kontaktów"}.`);
-    }).catch(() => alert("To nie jest plik z kontaktami z tej aplikacji.")).finally(() => { inp.value = ""; });
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !viewer && panel && !panel.hidden) closePanel(); });
 
@@ -257,5 +246,5 @@
     if (!cur) return;
     if (hid && marker) hideAll(); else if (!hid && !marker) draw();
   }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  window.Urzedy = { open: openPanel, close: closePanel, photos: openViewer, get: k => load().then(d => d?.urzedy?.[k] || null) };
+  window.Urzedy = { rulers, open: openPanel, close: closePanel, photos: openViewer, get: k => load().then(d => d?.urzedy?.[k] || null) };
 })();

@@ -94,7 +94,7 @@
     } else if (category === "Źródła") {
       body = `<h2>Dane i ich aktualność</h2><div class="source-description">Zestaw bazowy: ${esc(data.baseBuilt)}. Dane uzupełniające pobrano: ${esc(data.cardsFetched?.slice(0, 10))}. Daty pobrania nie są rokiem obserwacji.${window.GusClient.energyInfo()?` Wskaźniki energii, ciepła, planowania i środowiska: ${window.GusClient.energyInfo().count} zmiennych GUS BDL pobranych ${esc(String(window.GusClient.energyInfo().retrievedAt||"").slice(0,10))}. Wartości oznaczone „dane powiatu” dotyczą całego powiatu. Użytkowanie gruntów GUS publikował do 2014 r.`:""} Każdy wskaźnik pokazuje własny rok; brak roku w źródle jest oznaczony wprost.</div><div class="metric-list"><div class="metric-row"><div>Identyfikator jednostki</div><div>${esc(selected.k)}<small>${esc(selected.typ)}</small></div></div><div class="metric-row"><div>Zestaw źródłowy</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL i dane referencyjne</a></div></div><div class="metric-row"><div>Oficjalne statystyki</div><div><a href="https://bdl.stat.gov.pl/" target="_blank" rel="noopener noreferrer">GUS BDL</a></div></div><div class="metric-row"><div>Usługi i otoczenie</div><div><a href="https://xoogklastry.github.io/jakdaleko/" target="_blank" rel="noopener noreferrer">Jakdaleko ${icon("arrow")}</a><small>Obiekty i ceny RCN w warstwach; dojścia piesze w karcie adresu</small></div></div></div><h2>Źródła wskaźników</h2>${rows(m)}<p class="source-description">Powierzchnia pochodzi w pierwszej kolejności z karty GUS z podanym rokiem. Starsza wartość z bazy jest używana tylko przy braku tej karty. Brak danych nie jest zerem. Zestaw zawiera również dane opisowe z Wikidata.</p>`;
     } else if (category === "Wybory") {
-      body = `<div id="gminaElections"><p class="muted small">Wczytuję wyniki wyborów…</p></div>`;
+      body = `<div id="gminaRulers"></div><div id="gminaElections"><p class="muted small">Wczytuję wyniki wyborów…</p></div>`;
     } else if (category === "Porównanie") {
       body = `<div id="gminaCompare"><p class="muted small">Przygotowuję porównanie…</p></div>`;
     } else {
@@ -186,7 +186,7 @@
       else if(["Ludność","Migracje","Dojazdy","Rodziny"].includes(category)){put("gminaProfileTop",category==="Ludność"?P.popChart(d.profil)+P.pyramid(d.profil,d.ages,d.ref):"");const L=d.profil?.lud,lud=L?L[1][2021-L[0]]:null;window.GminaExtra?.fill(g,$("#gminaProfileTop"),category,lud);}
       else if(category==="Warunki życia"){put("gminaProfileTop","");window.GminaExtra?.fill(g,$("#gminaProfileTop"),category);}
       else if(category==="Finanse i firmy")put("gminaProfileTop",P.budget(d.profil));
-      else if(category==="Wybory"){const el=$("#gminaElections");if(el){const draw=()=>{el.innerHTML=P.elections(d.wyb,electionPick)||'<p class="muted">Brak wyników wyborów dla tej gminy.</p>';};draw();el.onclick=e=>{const b=e.target.closest("[data-election]");if(b){electionPick=b.dataset.election;draw();}};}}
+      else if(category==="Wybory"){window.Urzedy?.get(g.k).then(u=>{const r=$("#gminaRulers");if(r&&selected===g)r.innerHTML=window.Urzedy.rulers(u);});const el=$("#gminaElections");if(el){const draw=()=>{el.innerHTML=P.elections(d.wyb,electionPick)||'<p class="muted">Brak wyników wyborów dla tej gminy.</p>';};draw();el.onclick=e=>{const b=e.target.closest("[data-election]");if(b){electionPick=b.dataset.election;draw();}};}}
     }).catch(()=>{});
   }
   /* Comparison tab: the gmina, chosen gminas (default: the largest neighbours), powiat average and national median. */
