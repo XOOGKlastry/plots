@@ -180,7 +180,7 @@
     syncUrl();
   }
 
-  const ORDER = ["Ludność", "Finanse i firmy", "Warunki życia", "Usługi", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Wybory"];
+  const ORDER = ["Ludność", "Migracje", "Dojazdy", "Rodziny", "Finanse i firmy", "Warunki życia", "Handel", "Paczki", "Transport", "Zdrowie i służby", "Szkoły i rekreacja", "Turystyka", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Wybory"];
   let pickCat = "";
   function pickerList(q) {
     const I = window.IndicatorIcons, needle = model.normalize(q || "");

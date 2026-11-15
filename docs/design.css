@@ -727,3 +727,39 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .urz-wl-links a{display:inline-flex;align-items:center;gap:5px;padding:8px 12px;border-radius:999px;background:#fff;color:var(--acc,#087cfc);font-size:12.5px;font-weight:650;text-decoration:none}
 .urz-wl-links a>svg{width:15px;height:15px}
 .nz-one{columns:2;column-gap:18px}.nz-one li{break-inside:avoid}
+
+/* ===== Wskaźniki gminy: przejście do następnej kategorii na końcu listy ===== */
+.next-cat{--pull:0;position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;margin:26px 0 10px;padding:16px 18px;border:0;border-radius:18px;background:#eef4ff;color:var(--fg,#1c1c1e);text-align:left;cursor:pointer;font:inherit}
+.next-cat small{flex-basis:100%;font-size:12px;color:var(--mut,#6e6e73)}
+.next-cat b{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700;letter-spacing:-.3px;flex:1;min-width:0}
+.next-cat b svg,.next-cat>svg{width:20px;height:20px;color:#0a84ff;flex:none}
+.next-cat>svg{transform:translateX(calc(var(--pull)*8px))}
+.next-cat .nc-bar{position:absolute;left:0;bottom:0;height:4px;width:calc(var(--pull)*100%);background:#0a84ff;border-radius:0 4px 4px 0}
+
+/* ===== Włodarz: znaczek partii, staż; moje kontakty ===== */
+.urz-wl-av{position:relative;flex:none}
+.urz-wl-party{background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+.urz-wl-party img,.urz-wl-mini img{width:100%;height:100%;object-fit:contain}
+.urz-wl-mini{position:absolute;right:-4px;bottom:-4px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);overflow:hidden}
+.urz-wl-staz{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:4px 9px;border-radius:999px;background:#fff3d4;color:#7a5200;font-size:12.5px;font-weight:600;line-height:1.3}
+.urz-wl-staz svg{width:14px;height:14px;flex:none}
+.urz-my ul{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}
+.urz-my-item{display:flex;gap:8px;align-items:flex-start;background:var(--bg,#f2f2f7);border-radius:14px;padding:10px 12px}
+.urz-my-main{flex:1;min-width:0;display:grid;gap:3px}
+.urz-my-name{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:15.5px;color:#0a5bc4;text-decoration:none}
+.urz-my-name svg{width:14px;height:14px;opacity:.7}
+.urz-my-main small{color:var(--mut,#6e6e73);font-size:12.5px}
+.urz-my-main p{margin:2px 0 0;font-size:13px;color:#3a3a3c;white-space:pre-wrap}
+.urz-my-tel{display:inline-flex;align-items:center;gap:6px;color:#0a84ff;font-size:14.5px;text-decoration:none;font-weight:600}
+.urz-my-tel svg{width:15px;height:15px}
+.urz-my-btns{display:flex;gap:4px}
+.urz-my-btns .icbtn{width:32px;height:32px}
+.urz-my-empty{margin:0 0 10px;font-size:13.5px;color:var(--mut,#6e6e73)}
+.urz-my-add{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;border:1.5px dashed #9cc3f5;border-radius:14px;background:#f4f8ff;color:#0a5bc4;font:inherit;font-weight:650;cursor:pointer}
+.urz-my-add svg{width:18px;height:18px}
+.urz-my-form{display:grid;gap:8px;background:var(--bg,#f2f2f7);border-radius:14px;padding:12px}
+.urz-my-form label{display:grid;gap:3px;font-size:12px;color:var(--mut,#6e6e73)}
+.urz-my-form input,.urz-my-form textarea{font:inherit;font-size:16px;border:1px solid #d1d1d6;border-radius:10px;padding:8px 10px;background:#fff;color:#1c1c1e}
+.urz-my-fbtn{display:flex;gap:8px}
+.urz-my-fbtn .urz-act{flex:1;border:0;cursor:pointer;font:inherit}
+.linkish{background:none;border:0;padding:0;font:inherit;color:#0a84ff;cursor:pointer;text-decoration:underline}

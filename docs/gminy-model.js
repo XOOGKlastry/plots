@@ -16,6 +16,21 @@
     { key: "wodociag_proc", label: "Korzystający z wodociągu", unit: "%", category: "Warunki życia", digits: 1, base: true },
     { key: "lesistosc_proc", label: "Lesistość", unit: "%", category: "Środowisko", digits: 1, base: true }
   ];
+  /* Long categories are split into their own tabs: migration and commuting leave "Ludność", "Usługi" splits by kind of place. */
+  const USL = { "Sklepy i usługi": "Handel", "Paczki": "Paczki", "Transport": "Transport", "Zdrowie": "Zdrowie i służby", "Bezpieczeństwo i urzędy": "Zdrowie i służby", "Edukacja": "Szkoły i rekreacja", "Kultura, sport, rekreacja": "Szkoły i rekreacja" };
+  function recategorize(d) {
+    if (d.category === "Ludność") {
+      const to = d.group === "Dojazdy do pracy" || /dojazd/.test(d.key) ? "Dojazdy"
+        : d.group === "Migracje" || /migr|zamel|wymel|zagranica|cudzoz|przybyli|od_urodzenia|^bdl_(1365224|80122|1365229|80124|1365234|80125)$/.test(d.key) ? "Migracje"
+        : /^Gospodarstwa/.test(d.group || "") || /malzen|bdl_450543/.test(d.key) ? "Rodziny" : null;
+      if (to) { d.category = to; delete d.group; }
+    } else if (d.category === "Usługi") {
+      const to = USL[d.group] || "Turystyka";
+      d.category = to; if (d.group === to || to === "Handel" || to === "Paczki" || to === "Transport") delete d.group;
+    }
+    return d;
+  }
+  definitions.forEach(recategorize);
   function normalize(value) {
     return String(value ?? "").toLocaleLowerCase("pl-PL").replace(/ł/g, "l").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   }
@@ -59,6 +74,7 @@
       const definition = { key:item.key, label:item.label, unit:item.unit, category:item.category, digits:item.digits };
       for (const flag of ["descriptive","lowerBetter","level","source","group","icon"]) if (item[flag] !== undefined) definition[flag] = item[flag];
       const existing = definitions.find(d=>d.key===item.key);
+      recategorize(definition);
       if(existing)Object.assign(existing,definition);else definitions.push(definition);
     }
   }
@@ -70,7 +86,7 @@
   }
   let external = null;
   function setExternal(fn) { external = typeof fn === "function" ? fn : null; }
-  const api = { definitions, normalize, parcelTeryt, search, metric, metrics, formatValue, addDefinitions, setExternal };
+  const api = { recategorize, definitions, normalize, parcelTeryt, search, metric, metrics, formatValue, addDefinitions, setExternal };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.GminyModel = api;
 })(typeof window !== "undefined" ? window : globalThis);

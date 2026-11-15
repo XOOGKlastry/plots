@@ -14,6 +14,7 @@
   function save(){Object.entries(state).forEach(([key,value])=>app.store.set("surroundings."+key,value));}
   document.addEventListener("plots:mode",()=>update());
   async function update(){
+    if(!map.getSource("near-poi"))return;
     if(!config||!source("near-poi"))return;
     const run=++revision,bounds=map.getBounds(),network=net();
     const info=document.getElementById("networkSource");info.textContent=`${network.source} · ${network.source_kind} · ${network.source_date}`;
@@ -85,12 +86,14 @@
   async function initialize(){
     try{const r=await fetch("data/surroundings.json");if(!r.ok)throw Error();config=await r.json();config.networks=config.networks.filter(n=>n.id!=='uczelnia');if(!net())state.network=config.networks[0].id;readyResolvers.splice(0).forEach(p=>p.resolve(config));
       container.innerHTML=`<h3>Usługi i otoczenie</h3><label class="network-select-label">Kategoria usług<select id="networkSelect" aria-label="Kategoria usług">${config.categories.map(c=>`<optgroup label="${esc(c.label)}">${config.networks.filter(n=>n.cat===c.id).map(n=>`<option value="${esc(n.id)}" ${n.id===state.network?"selected":""}>${esc(n.label)}</option>`).join("")}</optgroup>`).join("")}</select></label><p id="networkSource" class="source-note muted"></p><div class="layer-entry" data-keywords="usługi punkty zdrowie edukacja transport sklepy paczkomaty" hidden><label class="sw"><input id="surPoi" type="checkbox" ${state.poi?"checked":""}/><span></span><div>Obiekty na mapie<small>Odległości w osobnym module</small></div></label></div><div class="layer-entry" data-keywords="ceny mieszkania rcn nieruchomości"><label class="sw"><input id="surPrices" type="checkbox" ${state.prices?"checked":""}/><span></span><div>Ceny mieszkań · RCN<small>Mediana zł/m² · min. 5 transakcji</small></div></label></div><div id="priceLegend" class="price-legend" ${state.prices?"":"hidden"}><div><i style="background:#fff2bc"></i>&lt; 5 tys.</div><div><i style="background:#fed381"></i>5–8 tys.</div><div><i style="background:#fda85b"></i>8–11 tys.</div><div><i style="background:#ef6c45"></i>11–14 tys.</div><div><i style="background:#b93338"></i>≥ 14 tys. zł/m²</div><p>${esc(config.price.period[0])} – ${esc(config.price.period[1])}</p></div><p id="surroundingsStatus" class="source-note muted" role="status"></p>`;
-      for(const id of ["near-poi"]){app.registerOverlaySource(id);map.addSource(id,{type:"geojson",data:collection([])});}
-      window.PoiIcons?.attach(map);map.addLayer({id:"near-poi-points",type:"symbol",source:"near-poi",minzoom:11,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],11,0.55,14,0.8,17,1.05],"icon-allow-overlap":["step",["zoom"],false,15,true],"icon-padding":1}});
+      // The catalogue is ready without the map; layers wait for the map's first load (slow tiles must not leave the distance module empty).
+      const layers=()=>{for(const id of ["near-poi"]){app.registerOverlaySource(id);map.addSource(id,{type:"geojson",data:collection([])});}
+      window.PoiIcons?.attach(map);map.addLayer({id:"near-poi-points",type:"symbol",source:"near-poi",minzoom:11,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],11,0.55,14,0.8,17,1.05],"icon-allow-overlap":["step",["zoom"],false,15,true],"icon-padding":1}});map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(update,150);});update();if(state.prices)loadPrices();};
+      if(map.loaded())layers();else map.once("load",layers);
       document.getElementById("networkSelect").onchange=e=>{state.network=e.target.value;remember();update();};
       for(const [id,key] of [["surPoi","poi"],["surPrices","prices"]])document.getElementById(id).onchange=e=>{state[key]=e.target.checked;remember();if(key==="prices")loadPrices();else update();};
-      map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(update,150);});remember();update();if(state.prices)loadPrices();
+      remember();
     }catch(error){configError=error;readyResolvers.splice(0).forEach(p=>p.reject(error));container.innerHTML='<h3>Usługi i otoczenie</h3><p class="source-note muted">Nie udało się wczytać katalogu. Odśwież aplikację, aby spróbować ponownie.</p>';}
   }
-  if(map.loaded())initialize();else map.once("load",initialize);
+  initialize();
 })();

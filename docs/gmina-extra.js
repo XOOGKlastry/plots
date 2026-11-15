@@ -385,7 +385,7 @@
     html += `</div>`;
     return section("arrows-left-right", "Migracje", html, "Zameldowania i wymeldowania na pobyt stały (GUS, Bank Danych Lokalnych) oraz okres zamieszkiwania (GUS, NSP 2021). GUS nie publikuje, z której gminy do której ktoś się przeprowadził; przepływy między gminami pokazuje sekcja dojazdów do pracy.");
   }
-  function nspSections(g, N, PL) {
+  function nspSections(g, N, PL, pick) {
     if (!N) return "";
     const out = [], P = (a, i) => PL?.[a] ? pctOf(PL[a][i], PL[a][0]) : null;
     if (N.wyksz?.[0]) {
@@ -414,7 +414,7 @@
       const c = N.cyw;
       out.push(section("heart", "Stan cywilny (Spis 2021)", `<div class="ext-card">${stackBar([["kawalerowie i panny", 1], ["w małżeństwie", 2], ["wdowcy i wdowy", 3], ["rozwiedzeni", 4]].map(([n, i]) => ({ n, v: c[i], pl: P("cyw", i) })), c[0])}</div>`, "Ludność w wieku 15 lat i więcej. GUS, NSP 2021."));
     }
-    return out.join("");
+    return out.filter(h => !pick || pick.test(h)).join("");
   }
   function housing(g, N, PL) {
     if (!N?.okres?.[0]) return "";
@@ -457,7 +457,10 @@
     const nspDoc = await json(`data/nsp/${woj}.json`);
     const N = nspDoc?.gminy?.[g.k] || null, PL = nspDoc?.pl || null;
     let html = "";
-    if (category === "Ludność") html = (await timeline(g)) + (await forecast(g)) + (await migration(g, N, PL)) + (await commute(g, lud)) + nspSections(g, N, PL) + (await surnamesPow(g)) + (await surnames(g));
+    if (category === "Ludność") html = (await timeline(g)) + (await forecast(g)) + nspSections(g, N, PL, /Wykształcenie \(Spis|Praca \(Spis/) + (await surnamesPow(g)) + (await surnames(g));
+    else if (category === "Migracje") html = await migration(g, N, PL);
+    else if (category === "Dojazdy") html = await commute(g, lud);
+    else if (category === "Rodziny") html = nspSections(g, N, PL, /Gospodarstwa domowe|Stan cywilny/);
     else if (category === "Warunki życia") html = housing(g, N, PL);
     if (!el.isConnected) return;
     el.insertAdjacentHTML("beforeend", html);

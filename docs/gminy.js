@@ -4,12 +4,12 @@
   const $ = (selector) => document.querySelector(selector);
   const app = window.PLOTS, model = window.GminyModel, esc = app.esc;
   const icon = (name) => `<svg class="ic" aria-hidden="true"><use href="#i-${name}"/></svg>`;
-  const categories = ["Przegląd", "Ludność", "Finanse i firmy", "Warunki życia", "Usługi", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Wybory", "Porównanie", "Źródła"];
+  const categories = ["Przegląd", "Ludność", "Migracje", "Dojazdy", "Rodziny", "Finanse i firmy", "Warunki życia", "Handel", "Paczki", "Transport", "Zdrowie i służby", "Szkoły i rekreacja", "Turystyka", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Wybory", "Porównanie", "Źródła"];
   const dialog = $("#gminaDialog");
   let contextRevision=0;
   let indQuery = "", data = null, loading = null, selected = null, category = "Przegląd", pendingParcel = null, selectedYear = null;
   const categoryIcons={...Object.fromEntries(Object.entries(window.IndicatorIcons?.categories||{}).map(([k,v])=>[k,v.icon])),'Źródła':'file-text','Wybory':'envelope','Porównanie':'chart-bar'};
-  const categoryTone = name => ({"Ludność":"blue","Finanse i firmy":"purple","Warunki życia":"orange","Usługi":"pink","Infrastruktura":"cyan","Energia i ciepło":"orange","Planowanie":"purple","Edukacja i kultura":"pink","Środowisko":"green"}[name] || "blue");
+  const categoryTone = name => ({"Ludność":"blue","Finanse i firmy":"purple","Warunki życia":"orange","Usługi":"pink","Migracje":"cyan","Dojazdy":"cyan","Rodziny":"purple","Handel":"pink","Paczki":"orange","Transport":"cyan","Zdrowie i służby":"orange","Szkoły i rekreacja":"pink","Turystyka":"green","Infrastruktura":"cyan","Energia i ciepło":"orange","Planowanie":"purple","Edukacja i kultura":"pink","Środowisko":"green"}[name] || "blue");
   async function loadGus(g, force) {
     await window.GusClient.enrich(g, force);
     if(selected?.k===g.k){drawCard();if(dialog.open)renderDetails({keep:true});}
@@ -100,14 +100,32 @@
     } else {
       const items=m.filter((x)=>x.category===category),grouped=window.IndicatorIcons?window.IndicatorIcons.group(items)[0]?.groups||[]:[{label:category,items}];
       // Subgroups (e.g. Gaz / Ciepło / Prąd) keep long categories readable; a single group needs no extra heading.
-      body=(category==="Ludność"||category==="Finanse i firmy"||category==="Warunki życia"?'<div id="gminaProfileTop"></div>':'')+(grouped.length>1?grouped.map(g=>`<section class="metric-section"><h2>${Icons.svg(window.IndicatorIcons.of(g.items[0]).icon)}${esc(g.label)}</h2>${rows(g.items)}</section>`).join(''):`<h2>${esc(category)}</h2>`+rows(items));
+      body=(EXTRA.includes(category)?'<div id="gminaProfileTop"></div>':'')+(grouped.length>1?grouped.map(g=>`<section class="metric-section"><h2>${Icons.svg(window.IndicatorIcons.of(g.items[0]).icon)}${esc(g.label)}</h2>${rows(g.items)}</section>`).join(''):`<h2>${esc(category)}</h2>`+rows(items));
     }
-    $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><div class="municipality-title">${window.MunicipalityCrests.render(selected)}<h1 id="gminaDialogTitle">${esc(selected.n)}${popTag(selected)}</h1></div><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header>${["Przegląd","Wybory","Porównanie"].includes(category)?"":`<div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>`}${body}`;
+    $("#gminaDetails").innerHTML = `<header class="data-heading"><div><div class="eyebrow">${esc(selected.typ)} · ${esc(region(selected))}</div><div class="municipality-title">${window.MunicipalityCrests.render(selected)}<h1 id="gminaDialogTitle">${esc(selected.n)}${popTag(selected)}</h1></div><p>TERYT ${esc(selected.k)} · ${esc(category)}</p></div><button type="button" class="map-button" data-gmina-map>Pokaż na mapie ${icon("arrow")}</button></header>${["Przegląd","Wybory","Porównanie"].includes(category)?"":`<div class="data-tools"><label>Rok <select id="dataYear" aria-label="Rok danych"><option value="">Najnowsze dostępne</option>${window.GusClient.years().map(y=>`<option value="${y}" ${selectedYear===y?"selected":""}>${y}</option>`).join("")}</select></label><button type="button" data-refresh-gus>Odśwież z GUS</button></div><p class="gus-status" role="status">${esc(selected._gusStatus || "Pobieranie wskaźników GUS…")}</p><details class="score-method"><summary>Jak czytać oceny i pozycje?</summary><p>Zielony: najlepsze 20%, szary: środkowe 60%, czerwony: najsłabsze 20%. Pozycja dotyczy gmin z dostępnym tym samym wskaźnikiem i rocznikiem. Remisy przekraczające próg pozostają szare. Dla bezrobocia, zgonów, obciążenia demograficznego i odpadów niższa wartość jest oceniana wyżej. Wielkości opisowe, np. ludność i powierzchnia, mają pozycję według wielkości, ale pozostają szare. Brak rocznika lub dostatecznego pokrycia oznacza brak oceny. Trend pokazuje zmianę względem poprzedniego roku, a nie zmianę pozycji.</p></details>`}${body}${nextCard()}`;
     fillProfile(selected); if (category === "Porównanie") fillCompare(selected);
     if (category === "Przegląd") { fillCompendium(selected, wikiOpen, keepTop); if (indQuery) { $("#indSearch").value = indQuery; runIndicatorSearch(indQuery); } }
     $("#gminaDetails").scrollTop = keepTop;const active=$("#dataCategories [aria-current=true]");if(active&&app.isMobile())$("#dataCategories").scrollTo({left:Math.max(0,active.offsetLeft-20),behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});
   }
+  const EXTRA=["Ludność","Migracje","Dojazdy","Rodziny","Finanse i firmy","Warunki życia"];
   function changeCategory(value){if(!categories.includes(value)||value===category)return;category=value;renderDetails();const content=$('#gminaDetails');content.classList.remove('category-arrive');void content.offsetWidth;content.classList.add('category-arrive');}
+  /* End of a category: a card with the next one. Scrolling on past the bottom moves there, like turning a page. */
+  function nextCard(){const n=categories[categories.indexOf(category)+1];return n?`<button type="button" class="next-cat" data-next-cat="${esc(n)}"><span class="nc-bar"></span><small>Przewiń dalej lub dotknij</small><b>${Icons.svg(categoryIcons[n]||"arrow-right")}${esc(n)}</b>${Icons.svg("arrow-right")}</button>`:"";}
+  function goNext(){const n=categories[categories.indexOf(category)+1];if(n){changeCategory(n);$("#gminaDetails").scrollTop=0;}}
+  let pull=0,pullTimer=0,pullLock=0;
+  const atBottom=el=>el.scrollHeight-el.scrollTop-el.clientHeight<3;
+  function setPull(v){pull=Math.max(0,v);const b=$("#gminaDetails .next-cat");if(b)b.style.setProperty("--pull",Math.min(1,pull/240).toFixed(3));}
+  function addPull(d){
+    if(Date.now()<pullLock)return;const el=$("#gminaDetails");if(!$(".next-cat")||!atBottom(el)){setPull(0);return;}
+    setPull(pull+d);clearTimeout(pullTimer);pullTimer=setTimeout(()=>setPull(0),450);
+    if(pull>=240){setPull(0);pullLock=Date.now()+700;goNext();}
+  }
+  $("#gminaDetails").addEventListener("wheel",e=>{if(e.deltaY>0)addPull(Math.min(80,e.deltaY));else setPull(0);},{passive:true});
+  let pullTouch=null;
+  $("#gminaDetails").addEventListener("touchstart",e=>{const el=$("#gminaDetails");pullTouch=e.touches.length===1?{y:e.touches[0].clientY,bottom:atBottom(el)}:null;},{passive:true});
+  $("#gminaDetails").addEventListener("touchmove",e=>{if(!pullTouch)return;const el=$("#gminaDetails");if(!pullTouch.bottom){if(atBottom(el))pullTouch={y:e.touches[0].clientY,bottom:true};return;}const dy=pullTouch.y-e.touches[0].clientY;setPull(dy>0?dy*1.6:0);},{passive:true});
+  $("#gminaDetails").addEventListener("touchend",()=>{if(pullTouch&&pull>=240){pullLock=Date.now()+700;goNext();}pullTouch=null;setPull(0);},{passive:true});
+  $("#gminaDetails").addEventListener("click",e=>{if(e.target.closest("[data-next-cat]"))goNext();});
   let swipe=null;
   const content=$('#gminaDetails');
   content.addEventListener('touchstart',e=>{if(!app.isMobile()||e.touches.length!==1||e.target.closest('input,select,textarea,button,a,summary')){swipe=null;return;}const t=e.touches[0];swipe=t.clientX>24&&t.clientX<innerWidth-24?{x:t.clientX,y:t.clientY,at:Date.now(),horizontal:false}:null;},{passive:true});
@@ -165,7 +183,7 @@
       if(selected!==g)return;
       const put=(id,html)=>{const el=$("#"+id);if(el){el.innerHTML=html;P.bindPop(el);}};
       if(category==="Przegląd"){put("gminaPopChart",P.popChart(d.profil));put("gminaHeritage",P.heritage(d.dz));put("gminaNature",P.nature(d.dz));}
-      else if(category==="Ludność"){put("gminaProfileTop",P.popChart(d.profil)+P.pyramid(d.profil,d.ages,d.ref));const L=d.profil?.lud,lud=L?L[1][2021-L[0]]:null;window.GminaExtra?.fill(g,$("#gminaProfileTop"),category,lud);}
+      else if(["Ludność","Migracje","Dojazdy","Rodziny"].includes(category)){put("gminaProfileTop",category==="Ludność"?P.popChart(d.profil)+P.pyramid(d.profil,d.ages,d.ref):"");const L=d.profil?.lud,lud=L?L[1][2021-L[0]]:null;window.GminaExtra?.fill(g,$("#gminaProfileTop"),category,lud);}
       else if(category==="Warunki życia"){put("gminaProfileTop","");window.GminaExtra?.fill(g,$("#gminaProfileTop"),category);}
       else if(category==="Finanse i firmy")put("gminaProfileTop",P.budget(d.profil));
       else if(category==="Wybory"){const el=$("#gminaElections");if(el){const draw=()=>{el.innerHTML=P.elections(d.wyb,electionPick)||'<p class="muted">Brak wyników wyborów dla tej gminy.</p>';};draw();el.onclick=e=>{const b=e.target.closest("[data-election]");if(b){electionPick=b.dataset.election;draw();}};}}

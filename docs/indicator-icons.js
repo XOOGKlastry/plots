@@ -8,7 +8,16 @@
     "Finanse i firmy": { icon: "coins", color: "#2f8f6f" },
     "Warunki życia": { icon: "house", color: "#1c8fb0" },
     "Energia i ciepło": { icon: "lightning", color: "#e0573e" },
+    "Migracje": { icon: "arrows-left-right", color: "#0f97b0" },
+    "Dojazdy": { icon: "car-profile", color: "#1a7f99" },
+    "Rodziny": { icon: "house-line", color: "#8e5bd6" },
     "Usługi": { icon: "storefront", color: "#c2185b" },
+    "Handel": { icon: "shopping-cart", color: "#c2185b" },
+    "Paczki": { icon: "package", color: "#b8641a" },
+    "Transport": { icon: "bus", color: "#1a7f99" },
+    "Zdrowie i służby": { icon: "first-aid-kit", color: "#d0342c" },
+    "Szkoły i rekreacja": { icon: "soccer-ball", color: "#a24bb8" },
+    "Turystyka": { icon: "mountains", color: "#2f8f6f" },
     "Infrastruktura": { icon: "road-horizon", color: "#1a7f99" },
     "Planowanie": { icon: "map-trifold", color: "#e8803a" },
     "Edukacja i kultura": { icon: "books", color: "#a24bb8" },
@@ -24,6 +33,8 @@
     "Planowanie": [[/odroln|rolne/, "Plany miejscowe", "plant"], [/mpzp|studium/, "Plany miejscowe", "map-trifold"], [/decyzj|wz/, "Decyzje lokalizacyjne", "stamp"], [/nowe_bud/, "Budownictwo", "crane"]],
     "Edukacja i kultura": [[/zlob/, "Opieka nad dziećmi", "baby-carriage"], [/przedszk/, "Opieka nad dziećmi", "backpack"], [/czytel|bibliot/, "Kultura", "books"], [/nid_arch/, "Archeologia", "shovel"], [/nid_sakral/, "Zabytki", "church"], [/nid_rezyd/, "Zabytki", "castle-turret"], [/nid_park/, "Zabytki", "park"], [/nid_cment/, "Zabytki", "cross"], [/nid_techn/, "Zabytki", "factory"], [/^nid_/, "Zabytki", "castle-turret"], [/muzea/, "Muzea i twierdze", "bank"], [/twierdz/, "Muzea i twierdze", "castle-turret"]],
     "Środowisko": [[/zielen/, "Lasy i zieleń", "park"], [/las|lesn|lesist/, "Lasy i zieleń", "tree"], [/chron|natura|rezerw|ochk|parki_proc|ochrona/, "Ochrona przyrody", "shield-check"], [/odpad/, "Odpady", "recycle"], [/wody|oczyszcz/, "Woda", "waves"], [/orne|rolne|nieuzyt/, "Rolnictwo i grunty", "plant"]],
+    "Migracje": [[/nsp_/, "Spis 2021", "users"], [/zagr|cudzoz/, "Zagranica", "arrows-left-right"], [/./, "Zameldowania i saldo", "arrows-left-right"]],
+    "Handel": [[/_10k$/, "Na 10 tys. mieszkańców", "users-three"], [/_100km2$/, "Na 100 km²", "ruler"], [/_mieszk$/, "Mieszkańcy na jedną placówkę", "users"], [/./, "Liczba w gminie", "map-pin"]], "Paczki": [[/_10k$/, "Na 10 tys. mieszkańców", "users-three"], [/_100km2$/, "Na 100 km²", "ruler"], [/_mieszk$/, "Mieszkańcy na jedną placówkę", "users"], [/./, "Liczba w gminie", "map-pin"]], "Transport": [[/_10k$/, "Na 10 tys. mieszkańców", "users-three"], [/_100km2$/, "Na 100 km²", "ruler"], [/_mieszk$/, "Mieszkańcy na jedną placówkę", "users"], [/./, "Liczba w gminie", "map-pin"]],
     "Przegląd": [[/powierzch/, "Podstawowe", "ruler"]]
   };
   function of(def) {

@@ -105,11 +105,15 @@
     if (!value) return "";
     return `<div class="urz-row"><dt>${esc(label)}</dt><dd>${href ? `<a href="${esc(href)}" ${href.startsWith("http") ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(value)}</a>` : esc(value)}</dd></div>`;
   }
+  // Catalogue numbers come as "0757136438" or "+48 75..."; shown as 75 713 64 38 and dialled as +48757136438.
+  const digits = n => String(n).replace(/\D/g, "").replace(/^48(?=\d{9}$)/, "").replace(/^0(?=\d{9}$)/, "");
+  const fmtTel = n => { const d = digits(n); return d.length === 9 ? `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 7)} ${d.slice(7)}` : String(n); };
+  const telHref = n => "tel:+48" + digits(n);
   // Phone numbers: the main one from the public-entity catalogue, then any found on the gmina's website (labelled).
   function phones(u) {
-    const tel = n => "tel:+48" + String(n).replace(/\D/g, "").replace(/^48(?=\d{9}$)/, "");
-    let h = row("Telefon", u.tel, u.tel ? tel(u.tel) : null);
-    (u.tels || []).filter(t => t.n !== u.tel).slice(0, 12).forEach(t => { h += row(t.l || "Telefon", t.n, tel(t.n)); });
+    const main = u.tel ? fmtTel(u.tel) : null;
+    let h = row("Telefon", main, u.tel ? telHref(u.tel) : null);
+    (u.tels || []).filter(t => fmtTel(t.n) !== main).slice(0, 12).forEach(t => { h += row(t.l || "Telefon", fmtTel(t.n), telHref(t.n)); });
     return h;
   }
   const g = q => "https://www.google.com/search?q=" + encodeURIComponent(q);
@@ -119,13 +123,46 @@
     const where = (cur && document.querySelector("#gminaCard h2")?.firstChild?.textContent?.trim()) || u.n.replace(/^Urząd\s+/i, "");
     const ini = w.n.split(" ").map(x => x[0]).join("").slice(0, 2);
     const role = { Wójt: w.plec === "K" ? "Wójt" : "Wójt", Burmistrz: w.plec === "K" ? "Burmistrz" : "Burmistrz", Prezydent: w.plec === "K" ? "Prezydentka miasta" : "Prezydent miasta" }[w.f] || w.f;
-    const party = w.partia ? w.partia : (w.plec === "K" ? "bezpartyjna" : "bezpartyjny");
-    return `<section class="urz-wl"><div class="urz-wl-top">${w.foto ? `<a class="urz-wl-ph" href="${esc(w.wd || w.foto)}" target="_blank" rel="noopener noreferrer"><img alt="${esc(w.n)}" src="${esc(w.foto)}"></a>` : `<span class="urz-wl-ph urz-wl-ini">${esc(ini)}</span>`}
-      <div><small>${esc(role)}</small><b>${esc(w.n)}</b><em>${esc(party)}</em></div></div>
+    const bez = w.plec === "K" ? "bezpartyjna" : "bezpartyjny";
+    const party = w.partia ? w.partia : w.lk ? `${bez}, z listy ${LISTA[w.logo] || w.kom}` : bez;
+    const logo = w.logo ? `<img class="urz-wl-logo" alt="${esc(LOGO[w.logo])}" title="${esc(LOGO[w.logo])}" src="icons/partie/${esc(w.logo)}.png">` : "";
+    const ph = w.foto ? `<a class="urz-wl-ph" href="${esc(w.wd || w.foto)}" target="_blank" rel="noopener noreferrer"><img alt="${esc(w.n)}" src="${esc(w.foto)}"></a>${logo ? `<span class="urz-wl-mini">${logo}</span>` : ""}`
+      : logo ? `<span class="urz-wl-ph urz-wl-party">${logo}</span>` : `<span class="urz-wl-ph urz-wl-ini">${esc(ini)}</span>`;
+    return `<section class="urz-wl"><div class="urz-wl-top"><span class="urz-wl-av">${ph}</span>
+      <div><small>${esc(role)}</small><b>${esc(w.n)}</b><em>${esc(party)}</em>${staz(w)}</div></div>
       <dl class="urz-kontakt urz-wl-dl">${row("Komitet", w.kom)}${w.pop ? row("Poparcie", w.pop) : ""}${w.proc != null ? row("Wynik w 2024", `${String(w.proc).replace(".", ",")}%${w.tura === 2 ? " w II turze" : " w I turze"}`) : ""}${w.wiek ? row("Wiek w 2024", w.wiek + " lat") : ""}</dl>
       <div class="urz-wl-links"><a href="${g(`${w.n} ${w.urzad || where}`)}" target="_blank" rel="noopener noreferrer">${ic("magnifying-glass")}Szukaj w Google</a><a href="${g(`${w.n} ${w.f}`)}&tbm=isch" target="_blank" rel="noopener noreferrer">${ic("image")}Zdjęcia w Google</a></div>
-      <p class="urz-src">Wybrany w wyborach samorządowych 2024 (PKW). Późniejsze zmiany, np. przedterminowe wybory, nie są tu uwzględnione.</p></section>`;
+      <p class="urz-src">Wybrany w wyborach samorządowych 2024 (PKW). Staż liczony z wyborów powszechnych od 2002 r. (PKW, danewyborcze.kbw.gov.pl); objęcie urzędu w wyborach przedterminowych nie jest liczone. Późniejsze zmiany nie są uwzględnione.${w.logo ? " Znaczki partii: Wikimedia Commons." : ""}</p></section>`;
   }
+  const LOGO = { pis: "Prawo i Sprawiedliwość", psl: "Polskie Stronnictwo Ludowe", ko: "Koalicja Obywatelska", lewica: "Nowa Lewica", pl2050: "Polska 2050", nowoczesna: "Nowoczesna", sp: "Suwerenna Polska", nn: "Nowa Nadzieja", td: "Trzecia Droga" };
+  const LISTA = { pis: "PiS", ko: "Koalicji Obywatelskiej", td: "Trzeciej Drogi", lewica: "Lewicy" };
+  function staz(w) {
+    if (!w.od) return "";
+    const lat = new Date().getFullYear() - w.od, kad = w.kad || 1;
+    const lw = lat === 1 ? "rok" : lat % 10 >= 2 && lat % 10 <= 4 && (lat % 100 < 12 || lat % 100 > 14) ? "lata" : "lat";
+    const txt = w.od >= 2024 ? `Pierwsza kadencja, od ${w.od} r.` : `Rządzi od ${w.od} r. · ${lat} ${lw} · ${kad}. kadencja${w.od === 2002 ? " (od pierwszych wyborów bezpośrednich)" : ""}`;
+    return `<span class="urz-wl-staz">${ic("clock")}${esc(txt)}</span>`;
+  }
+  /* "Moje kontakty": the user's own people and numbers for a gmina, kept only on this device (localStorage), with export and import. */
+  const MK = "urzedy.moje";
+  function mine() { try { return JSON.parse(localStorage.getItem(MK) || "{}") || {}; } catch { return {}; } }
+  function saveMine(all) { try { localStorage.setItem(MK, JSON.stringify(all)); return true; } catch { return false; } }
+  let editing = null;
+  const whereOf = u => u.n;
+  function mySection(k, where) {
+    const list = mine()[k] || [];
+    const item = (p, i) => `<li class="urz-my-item"><div class="urz-my-main">${p.n ? `<a class="urz-my-name" href="${g(`${p.n} ${p.r || ""} ${where}`.replace(/\s+/g, " ").trim())}" target="_blank" rel="noopener noreferrer">${esc(p.n)}${ic("magnifying-glass")}</a>` : ""}${p.r ? `<small>${esc(p.r)}</small>` : ""}
+        ${p.t ? `<a class="urz-my-tel" href="tel:${esc(p.t.replace(/[^\d+]/g, ""))}">${ic("phone")}${esc(p.t)}</a>` : ""}${p.m ? `<a class="urz-my-tel" href="mailto:${esc(p.m)}">${ic("envelope")}${esc(p.m)}</a>` : ""}${p.x ? `<p>${esc(p.x)}</p>` : ""}</div>
+        <div class="urz-my-btns"><button type="button" class="icbtn" data-my-edit="${i}" aria-label="Edytuj">${ic("sliders-horizontal")}</button><button type="button" class="icbtn" data-my-del="${i}" aria-label="Usuń">${ic("x")}</button></div></li>`;
+    const p = editing && editing.k === k ? (list[editing.i] || {}) : null;
+    const form = p ? `<form class="urz-my-form" data-my-form><label>Imię i nazwisko<input name="n" value="${esc(p.n)}" autocomplete="off"></label><label>Funkcja lub wydział<input name="r" value="${esc(p.r)}" placeholder="np. sekretarz gminy" autocomplete="off"></label>
+        <label>Telefon<input name="t" type="tel" value="${esc(p.t)}" autocomplete="off"></label><label>E-mail<input name="m" type="email" value="${esc(p.m)}" autocomplete="off"></label><label>Notatka<textarea name="x" rows="2">${esc(p.x)}</textarea></label>
+        <div class="urz-my-fbtn"><button type="submit" class="urz-act">${ic("check-circle")}Zapisz</button><button type="button" class="urz-act" data-my-cancel>Anuluj</button></div></form>` : "";
+    return `<h3 class="urz-h">Moje kontakty</h3><section class="urz-my">${list.length ? `<ul>${list.map(item).join("")}</ul>` : p ? "" : `<p class="urz-my-empty">Dopisz własne osoby i numery do tej gminy. Nazwisko otworzy wyszukiwanie w Google.</p>`}
+      ${form || `<button type="button" class="urz-my-add" data-my-add>${ic("users")}Dodaj osobę lub numer</button>`}
+      <p class="urz-src">Zapisane tylko na tym urządzeniu. <button type="button" class="linkish" data-my-export>Zapisz kopię do pliku</button> · <label class="linkish">Wczytaj z pliku<input type="file" accept="application/json,.json" data-my-import hidden></label></p></section>`;
+  }
+  function myRefresh() { const box = panel?.querySelector("[data-my-box]"); if (!box || !cur) return; box.innerHTML = mySection(cur.k, whereOf(cur.u)); box.querySelector("[data-my-form] input")?.focus(); }
   let panel = null, src = null;
   function ensurePanel() {
     if (panel) return panel;
@@ -146,7 +183,7 @@
       <button type="button" class="urz-hero" data-urz-open="0">${hero}<span class="urz-grad"></span><span class="urz-ttl"><small>Siedziba urzędu</small><b>${esc(u.n)}</b><em>${esc(u.a)}, ${esc(u.pc)}</em></span>${n ? `<span class="urz-cnt">${ic("image")}${n + 1}</span>` : ""}</button>
       ${n ? `<div class="urz-thumbs" aria-label="Okolica urzędu">${u.okolica.map((f, j) => `<button type="button" data-urz-open="${j + 1}" aria-label="Okolica, zdjęcie ${j + 1}"><img alt="" loading="lazy" src="${esc(small(f.u))}"></button>`).join("")}</div>` : ""}
       ${poza ? `<p class="urz-poza">${ic("map-pin")}<span>Urząd stoi poza gminą, w gminie ${esc(poza)}. To częste w gminach wiejskich otaczających miasto. Na mapie łączy go przerywana linia ze środkiem gminy.</span></p>` : ""}
-      <div class="urz-actions">${u.tel ? `<a class="urz-act" href="tel:+48${u.tel.replace(/\D/g, "")}">${ic("phone")}Zadzwoń</a>` : ""}<a class="urz-act" href="https://www.google.com/maps/dir/?api=1&destination=${u.c[1]},${u.c[0]}" target="_blank" rel="noopener noreferrer">${ic("navigation-arrow")}Prowadź</a>${u.www ? `<a class="urz-act" href="${esc(u.www)}" target="_blank" rel="noopener noreferrer">${ic("link")}Strona</a>` : ""}</div>
+      <div class="urz-actions">${u.tel ? `<a class="urz-act" href="${telHref(u.tel)}">${ic("phone")}Zadzwoń</a>` : ""}<a class="urz-act" href="https://www.google.com/maps/dir/?api=1&destination=${u.c[1]},${u.c[0]}" target="_blank" rel="noopener noreferrer">${ic("navigation-arrow")}Prowadź</a>${u.www ? `<a class="urz-act" href="${esc(u.www)}" target="_blank" rel="noopener noreferrer">${ic("link")}Strona</a>` : ""}</div>
       ${head(u)}
       <h3 class="urz-h">Kontakt</h3>
       <dl class="urz-kontakt">
@@ -154,6 +191,7 @@
         ${row("Strona", u.www?.replace(/^https?:\/\//, "").replace(/\/$/, ""), u.www)}${u.mail ? row("E-mail", u.mail, "mailto:" + u.mail) : ""}${bip}
       </dl>
       ${u.tels?.length ? `<p class="urz-src">Dodatkowe numery zebrano automatycznie ze <a href="${esc(u.tsrc || u.www)}" target="_blank" rel="noopener noreferrer">strony gminy</a>. Mogą być nieaktualne.</p>` : ""}
+      <div data-my-box>${mySection(k, whereOf(u))}</div>
       ${bip ? "" : `<p class="urz-soon">${ic("clock")}Wkrótce tu: sekretariat, referaty i godziny pracy z BIP gminy.</p>`}
       <button type="button" class="urz-map" data-urz-map>${ic("map-pin")}Pokaż urząd na mapie</button>
       <p class="urz-src">Dane: <a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a>${u.q === 2 ? " · położenie przybliżone" : ""}${u.foto ? ` · fot. ${credit(u.foto)}, Wikimedia Commons` : " · widok: ortofotomapa GUGiK"}</p>
@@ -175,7 +213,29 @@
   document.addEventListener("click", e => {
     const o = e.target.closest("[data-urz-open]"); if (o) { openViewer(+o.dataset.urzOpen); return; }
     if (e.target.closest("[data-urz-panel-close]")) { closePanel(); return; }
+    if (e.target.closest("[data-my-add]") && cur) { editing = { k: cur.k, i: (mine()[cur.k] || []).length }; myRefresh(); return; }
+    const ed = e.target.closest("[data-my-edit]"); if (ed && cur) { editing = { k: cur.k, i: +ed.dataset.myEdit }; myRefresh(); return; }
+    if (e.target.closest("[data-my-cancel]")) { editing = null; myRefresh(); return; }
+    const del = e.target.closest("[data-my-del]");
+    if (del && cur) { const all = mine(), l = all[cur.k] || [], p = l[+del.dataset.myDel]; if (p && confirm(`Usunąć ${p.n || p.t || "ten kontakt"}?`)) { l.splice(+del.dataset.myDel, 1); if (l.length) all[cur.k] = l; else delete all[cur.k]; saveMine(all); editing = null; myRefresh(); } return; }
+    if (e.target.closest("[data-my-export]")) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify({ moje_kontakty: mine(), zapisano: new Date().toISOString() }, null, 1)], { type: "application/json" })); a.download = "moje-kontakty-gmin.json"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return; }
     if (e.target.closest("[data-urz-map]") && cur) { draw(); window.PLOTS?.framePoint(cur.u.c[0], cur.u.c[1], 16.5); }
+  });
+  document.addEventListener("submit", e => {
+    const f = e.target.closest("[data-my-form]"); if (!f || !cur || !editing) return; e.preventDefault();
+    const p = Object.fromEntries(["n", "r", "t", "m", "x"].map(n => [n, f.elements[n].value.trim()]).filter(([, v]) => v));
+    const all = mine(), l = all[cur.k] || [];
+    if (Object.keys(p).length) { l[editing.i] = p; all[cur.k] = l; if (!saveMine(all)) alert("Nie udało się zapisać na tym urządzeniu."); }
+    editing = null; myRefresh();
+  });
+  document.addEventListener("change", e => {
+    const inp = e.target.closest("[data-my-import]"); if (!inp?.files?.[0]) return;
+    inp.files[0].text().then(t => {
+      const d = JSON.parse(t).moje_kontakty; if (!d || typeof d !== "object") throw 0;
+      const all = mine(); let n = 0;
+      for (const [k, l] of Object.entries(d)) if (Array.isArray(l)) { const have = new Set((all[k] || []).map(x => JSON.stringify(x))); all[k] = (all[k] || []).concat(l.filter(x => x && typeof x === "object" && !have.has(JSON.stringify(x)) && ++n)); }
+      saveMine(all); myRefresh(); alert(`Wczytano ${n} ${n === 1 ? "kontakt" : "kontaktów"}.`);
+    }).catch(() => alert("To nie jest plik z kontaktami z tej aplikacji.")).finally(() => { inp.value = ""; });
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !viewer && panel && !panel.hidden) closePanel(); });
 
