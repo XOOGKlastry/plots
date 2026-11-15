@@ -176,6 +176,7 @@
     $("#statsSelected").innerHTML = selectedHtml();
     $("#statsTop").innerHTML = rankList(sorted.slice(0, 5));
     $("#statsBottom").innerHTML = rankList(sorted.slice(-5).reverse());
+    document.dispatchEvent(new CustomEvent("stats:render", { detail: { def, values: current.values, selectedId } }));
     $("#statsSource").textContent = `${def.level === 5 ? "Dane powiatów przypisane gminom. " : ""}Źródło: ${def.source || "GUS BDL"}. ${current.values.size.toLocaleString("pl-PL")} gmin z danymi${state.year ? "" : "; każda gmina pokazuje najnowszy dostępny rok"}. Podział: ${state.method === "manual" ? "własne granice" : state.method === "jenks" ? "naturalne przerwy (Jenks)" : state.method === "equal" ? "równe przedziały" : scheme.diverging ? "kwantyle osobno poniżej i powyżej zera" : "kwantyle (podobna liczba gmin w klasie)"}.`;
     syncUrl();
   }
@@ -252,6 +253,7 @@
   function close() {
     if (time.on) timeExit();
     active = false; panel.hidden = true; document.body.classList.remove("stats-open", "stats-mini"); setVisible(false); popup?.remove(); togglePicker(false); syncUrl();
+    document.dispatchEvent(new CustomEvent("stats:close"));
     window.UIHistory?.dismiss("stats");
     if (app.isMobile()) app.snap("peek");
   }
@@ -332,5 +334,5 @@
 
   const params = new URLSearchParams(location.search);
   if (params.get("stat")) { const go = () => open(params.get("stat"), { year: Number(params.get("rok")) || null }); if (map.loaded()) go(); else map.once("load", go); }
-  window.StatsMap = { open, close, isOpen: () => active };
+  window.StatsMap = { open, close, isOpen: () => active, defs: () => defs, gminy: () => gminy, series: d => series(d, "value").values };
 })();

@@ -169,6 +169,32 @@
         ${p.t ? `<a class="urz-my-tel" href="${telHref(p.t)}">${ic("phone")}${esc(fmtTel(p.t))}</a>` : ""}${p.m ? `<a class="urz-my-tel" href="mailto:${esc(p.m)}">${ic("envelope")}${esc(p.m)}</a>` : ""}${p.x ? `<p>${esc(p.x)}</p>` : ""}</div></li>`;
     return `<h3 class="urz-h">Osoby do kontaktu</h3><section class="urz-my"><ul>${u.os.map(item).join("")}</ul></section>`;
   }
+  /* Companies the gmina owns shares in (KRS) and its budget units (KPP). Board names only when the company's own site matches KRS. */
+  const BR = { "Woda i ścieki": ["drop", "#1c7ed6"], "Odpady": ["recycle", "#2f9e44"], "Energia i ciepło": ["lightning", "#e8590c"], "Transport": ["bus", "#7048e8"],
+    "Mieszkania (TBS)": ["house-line", "#c2255c"], "Mieszkania i nieruchomości": ["house", "#c2255c"], "Zdrowie i opieka": ["first-aid-kit", "#e03131"], "Sport i rekreacja": ["soccer-ball", "#0ca678"],
+    "Kultura": ["books", "#ae3ec9"], "Turystyka": ["mountains", "#1098ad"], "Usługi komunalne": ["buildings", "#5c7cfa"], "Drogi i budowy": ["road-horizon", "#868e96"], "Zieleń i utrzymanie": ["tree", "#37b24d"],
+    "Finanse": ["coins", "#f08c00"], "Handel": ["storefront", "#d6336c"], "Cmentarze": ["cross", "#495057"], "Edukacja i badania": ["graduation-cap", "#4263eb"], "Rolnictwo i lasy": ["plant", "#5c940d"], "Weterynaria": ["paw-print", "#a61e4d"], "Telekomunikacja i IT": ["wifi-high", "#0b7285"], "Usługi i zarządzanie": ["buildings", "#5c7cfa"] };
+  const zl = v => v >= 1e6 ? `${(v / 1e6).toLocaleString("pl-PL", { maximumFractionDigits: v >= 1e8 ? 0 : 1 })} mln zł` : `${Math.round(v).toLocaleString("pl-PL")} zł`;
+  const hrefWww = w => /^https?:\/\//i.test(w) ? w : "http://" + w.toLowerCase();
+  function companies(u) {
+    const all = u.sp || []; if (!all.length) return "";
+    const sp = all.filter(x => x.krs), jd = all.filter(x => !x.krs);
+    const card = (x, i) => {
+      const [ico, col] = BR[x.br] || ["buildings", "#495057"];
+      const share = x.u != null ? `<span class="sp-u">${String(x.u).replace(".", ",")}% udziałów gminy</span>` : "";
+      const board = x.z?.length ? x.z.map(p => row(p.f, p.n, g(`${p.n} ${x.n}`))).join("")
+        : (x.zarz?.length ? row("Zarząd", x.zarz.join(", ")) + `<div class="urz-row"><dt></dt><dd><a href="${g(`prezes zarządu ${x.n}`)}" target="_blank" rel="noopener noreferrer">Kto jest prezesem? Szukaj w Google</a></dd></div>` : "");
+      const tel = x.tel || x.tels?.[0]?.n;
+      return `<li class="sp-card${i >= 3 ? " sp-more" : ""}" style="--sp:${col}"><div class="sp-top"><span class="sp-ic">${ic(ico)}</span><div><b>${esc(x.n)}</b><small>${esc(x.br || "")}${x.forma ? " · " + esc(x.forma) : ""}${x.lik ? " · w likwidacji" : ""}</small>${share}</div></div>
+        <dl class="urz-kontakt sp-dl">${row("Adres", `${x.a}, ${x.pc}`)}${tel ? row("Telefon", fmtTel(tel), telHref(tel)) : ""}${x.www ? row("Strona", x.www.replace(/^https?:\/\//i, "").replace(/\/$/, "").toLowerCase(), hrefWww(x.www)) : ""}
+        ${board}${x.kap ? row("Kapitał", zl(x.kap)) : ""}${x.pkd ? row("Działalność", x.pkd) : ""}${x.w?.length ? row("Wspólnicy", x.w.join(", ")) : ""}${x.rn ? row("Rada nadzorcza", `${x.rn} ${x.rn === 1 ? "osoba" : x.rn < 5 ? "osoby" : "osób"}`) : ""}${x.krs ? row("KRS", `${x.krs}${x.od ? ` · w rejestrze od ${x.od}` : ""}`) : ""}</dl></li>`;
+    };
+    const kap = sp.reduce((t, x) => t + (x.kap && x.u != null ? x.kap * x.u / 100 : 0), 0);
+    const head = sp.length ? `<p class="muted small">Gmina ma udziały w ${sp.length} ${sp.length === 1 ? "spółce" : "spółkach"}${kap ? `; jej część kapitału to ok. ${zl(kap)}` : ""}.</p>` : "";
+    const units = jd.length ? `<h4 class="sp-h4">Jednostki gminy</h4><ul class="sp-units">${jd.map(x => `<li><b>${esc(x.n)}</b><span>${esc(x.a)}, ${esc(x.pc)}</span>${x.tel ? `<a href="${telHref(x.tel)}">${esc(fmtTel(x.tel))}</a>` : ""}${x.www ? `<a href="${esc(hrefWww(x.www))}" target="_blank" rel="noopener noreferrer">${esc(x.www.replace(/^https?:\/\//i, "").replace(/\/$/, "").toLowerCase())}</a>` : ""}</li>`).join("")}</ul>` : "";
+    return `<h3 class="urz-h">Spółki i jednostki gminy</h3>${head}${sp.length ? `<ul class="sp-list">${sp.map(card).join("")}</ul>${sp.length > 3 ? `<button type="button" class="sp-all" data-sp-all>Pokaż wszystkie spółki (${sp.length})</button>` : ""}` : ""}${units}
+      <p class="urz-src">Spółki: Krajowy Rejestr Sądowy (api-krs.ms.gov.pl) i Katalog Podmiotów Publicznych. Nazwiska zarządu ze stron spółek, tylko gdy zgadzają się z wpisem w KRS. Udział z wartości udziałów gminy w kapitale zakładowym.</p>`;
+  }
   /* From the gmina's BIP: office hours (today highlighted) and departments with their phones. */
   function bipBlock(u) {
     if (!u.godz?.length && !u.ref?.length) return "";
@@ -205,6 +231,7 @@
       </dl>
       ${u.tels?.length ? `<p class="urz-src">Dodatkowe numery zebrano automatycznie ze <a href="${esc(u.tsrc || u.www)}" target="_blank" rel="noopener noreferrer">strony gminy</a>. Mogą być nieaktualne.</p>` : ""}
       ${bipBlock(u)}
+      ${companies(u)}
       ${people(u)}
       <button type="button" class="urz-map" data-urz-map>${ic("map-pin")}Pokaż urząd na mapie</button>
       <p class="urz-src">Dane: <a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a>${u.q === 2 ? " · położenie przybliżone" : ""}${u.foto ? ` · fot. ${credit(u.foto)}, Wikimedia Commons` : " · widok: ortofotomapa GUGiK"}</p>
@@ -226,6 +253,7 @@
   document.addEventListener("click", e => {
     const o = e.target.closest("[data-urz-open]"); if (o) { openViewer(+o.dataset.urzOpen); return; }
     if (e.target.closest("[data-urz-panel-close]")) { closePanel(); return; }
+    const all = e.target.closest("[data-sp-all]"); if (all) { all.previousElementSibling?.classList.add("sp-open"); all.remove(); return; }
     if (e.target.closest("[data-urz-map]") && cur) { draw(); window.PLOTS?.framePoint(cur.u.c[0], cur.u.c[1], 16.5); }
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !viewer && panel && !panel.hidden) closePanel(); });
