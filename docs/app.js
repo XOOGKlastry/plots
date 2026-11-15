@@ -90,12 +90,41 @@
     document.querySelectorAll(".bm").forEach((el) => el.setAttribute("aria-pressed", el.dataset.id === b.id));
     // lighter outlines on imagery / dark maps
     if (map.getLayer("dz-line")) map.setPaintProperty("dz-line", "line-color", /img|orto|hr|dark/.test(b.id) ? "#ffffff" : "#1b1e24");
+    syncBmToggle();
   }
+  /* Basemap switch like in Google Maps: a live thumbnail of the other basemap; hover shows its name, a click switches. */
+  function bmThumb(b) {
+    const c = map.getCenter(), z = Math.max(3, Math.min(17, Math.round(map.getZoom()) - 1)), n = 2 ** z, la = c.lat * Math.PI / 180;
+    const x = Math.floor((c.lng + 180) / 360 * n), y = Math.floor((1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2 * n);
+    return b.url.replace("{z}", z).replace("{y}", y).replace("{x}", x);
+  }
+  const bmToggle = document.createElement("button");
+  bmToggle.id = "bmToggle"; bmToggle.type = "button"; bmToggle.className = "bm-toggle"; bmToggle.innerHTML = `<img alt=""><span></span>`;
+  document.body.append(bmToggle);
+  bmToggle.querySelector("img").onerror = e => { e.target.removeAttribute("src"); };
+  bmToggle.onclick = () => setBasemap(BASEMAPS.find(b => b.id !== bmId).id);
+  function syncBmToggle() {
+    const other = BASEMAPS.find(b => b.id !== bmId), sat = other.id === "gp-orto";
+    bmToggle.dataset.label = sat ? "Widok satelitarny" : "Widok mapy"; bmToggle.setAttribute("aria-label", "Przełącz na: " + bmToggle.dataset.label.toLowerCase()); bmToggle.title = "";
+    bmToggle.querySelector("span").textContent = sat ? "Satelita" : "Mapa";
+    const img = bmToggle.querySelector("img"), u = bmThumb(other); if (img.getAttribute("src") !== u) img.src = u;
+    document.querySelectorAll(".bm").forEach(el => { const b = BASEMAPS.find(x => x.id === el.dataset.id), i = el.querySelector("img"), t = b && bmThumb(b); if (i && t && i.getAttribute("src") !== t) i.src = t; });
+  }
+  function placeBmToggle() {
+    const f = document.getElementById("layersFab")?.getBoundingClientRect(); if (!f || !f.width) return;
+    Object.assign(bmToggle.style, { top: f.top + "px", right: (innerWidth - f.left + 8) + "px", width: f.height + "px", height: f.height + "px" });
+  }
+  let bmThumbTimer = 0;
+  map.on("moveend", () => { clearTimeout(bmThumbTimer); bmThumbTimer = setTimeout(syncBmToggle, 350); });
+  addEventListener("resize", placeBmToggle);
+  new MutationObserver(() => requestAnimationFrame(placeBmToggle)).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  if (window.ResizeObserver) new ResizeObserver(placeBmToggle).observe(document.getElementById("layersFab"));
+  requestAnimationFrame(placeBmToggle);
   const bmBox = $("#basemaps");
   BASEMAPS.forEach((b) => {
     const el = document.createElement("button");
     el.className = "bm"; el.dataset.id = b.id; el.type = "button"; el.setAttribute("aria-pressed", "false");
-    el.innerHTML = `<span>${esc(b.name)}</span>`;
+    el.innerHTML = `<img class="bm-th" alt=""><span>${esc(b.name)}</span>`;
     el.onclick = () => setBasemap(b.id);
     bmBox.appendChild(el);
   });

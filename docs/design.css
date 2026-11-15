@@ -513,3 +513,75 @@ body:not(.no-anim) .key-chip.wait{animation:keyPulse 1.3s ease-in-out infinite}
 .distance-results .distance-fold .distance-segments{display:flex}
 .distance-results .distance-fold .walking-slider,.distance-results .distance-fold .walking-legend,.distance-results .distance-fold #buildingStatus{display:block}
 .motor-mode .distance-fold,.catalog-open .distance-fold,.catalog-open .distance-how,.catalog-open .transport-switch{display:none!important}
+
+/* ===== Wspólny wygląd warstw: kolorowa ikona jak w Ustawieniach iPhone'a ===== */
+.lk-ic{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--c) 15%,#fff);color:var(--c)}
+.lk-ic>svg{width:18px;height:18px}
+.sw>.lk-ic{order:-2}
+.terr-row>.lk-ic{margin-top:0}
+.terr-row-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.terr-row-head strong{min-width:0}
+.terr-map{flex:none;display:inline-flex;align-items:center;gap:5px;border:0;border-radius:999px;padding:5px 10px 5px 8px;min-height:30px;background:var(--tint);color:var(--acc);font-size:11.5px;font-weight:600;cursor:pointer}
+.terr-map>svg{width:15px;height:15px}
+.terr-map[aria-pressed=true]{background:var(--acc);color:#fff}
+@media(pointer:coarse){.terr-map{min-height:34px}}
+
+/* ===== Przełącznik podkładu w stylu Google Maps ===== */
+.bm-toggle{position:fixed;z-index:5;top:calc(20px + var(--st));right:calc(150px + var(--sr));width:46px;height:46px;padding:0;border:2px solid #fff;border-radius:14px;background:#d9dee6;cursor:pointer;box-shadow:0 4px 14px #1d263326,0 1px 3px #0000001f;transition:transform .18s}
+.bm-toggle img{display:block;width:100%;height:100%;object-fit:cover;border-radius:12px}
+.bm-toggle img:not([src]){visibility:hidden}
+.bm-toggle span{position:absolute;left:0;right:0;bottom:0;padding:9px 0 3px;border-radius:0 0 12px 12px;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font-size:9px;font-weight:650;text-align:center;letter-spacing:.01em;pointer-events:none}
+.bm-toggle:after{content:attr(data-label);position:absolute;right:calc(100% + 9px);top:50%;transform:translate(6px,-50%);opacity:0;pointer-events:none;white-space:nowrap;background:#fff;color:var(--fg);font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:11px;box-shadow:0 4px 14px #1d263326;transition:opacity .18s,transform .18s}
+@media(hover:hover){.bm-toggle:hover{transform:scale(1.05)}.bm-toggle:hover:after{opacity:1;transform:translate(0,-50%)}}
+.bm-toggle:focus-visible:after{opacity:1;transform:translate(0,-50%)}
+body.stats-open #bmToggle,body.stats-open #layersFab,body.distance-picking #bmToggle{display:none!important}
+@media(max-width:767px){body.map-tight:not(.distance-mode) #bmToggle{visibility:hidden}}
+.bm{display:flex;align-items:center;justify-content:center;gap:8px}
+.bm .bm-th{display:block;width:26px;height:26px;border-radius:7px;object-fit:cover;background:#d9dee6;flex:none}
+.bm .bm-th:not([src]){visibility:hidden}
+.stats-panel .section-head h2{display:flex;align-items:center;gap:8px}.stats-pl{width:22px;height:22px;color:var(--acc)}
+
+/* ===== Moduł odległości: nowy układ bez zwijanych sekcji ===== */
+.dv2 .distance-body{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+.dv2 .dv-sec{margin:0 0 14px}
+.dv2 .dv-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 9px}
+.dv2 .dv-head h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.3px;line-height:1.2;min-width:0}
+.dv2 .dv-head h3 small{display:block;font-size:11px;font-weight:450;letter-spacing:0;color:var(--mut);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dv2 .dv-arrows{display:flex;gap:6px;flex:none}
+.dv2 .dv-arrow{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:50%;background:var(--bg);color:var(--fg);cursor:pointer;padding:0}
+.dv2 .dv-arrow>svg{width:15px;height:15px}
+.dv2 .dv-arrow:disabled{opacity:.35;cursor:default}
+.dv2 .dv-cats{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 10px;padding:0 16px;scroll-padding-inline:16px}
+.dv2 .dv-cats::-webkit-scrollbar,.dv2 .dv-tiles::-webkit-scrollbar,.dv2 .dv-carousel::-webkit-scrollbar{display:none}
+.dv2 .dv-cats button{flex:none;display:flex;align-items:center;gap:6px;border:0;border-radius:999px;background:var(--bg);color:var(--fg);font-size:12.5px;font-weight:550;padding:7px 13px 7px 10px;min-height:34px;cursor:pointer}
+.dv2 .dv-cats button>svg{width:16px;height:16px;color:var(--mut)}
+.dv2 .dv-cats button[aria-selected=true]{background:var(--fg);color:#fff}
+.dv2 .dv-cats button[aria-selected=true]>svg{color:#fff}
+.dv2 .dv-tiles{display:grid;grid-auto-flow:column;grid-auto-columns:76px;gap:4px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;margin:0 -16px;padding:2px 16px 4px;scroll-padding-inline:16px;overscroll-behavior-x:contain}
+.dv2 .dv-tile{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;padding:6px 2px;border-radius:16px;cursor:pointer;scroll-snap-align:start;color:var(--fg)}
+.dv2 .dv-ic{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;background:var(--bg);transition:transform .15s,box-shadow .15s}
+.dv2 .dv-ic .poi-badge{width:34px;height:34px}
+.dv2 .dv-lbl{font-size:11px;line-height:1.25;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
+.dv2 .dv-tile[aria-pressed=true] .dv-ic{background:var(--tint);box-shadow:0 0 0 2.5px var(--acc)}
+.dv2 .dv-tile[aria-pressed=true] .dv-lbl{color:var(--acc);font-weight:650}
+@media(hover:hover){.dv2 .dv-tile:hover .dv-ic{transform:translateY(-2px)}}
+.dv2 .transport-switch{margin:0 0 16px}
+.dv2 #transportNote{margin:-8px 0 12px}
+.dv2 .dv-near #accessResults{min-height:20px}
+.dv2 .dv-carousel{display:flex!important;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:0 -16px!important;padding:2px 16px 6px;scroll-padding-inline:16px;list-style:none;overscroll-behavior-x:contain}
+.dv2 .dv-carousel li{flex:0 0 86%;margin:0!important;scroll-snap-align:start}
+.dv2 .dv-carousel li:only-child{flex-basis:100%}
+.dv2 .dv-carousel .access-result{height:100%;background:var(--solid);border:1px solid var(--line);border-radius:18px;box-shadow:0 2px 10px #1d26330d}
+.dv2 .dv-carousel .access-result.on{border-color:var(--acc);box-shadow:0 0 0 1.5px var(--acc)}
+.dv2 .dv-near .source-note{font-size:10px;line-height:1.5;margin:6px 0 0}
+.dv2 .dv-colors{background:var(--bg);border-radius:18px;padding:13px 14px 10px}
+.dv2 .dv-colors .distance-segments{background:var(--solid);margin:4px 0 6px}
+.dv2 .dv-colors .walking-slider{margin:10px 0}
+.dv2 .dv-colors #buildingStatus{margin:8px 0 0}
+.motor-mode.dv2 .dv-colors{display:none}
+.dv2 .dv-source{margin:4px 0 0;padding:0}
+.dv2 .dv-source h4{font-size:11px;font-weight:600;color:var(--mut);margin:0 0 4px;text-transform:uppercase;letter-spacing:.06em}
+.dv2 .dv-source p,.dv2 .dv-source #distanceSources{font-size:10.5px;line-height:1.55;color:var(--mut);margin:0 0 4px}
+.dv2 #distanceSources #surroundingsLayers{display:none}
+.sw>span.lk-ic{width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--c) 15%,#fff);box-shadow:none;position:static;transition:none}
+.sw>span.lk-ic:after,.sw>span.lk-ic:before{display:none!important;content:none}

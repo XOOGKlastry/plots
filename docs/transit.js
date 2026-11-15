@@ -11,7 +11,7 @@
   const R = 6378137, RAD = Math.PI / 180;
   const PALETTE = ["#1a9641", "#73c264", "#c4e687", "#fee08b", "#fdae61", "#f46d43", "#d53e4f", "#9e0142", "#5e4fa2"];
   const DAY_KEYS = ["rob", "sob", "nie"], DAY_LABEL = { rob: "Roboczy", sob: "Sobota", nie: "Niedziela" };
-  const POI = [["szkola", "szkół podstawowych"], ["szkola_srednia", "szkół średnich"], ["uczelnia", "uczelni"], ["poz", "przychodni"], ["szpital", "szpitali"], ["apteka", "aptek"], ["biblioteka", "bibliotek"], ["kino", "kin"], ["galeria", "centrów handlowych"]];
+  const POI = [["szkola", "szkół podstawowych"], ["szkola_srednia", "szkół średnich"], ["poz", "przychodni"], ["szpital", "szpitali"], ["apteka", "aptek"], ["biblioteka", "bibliotek"], ["kino", "kin"], ["galeria", "centrów handlowych"]];
   const fmt = n => Math.round(n).toLocaleString("pl-PL");
   const hhmm = s => { const m = Math.round(s / 60); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); };
   const state = { active: false, day: DAY_KEYS[[2, 0, 0, 0, 0, 0, 1][new Date().getDay()]], time: 0, limit: 3600, origin: null, region: null, fitted: null };

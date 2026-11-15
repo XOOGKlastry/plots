@@ -6,6 +6,8 @@
   details.innerHTML=`<summary>${icon(name)}<span>${label}</span><small class="group-count"></small>${icon('caret-down','section-chevron')}</summary><div class="layer-section-body"></div>`;
   element.before(details);details.lastElementChild.append(element);details.addEventListener('toggle',()=>{if(details.open&&!document.getElementById('layerFilter').value.trim())panel.querySelectorAll('.layer-section').forEach(d=>{if(d!==details)d.open=false;});});return details;
  }
+ const LOOK={lyrDz:['squares-four','#30b0c7'],lyrParcelColors:['palette','#ff9f0a'],lyrAdr:['map-pin','#ff3b30'],lyrOrthoLabels:['list-bullets','#64748b'],'plan-mpzp':['map-trifold','#0a84ff'],'plan-pog':['file-text','#5e5ce6'],'plan-pog-draft':['file-text','#bf5af2'],surPrices:['coins','#30d158'],lyrAnim:['play','#8e8e93']};
+ function decorate(){panel.querySelectorAll('.layer-entry label.sw').forEach(l=>{const input=l.querySelector('input'),look=input&&((window.LayerLook||{})[input.id]||LOOK[input.id]);if(!look||l.querySelector('.lk-ic'))return;const ic=document.createElement('span');ic.className='lk-ic';ic.style.setProperty('--c',look[1]);ic.innerHTML=icon(look[0]);l.insertBefore(ic,l.querySelector('div'));});}
  function counts(){panel.querySelectorAll('.layer-section').forEach(d=>{const n=d.querySelectorAll('.layer-entry input[type=checkbox]:checked').length;d.querySelector('.group-count').textContent=n?n+' aktywne':'';});}
  function setup(){
   if(panel.dataset.grouped||!document.getElementById('surPrices')||!document.getElementById('plan-mpzp'))return;
@@ -34,7 +36,7 @@
   const general=document.createElement('div');general.id='layerMapSettings';const header=panel.querySelector('.section-head');for(const el of [...panel.children])if(el!==header&&el!==services)general.append(el);panel.append(general);services.hidden=true;
   window.LayerControls={show(mode){if(mode==='access'){window.DistanceModule?.open();}else panel.scrollTop=0;}};
   document.dispatchEvent(new Event('plots:layers-ready'));
-  panel.addEventListener('change',counts);counts();observer.disconnect();
+  panel.addEventListener('change',counts);counts();observer.disconnect();decorate();setTimeout(decorate,1500);
 
  }
  const observer=new MutationObserver(setup);observer.observe(panel,{childList:true,subtree:true});setup();

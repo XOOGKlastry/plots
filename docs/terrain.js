@@ -93,6 +93,10 @@
         map.addLayer({ id: "terr-ruch-lbl", type: "symbol", source: "terr-ruch", minzoom: 10, layout: { "symbol-placement": "line", "text-field": ["concat", ["number-format", ["get", "s"], { locale: "pl-PL" }], " poj./dobę"], "text-size": 11, "text-font": ["Noto Sans Regular"] }, paint: { "text-color": "#4a2c00", "text-halo-color": "#fff", "text-halo-width": 1.5 } }); },
       ids: ["terr-ruch", "terr-ruch-lbl"], legend: () => legendRow(["#ffd54f", "#ffa726", "#f4511e", "#c62828", "#6a1b9a"], ["< 10 tys.", "10–20 tys.", "20–40 tys.", "40–70 tys.", "> 70 tys."]) + `<small class="terr-unit">Średni dobowy ruch roczny (SDRR) 2025</small>` }
   ];
+  /* One look for every layer: the same icon and colour in the layer list and in the place card. */
+  const LOOK = { spis: ["users-three", "#ff9500"], gunb: ["crane", "#af52de"], egms: ["mountains", "#a2845e"], lasy: ["tree", "#34c759"], powodz: ["waves", "#007aff"],
+    internet: ["wifi-high", "#32ade6"], osuwiska: ["warning-circle", "#ff3b30"], gornicze: ["shovel", "#8e8e93"], geotermia: ["thermometer-hot", "#ff2d55"], ruch: ["road-horizon", "#5856d6"] };
+  window.LayerLook = Object.assign(window.LayerLook || {}, Object.fromEntries(Object.entries(LOOK).map(([k, v]) => ["terr-" + k, v])));
   function firstSymbol() { return map.getStyle().layers.find(l => l.type === "symbol")?.id; }
 
   const panel = document.getElementById("terrainLayers");
@@ -174,7 +178,7 @@
       const cb = document.getElementById("terr-" + L.id);
       cb.checked = app.store.get("terrain." + L.id, false);
       if (cb.checked) apply(L, true);
-      cb.onchange = () => { app.store.set("terrain." + L.id, cb.checked); apply(L, cb.checked); if (cb.checked && map.getZoom() < ({ gunb: 12, lasy: 11, powodz: 14, internet: 14 }[L.id] || 0)) app.toast("Przybliż mapę, aby zobaczyć tę warstwę"); };
+      cb.onchange = () => { app.store.set("terrain." + L.id, cb.checked); apply(L, cb.checked); syncPills(); if (cb.checked && !flying && map.getZoom() < ({ gunb: 12, lasy: 11, powodz: 14, internet: 14 }[L.id] || 0)) app.toast("Przybliż mapę, aby zobaczyć tę warstwę"); };
     }
     panel.dispatchEvent(new Event("change", { bubbles: true }));
   }
@@ -190,28 +194,57 @@
 
   /* ---------- „Teren i otoczenie” w karcie miejsca ---------- */
   const fmt = n => Math.round(n).toLocaleString("pl-PL");
-  function row(icon, title, html) { return `<div class="terr-row">${window.Icons.svg(icon)}<div><strong>${esc(title)}</strong>${html}</div></div>`; }
+  const lkIcon = (layer, icon) => { const L = LOOK[layer]; return L ? `<span class="lk-ic" style="--c:${L[1]}">${window.Icons.svg(icon || L[0])}</span>` : window.Icons.svg(icon); };
+  function pill(layer, m) {
+    const on = !!document.getElementById("terr-" + layer)?.checked;
+    return `<button type="button" class="terr-map" data-terr-layer="${layer}"${m != null ? ` data-m="${m}"` : ""} aria-pressed="${on}">${window.Icons.svg(on ? "check-circle" : "map-trifold")}<span>${on ? "Na mapie" : "Pokaż"}</span></button>`;
+  }
+  function row(icon, title, html, layer, m) { return `<div class="terr-row">${layer ? lkIcon(layer, icon) : window.Icons.svg(icon)}<div><div class="terr-row-head"><strong>${esc(title)}</strong>${layer ? pill(layer, m) : ""}</div>${html}</div></div>`; }
+  function syncPills() {
+    document.querySelectorAll("[data-terr-layer]").forEach(b => { const on = !!document.getElementById("terr-" + b.dataset.terrLayer)?.checked; b.setAttribute("aria-pressed", on); b.innerHTML = `${window.Icons.svg(on ? "check-circle" : "map-trifold")}<span>${on ? "Na mapie" : "Pokaż"}</span>`; });
+  }
+  /* Tap "Pokaż": the layer goes on and the map moves to a scale where it can be read
+     (out a little for ground movement and deposits, in for floods and internet). */
+  let flying = false, cardPlace = null;
+  function layerZoom(id, m) {
+    const z = map.getZoom(), cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    return { spis: 12.6, gunb: 15, lasy: cl(16 - Math.log2(Math.max(+m || 150, 150) / 150), 11.5, 16), egms: cl(z - 1.5, 10, 13), gornicze: cl(z - 2, 9, 12),
+      ruch: cl(15 - Math.log2(Math.max(+m || 200, 200) / 200), 11, 15), powodz: Math.max(z, 15.5), internet: Math.max(z, 17), osuwiska: 14, geotermia: 13 }[id] ?? z;
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-terr-layer]"); if (!b) return;
+    const id = b.dataset.terrLayer, cb = document.getElementById("terr-" + id); if (!cb) return;
+    cb.checked = !cb.checked; flying = true; cb.onchange(); flying = false;
+    if (cb.checked && cardPlace) app.framePoint(cardPlace.lon, cardPlace.lat, layerZoom(id, b.dataset.m));
+    app.toast(cb.checked ? `Włączono warstwę: ${LAYERS.find(L => L.id === id).label}` : "Warstwa wyłączona");
+  });
   function render(t, l) {
     const out = [];
     if (l && l.r) {
       const r1 = l.r["1000"], ages = ["0–9", "10–19", "20–29", "30–39", "40–49", "50–59", "60–69", "70–79", "80+"], mx = Math.max(1, ...r1.wiek);
       out.push(row("users-three", "Mieszkańcy w okolicy", `<p>${["500", "1000", "3000"].map(k => `<span class="terr-chip"><b>${fmt(l.r[k].lud)}</b> do ${k === "1000" ? "1 km" : k === "3000" ? "3 km" : "500 m"}</span>`).join("")}</p>` +
-        (r1.lud > 30 ? agesHTML(r1.wiek, l.polska || null, "mieszkańców w promieniu 1 km") : "")));
+        (r1.lud > 30 ? agesHTML(r1.wiek, l.polska || null, "mieszkańców w promieniu 1 km") : ""), "spis"));
     }
     if (t) {
       if (t.pozwolenia?.length) {
-        const g = {}; t.pozwolenia.forEach(p => { const k = katName(p.kat); g[k] = (g[k] || 0) + 1; });
-        out.push(row("crane", "Nowe inwestycje do 500 m (3 lata)", `<p>${Object.entries(g).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="terr-chip"><b>${n}</b> ${esc(k)}</span>`).join("")}</p><ul class="terr-list">${t.pozwolenia.slice(0, 5).map(p => `<li>${esc((p.opis || p.zam || "").replace(/\s+/g, " ").slice(0, 110))}<small>${esc(p.data || "")} · ${p.m} m · ${p.typ === "zgloszenie" ? "zgłoszenie" : "wniosek o pozwolenie"}</small></li>`).join("")}</ul>`));
+        // One project is often filed many times (changes of the permit, several parcels): count it once.
+        const uniq = new Map();
+        for (const p of t.pozwolenia) {
+          const k = (p.opis || p.zam || "").toLowerCase().replace(/\s+/g, " ").replace(/[^\p{L}\p{N} ]/gu, "").trim().slice(0, 140) || Math.random();
+          const u = uniq.get(k); if (!u) uniq.set(k, { ...p, n: 1 }); else { u.n++; if (p.m < u.m) u.m = p.m; if ((p.data || "") > (u.data || "")) u.data = p.data; }
+        }
+        const list = [...uniq.values()], g = {}; list.forEach(p => { const k = katName(p.kat); g[k] = (g[k] || 0) + 1; });
+        out.push(row("crane", `Nowe inwestycje do 500 m (3 lata)`, `<p>${Object.entries(g).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="terr-chip"><b>${n}</b> ${esc(k)}</span>`).join("")}</p><ul class="terr-list">${list.slice(0, 5).map(p => `<li>${esc((p.opis || p.zam || "").replace(/\s+/g, " ").slice(0, 110))}<small>${esc(p.data || "")} · ${p.m} m · ${p.typ === "zgloszenie" ? "zgłoszenie" : "wniosek o pozwolenie"}${p.n > 1 ? ` · ${p.n} wnioski w tej sprawie` : ""}</small></li>`).join("")}</ul>${list.length > 5 ? `<small class="muted">i ${list.length - 5} kolejnych inwestycji, wszystkie po włączeniu warstwy</small>` : ""}`, "gunb"));
       }
-      if (t.las) out.push(row("tree", "Las w tym miejscu", `<p>${t.las.gatunek ? `Drzewostan: <b>${esc(gatName(t.las.gatunek))}</b>${t.las.wiek && t.las.wiek !== "0" ? `, ${esc(t.las.wiek)} lat` : ""}` : "Grunt leśny bez drzewostanu"}${t.las.funkcja ? `, las ${esc(FUN[t.las.funkcja] || t.las.funkcja.toLowerCase())}` : ""}.</p><small class="muted">${esc((t.las.nadlesnictwo || "").replace(/^BDL_\d+_\d+_/, "Nadleśnictwo ").replace(/_\d{4}$/, "").replace(/_/g, " ").toLowerCase().replace(/^n/, "N").replace(/ (\p{L})/gu, (m, c) => " " + c.toUpperCase()))}</small>`));
-      else if (t.las_najblizszy) out.push(row("tree", "Najbliższy las", `<p><b>${fmt(t.las_najblizszy.m)} m</b>, ${esc(gatName(t.las_najblizszy.gatunek))}${t.las_najblizszy.wiek ? `, ${t.las_najblizszy.wiek} lat` : ""}</p>`));
-      if (t.ruch) out.push(row("road-horizon", `Droga krajowa nr ${t.ruch.droga}`, `<p><b>${fmt(t.ruch.sdrr)}</b> pojazdów na dobę, ${fmt(t.ruch.m)} m stąd</p><small class="muted">${esc(t.ruch.odcinek || "")} · GDDKiA GPR ${t.ruch.rok}</small>`));
+      if (t.las) out.push(row("tree", "Las w tym miejscu", `<p>${t.las.gatunek ? `Drzewostan: <b>${esc(gatName(t.las.gatunek))}</b>${t.las.wiek && t.las.wiek !== "0" ? `, ${esc(t.las.wiek)} lat` : ""}` : "Grunt leśny bez drzewostanu"}${t.las.funkcja ? `, las ${esc(FUN[t.las.funkcja] || t.las.funkcja.toLowerCase())}` : ""}.</p><small class="muted">${esc((t.las.nadlesnictwo || "").replace(/^BDL_\d+_\d+_/, "Nadleśnictwo ").replace(/_\d{4}$/, "").replace(/_/g, " ").toLowerCase().replace(/^n/, "N").replace(/ (\p{L})/gu, (m, c) => " " + c.toUpperCase()))}</small>`, "lasy"));
+      else if (t.las_najblizszy) out.push(row("tree", "Najbliższy las", `<p><b>${fmt(t.las_najblizszy.m)} m</b>, ${esc(gatName(t.las_najblizszy.gatunek))}${t.las_najblizszy.wiek ? `, ${t.las_najblizszy.wiek} lat` : ""}</p>`, "lasy", t.las_najblizszy.m));
+      if (t.ruch) out.push(row("road-horizon", `Droga krajowa nr ${t.ruch.droga}`, `<p><b>${fmt(t.ruch.sdrr)}</b> pojazdów na dobę, ${fmt(t.ruch.m)} m stąd</p><small class="muted">${esc(t.ruch.odcinek || "")} · GDDKiA GPR ${t.ruch.rok}</small>`, "ruch", t.ruch.m));
       if (t.egms != null) { const v = t.egms, txt = v <= -10 ? "szybko osiada" : v <= -3 ? "osiada" : v <= -1.5 ? "lekko osiada" : v >= 3 ? "wypiętrza się" : v >= 1.5 ? "lekko się wypiętrza" : "stabilny";
-        out.push(row(v <= -3 ? "warning-circle" : "mountains", "Ruch terenu 2016–2020", `<p>Teren <b>${txt}</b>: ${v > 0 ? "+" : ""}${String(v).replace(".", ",")} mm/rok</p><small class="muted">Copernicus EGMS, pomiar satelitarny, uśrednienie ok. 150 m</small>`)); }
-      if (t.tereny_gornicze?.length || t.zloza?.length) out.push(row("shovel", t.tereny_gornicze?.length ? "Teren górniczy" : "Złoże kopaliny", `<p>${[...(t.tereny_gornicze || []).map(x => `Teren górniczy <b>${esc(x.nazwa)}</b> (${esc((x.kopalina || "").toLowerCase())})`), ...(t.zloza || []).map(x => `Złoże <b>${esc(x.nazwa)}</b>: ${esc((x.kopalina || "").toLowerCase())}`)].join("<br>")}</p><small class="muted">PIG-PIB, MIDAS</small>`));
-      if (t.osuwiska?.length) out.push(row("warning-circle", "Osuwisko", `<p>${t.osuwiska.map(o => `${esc((o.warstwa || "").replace(/^SOPO\s*.\s*/, ""))}${o.aktywnosc ? `: ${esc(o.aktywnosc)}` : ""}`).join("<br>")}</p><small class="muted">PIG-PIB, SOPO</small>`));
+        out.push(row(v <= -3 ? "warning-circle" : "mountains", "Ruch terenu 2016–2020", `<p>Teren <b>${txt}</b>: ${v > 0 ? "+" : ""}${String(v).replace(".", ",")} mm/rok</p><small class="muted">Copernicus EGMS, pomiar satelitarny, uśrednienie ok. 150 m</small>`, "egms")); }
+      if (t.tereny_gornicze?.length || t.zloza?.length) out.push(row("shovel", t.tereny_gornicze?.length ? "Teren górniczy" : "Złoże kopaliny", `<p>${[...(t.tereny_gornicze || []).map(x => `Teren górniczy <b>${esc(x.nazwa)}</b> (${esc((x.kopalina || "").toLowerCase())})`), ...(t.zloza || []).map(x => `Złoże <b>${esc(x.nazwa)}</b>: ${esc((x.kopalina || "").toLowerCase())}`)].join("<br>")}</p><small class="muted">PIG-PIB, MIDAS</small>`, "gornicze"));
+      if (t.osuwiska?.length) out.push(row("warning-circle", "Osuwisko", `<p>${t.osuwiska.map(o => `${esc((o.warstwa || "").replace(/^SOPO\s*.\s*/, ""))}${o.aktywnosc ? `: ${esc(o.aktywnosc)}` : ""}`).join("<br>")}</p><small class="muted">PIG-PIB, SOPO</small>`, "osuwiska"));
       if (t.geotermia?.length) { const g = t.geotermia[0], txt = g["Opis klasy"] || Object.values(g).find(v => typeof v === "string") || "";
-        out.push(row("thermometer-hot", "Gruntowa pompa ciepła", `<p>${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</p><small class="muted">PIG-PIB, mapa potencjału geotermii niskotemperaturowej</small>`)); }
+        out.push(row("thermometer-hot", "Gruntowa pompa ciepła", `<p>${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</p><small class="muted">PIG-PIB, mapa potencjału geotermii niskotemperaturowej</small>`, "geotermia")); }
     }
     return out.join("") || `<p class="muted small">Brak danych dla tego miejsca.</p>`;
   }
@@ -280,7 +313,7 @@
     if (!r || !r.obwod || !r.obwod.lud) { el.innerHTML = bare ? `<p class="muted small">W tym miejscu nikt nie mieszka według Spisu 2021.</p>` : ""; return; }
     r.gminaNazwa = await gminaName(r.obwod.teryt);
     if (my !== obwSeq || !el.isConnected) return;
-    el.innerHTML = bare ? obwodHTML(r) : row("users-three", "Obwód spisowy (Spis 2021)", obwodHTML(r));
+    el.innerHTML = bare ? obwodHTML(r) : row("users-three", "Obwód spisowy (Spis 2021)", obwodHTML(r), "spis");
     bindAges(el);
     if (spisOn()) showSel(r.obwod.geom);
   }
@@ -320,13 +353,14 @@
   const slotIcon = { good: "check-circle", warn: "warning-circle", bad: "warning-circle", info: "check-circle", none: "minus-circle" };
   function fillSlot(el, kind, place, view, icon) {
     const slot = el.querySelector(`[data-slot="${kind}"]`);
-    if (slot) slot.innerHTML = `<div class="terr-row tone-${view.tone}">${window.Icons.svg(view.tone === "good" || view.tone === "none" ? icon : slotIcon[view.tone] || icon)}<div><strong>${esc(view.title)}</strong>${view.html}</div></div>`;
+    const layer = { powodz: "powodz", net: "internet" }[kind];
+    if (slot) slot.innerHTML = `<div class="terr-row tone-${view.tone}">${view.tone === "good" || view.tone === "none" ? lkIcon(layer, icon) : window.Icons.svg(slotIcon[view.tone] || icon)}<div><div class="terr-row-head"><strong>${esc(view.title)}</strong>${layer ? pill(layer) : ""}</div>${view.html}</div></div>`;
     setKey(kind, place, { tone: view.tone, text: view.chip });
   }
   let seq = 0;
   async function loadInto(place, el) {
     if (!place || !el) return;
-    const my = ++seq; el.innerHTML = `<div data-slot="powodz"><p class="muted small">Sprawdzam zagrożenie powodziowe…</p></div><div data-slot="net"></div><div data-slot="rest"><p class="muted small">Wczytuję dane o terenie…</p></div>`;
+    cardPlace = place; const my = ++seq; el.innerHTML = `<div data-slot="powodz"><p class="muted small">Sprawdzam zagrożenie powodziowe…</p></div><div data-slot="net"></div><div data-slot="rest"><p class="muted small">Wczytuję dane o terenie…</p></div>`;
     const q = `?lon=${place.lon}&lat=${place.lat}`, live = () => my === seq && el.isConnected;
     floodAt(place).then(f => { if (live()) fillSlot(el, "powodz", place, floodView(f), "waves"); });
     app.api("/api/internet" + q).catch(() => null).then(r => { if (live()) fillSlot(el, "net", place, netView(r), "wifi-high"); });
