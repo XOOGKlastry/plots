@@ -46,9 +46,9 @@
     if (!map || !cur || HIDE.test(document.body.className)) return;
     const u = cur.u, el = document.createElement("div");
     el.className = "urz-pin";
-    el.innerHTML = `<button type="button" class="urz-pin-b" aria-label="Urząd: ${esc(u.n)}. Pokaż zdjęcie">${ic("bank")}<b>Urząd</b></button>` +
+    el.innerHTML = `<button type="button" class="urz-pin-b" aria-label="Urząd: ${esc(u.n)}. Zdjęcie i kontakty">${ic("bank")}<b>Urząd</b></button>` +
       `<div class="urz-peek" aria-hidden="true">${u.foto ? `<img alt="" src="${esc(small(u.foto.u))}">` : orto(u.c[0], u.c[1], 17)}<span>${esc(u.n)}<small>${esc(u.a)}</small></span></div>`;
-    el.querySelector("button").addEventListener("click", e => { e.stopPropagation(); openViewer(0); });
+    el.querySelector("button").addEventListener("click", e => { e.stopPropagation(); openPanel(); });
     marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(u.c).addTo(map);
     if (u.poza && centra?.[cur.k]) {
       if (!map.getSource("urz-link")) {
@@ -100,23 +100,32 @@
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") viewer.querySelector(`[data-urz-step="${e.key === "ArrowLeft" ? -1 : 1}"]:not([disabled])`)?.click();
   });
 
-  /* ---------- gmina card ---------- */
+  /* ---------- office panel (opened from the map button) ---------- */
   function row(label, value, href) {
     if (!value) return "";
     return `<div class="urz-row"><dt>${esc(label)}</dt><dd>${href ? `<a href="${esc(href)}" ${href.startsWith("http") ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(value)}</a>` : esc(value)}</dd></div>`;
   }
-  async function card(k, u, src) {
-    const box = document.getElementById("gminaCard"); if (!box || !u) return;
-    box.querySelector(".urz")?.remove();
-    const poza = u.poza ? await nameOf(u.poza) : null;
+  let panel = null, src = null;
+  function ensurePanel() {
+    if (panel) return panel;
+    panel = document.createElement("aside");
+    panel.id = "urzPanel"; panel.className = "floating-panel urz-panel"; panel.hidden = true; panel.setAttribute("aria-label", "Urząd gminy");
+    document.body.append(panel);
+    return panel;
+  }
+  async function renderPanel() {
+    const p = ensurePanel(); if (!cur) return;
+    const { k, u } = cur, poza = u.poza ? await nameOf(u.poza) : null;
     if (!cur || cur.k !== k) return;
     const hero = u.foto ? `<img alt="Budynek: ${esc(u.n)}" src="${esc(px(u.foto.u, 960))}">` : orto(u.c[0], u.c[1], 18);
     const n = (u.okolica || []).length;
     const bip = u.bip && typeof u.bip === "object" ? Object.entries(u.bip).map(([a, b]) => row(a, String(b))).join("") : "";
-    const html = `<section class="urz" aria-label="Urząd gminy">
-      <button type="button" class="urz-hero" data-urz-open="0">${hero}<span class="urz-grad"></span><span class="urz-ttl"><small>${ic("bank")}Siedziba urzędu</small><b>${esc(u.n)}</b><em>${esc(u.a)}, ${esc(u.pc)}</em></span>${n ? `<span class="urz-cnt">${ic("image")}${n + 1}</span>` : ""}</button>
+    p.innerHTML = `<header class="section-head urz-head"><h2>${ic("bank")}Urząd gminy</h2><button class="icbtn" type="button" data-urz-panel-close aria-label="Zamknij panel urzędu">${ic("x")}</button></header>
+     <div class="urz-body"><section class="urz">
+      <button type="button" class="urz-hero" data-urz-open="0">${hero}<span class="urz-grad"></span><span class="urz-ttl"><small>Siedziba urzędu</small><b>${esc(u.n)}</b><em>${esc(u.a)}, ${esc(u.pc)}</em></span>${n ? `<span class="urz-cnt">${ic("image")}${n + 1}</span>` : ""}</button>
       ${n ? `<div class="urz-thumbs" aria-label="Okolica urzędu">${u.okolica.map((f, j) => `<button type="button" data-urz-open="${j + 1}" aria-label="Okolica, zdjęcie ${j + 1}"><img alt="" loading="lazy" src="${esc(small(f.u))}"></button>`).join("")}</div>` : ""}
       ${poza ? `<p class="urz-poza">${ic("map-pin")}<span>Urząd stoi poza gminą, w gminie ${esc(poza)}. To częste w gminach wiejskich otaczających miasto. Na mapie łączy go przerywana linia ze środkiem gminy.</span></p>` : ""}
+      <h3 class="urz-h">Kontakt</h3>
       <dl class="urz-kontakt">
         ${row("Adres", `${u.a}, ${u.pc}`)}${row("Telefon", u.tel, u.tel ? "tel:+48" + u.tel.replace(/\D/g, "") : null)}${row("Faks", u.fax)}
         ${row("Strona", u.www?.replace(/^https?:\/\//, "").replace(/\/$/, ""), u.www)}${row("ePUAP", u.esp)}${row("e-Doręczenia", u.ade)}${row("REGON", u.regon)}${row("NIP", u.nip)}${bip}
@@ -124,25 +133,43 @@
       ${bip ? "" : `<p class="urz-soon">${ic("clock")}Wkrótce tu: wójt lub burmistrz, sekretariat, e-mail i godziny pracy z BIP gminy.</p>`}
       <button type="button" class="urz-map" data-urz-map>${ic("map-pin")}Pokaż urząd na mapie</button>
       <p class="urz-src">Dane: <a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a>${u.q === 2 ? " · położenie przybliżone" : ""}${u.foto ? ` · fot. ${credit(u.foto)}, Wikimedia Commons` : " · widok: ortofotomapa GUGiK"}</p>
-    </section>`;
-    const before = box.querySelector(".gmina-source");
-    if (before) before.insertAdjacentHTML("beforebegin", html); else box.insertAdjacentHTML("beforeend", html);
+     </section></div>`;
+  }
+  function openPanel() {
+    if (!cur) return;
+    window.StatsMap?.isOpen() && window.StatsMap.close();
+    if (window.DistanceModule?.isOpen()) window.DistanceModule.close();
+    const was = !ensurePanel().hidden;
+    panel.hidden = false; document.body.classList.add("urz-open"); renderPanel(); panel.querySelector(".urz-body")?.scrollTo(0, 0);
+    if (!was) window.UIHistory?.open?.("urzad", () => closePanel({ history: false }));
+  }
+  function closePanel(o = {}) {
+    if (!panel || panel.hidden) return;
+    panel.hidden = true; document.body.classList.remove("urz-open");
+    if (o.history !== false) window.UIHistory?.dismiss?.("urzad");
   }
   document.addEventListener("click", e => {
     const o = e.target.closest("[data-urz-open]"); if (o) { openViewer(+o.dataset.urzOpen); return; }
+    if (e.target.closest("[data-urz-panel-close]")) { closePanel(); return; }
     if (e.target.closest("[data-urz-map]") && cur) { draw(); window.PLOTS?.framePoint(cur.u.c[0], cur.u.c[1], 16.5); }
   });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !viewer && panel && !panel.hidden) closePanel(); });
 
   document.addEventListener("plots:gmina", async e => {
     const k = e.detail?.id;
-    if (!k) { cur = null; hideAll(); return; }
+    if (!k) { cur = null; hideAll(); closePanel(); return; }
     const d = await load(); const u = d?.urzedy?.[k];
-    if (!u) { cur = null; hideAll(); return; }
+    if (!u) { cur = null; hideAll(); closePanel(); return; }
+    src = { name: d.zrodlo || "Katalog Podmiotów Publicznych, gov.pl", url: d.zrodloUrl || "https://www.gov.pl/web/kap" };
     cur = { k, u }; draw();
-    card(k, u, { name: d.zrodlo || "Katalog Podmiotów Publicznych, gov.pl", url: d.zrodloUrl || "https://www.gov.pl/web/kap" });
+    if (panel && !panel.hidden) renderPanel();
   });
   // Like the commuting arrows: the seat marker belongs to the gmina view only, not to statistics or distances.
-  new MutationObserver(() => { if (!cur) return; const hid = HIDE.test(document.body.className); if (hid && marker) hideAll(); else if (!hid && !marker) draw(); })
-    .observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  window.Urzedy = { open: openViewer, get: k => load().then(d => d?.urzedy?.[k] || null) };
+  new MutationObserver(() => {
+    const hid = HIDE.test(document.body.className);
+    if (hid) closePanel();
+    if (!cur) return;
+    if (hid && marker) hideAll(); else if (!hid && !marker) draw();
+  }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  window.Urzedy = { open: openPanel, close: closePanel, photos: openViewer, get: k => load().then(d => d?.urzedy?.[k] || null) };
 })();

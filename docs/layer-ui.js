@@ -25,9 +25,13 @@
   const legendBox=document.getElementById('legendDetails');if(legendBox){legendBox.open=false;colors.append(legendBox);}
   const colorToggle=colors.querySelector('input');function syncColors(){colors.hidden=false;if(legendBox)legendBox.hidden=!colorToggle.checked;}
   colorToggle.checked=PLOTS.store.get('parcelColors','outline')==='groups';colorToggle.onchange=()=>{if(colorToggle.checked&&!dzToggle.checked){dzToggle.checked=true;dzToggle.dispatchEvent(new Event('change',{bubbles:true}));}PLOTS.setParcelColors(colorToggle.checked?'groups':'outline');syncColors();};dzToggle.addEventListener('change',syncColors);document.addEventListener('plots:parcel-colors',e=>{colorToggle.checked=e.detail==='groups';syncColors();});syncColors();
-  // Street and place names drawn over the orthophoto (OpenFreeMap / OSM vector labels).
-  const names=document.createElement('div');names.className='layer-entry';names.dataset.keywords='nazwy ulic ulice miejscowości etykiety ortofoto';names.innerHTML='<label class="sw"><input type="checkbox" id="lyrOrthoLabels"><span></span><div>Nazwy ulic na ortofotomapie<small>Nazwy ulic i miejscowości z OpenStreetMap</small></div></label>';cadastral.append(names);
-  const namesToggle=names.querySelector('input');namesToggle.checked=PLOTS.store.get('orthoLabels',true);namesToggle.onchange=()=>{PLOTS.store.set('orthoLabels',namesToggle.checked);const m=PLOTS.map;for(const l of m.getStyle().layers)if(l.id.startsWith('ortho-'))m.setLayoutProperty(l.id,'visibility',namesToggle.checked?'visible':'none');};
+  // One tap turns every overlay off (parcels, addresses, plans, terrain, services); names on imagery stay.
+  const off=document.createElement('button');off.type='button';off.id='layersOff';off.className='layers-off';
+  document.querySelector('#basemaps').after(off);
+  const onBoxes=()=>[...panel.querySelectorAll('.layer-entry input[type=checkbox]:checked')].filter(i=>i.id!=='lyrParcelColors');
+  function syncOff(){const n=onBoxes().length;off.disabled=!n;off.innerHTML=`${Icons.svg('stack')}${n?`Wyłącz warstwy <b>${n}</b>`:'Warstwy wyłączone'}`;}
+  off.onclick=()=>{const c=document.getElementById('lyrParcelColors');if(c?.checked){c.checked=false;c.dispatchEvent(new Event('change',{bubbles:true}));}onBoxes().forEach(i=>{i.checked=false;i.dispatchEvent(new Event('change',{bubbles:true}));});syncOff();};
+  panel.addEventListener('change',()=>setTimeout(syncOff));syncOff();
   const range=document.querySelector('#cadastralLayers .range');if(range)settings.append(range);
   for(const el of [...panel.children])if(el.id==='legendDetails'||el.id==='installApp'||el.matches('p.source-note'))settings.append(el);
   group(settings,'Wygląd i informacje','sliders-horizontal');

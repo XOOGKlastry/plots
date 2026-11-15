@@ -677,3 +677,32 @@ body.stats-open #bmToggle,body.stats-open #layersFab,body.distance-picking #bmTo
 .nz-list{margin:0;padding:0 0 0 20px;font-size:13px}
 .nz-list li{padding:3px 0}
 .nz-list li span{display:block;color:#6b6b70;font-size:11.5px}
+
+/* Wyłącz warstwy: długi przycisk pod podkładami */
+.layers-off{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;margin:10px 0 4px;border:0;border-radius:14px;background:#fff0ef;color:#d70015;font:inherit;font-size:14.5px;font-weight:650;cursor:pointer}
+.layers-off>svg{width:19px;height:19px}
+.layers-off b{background:#d70015;color:#fff;border-radius:999px;padding:1px 8px;font-size:12px}
+.layers-off:disabled{background:var(--bg,#f2f2f7);color:#8e8e93;cursor:default}
+
+/* Moduły z prawej strony, gdy panel jest zwinięty */
+.side-mods{position:fixed;z-index:4;right:calc(20px + var(--sr));bottom:calc(64px + var(--sb));display:flex;flex-direction:column;gap:8px}
+.side-mods[hidden]{display:none}
+.side-mods button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:64px;height:60px;border:0;border-radius:16px;background:#fff;color:#1c1c1e;box-shadow:0 4px 16px rgba(0,0,0,.16);font:inherit;font-size:10.5px;font-weight:600;cursor:pointer}
+.side-mods button>svg{width:22px;height:22px;color:var(--acc,#087cfc)}
+@media (hover:hover){.side-mods button:hover{background:#f2f7ff}}
+@media (max-width:767px){.side-mods{right:calc(14px + var(--sr));bottom:calc(var(--sheetvis,0px) + 14px)}}
+
+/* Panel urzędu (otwierany przyciskiem Urząd na mapie) */
+.urz-panel{position:fixed;z-index:6;top:calc(80px + var(--st));right:calc(20px + var(--sr));width:390px;max-height:calc(100dvh - 100px - var(--st) - var(--sb));display:flex;flex-direction:column;padding:0;overflow:hidden}
+.urz-panel[hidden]{display:none}
+.urz-head{padding:14px 16px 6px}
+.urz-head h2{display:flex;align-items:center;gap:8px;margin:0;font-size:19px}
+.urz-head h2>svg{width:21px;height:21px;color:var(--acc,#087cfc)}
+.urz-body{overflow-y:auto;padding:0 16px 16px;overscroll-behavior:contain}
+.urz-panel .urz{margin:6px 0 0}
+.urz-h{margin:16px 0 0;font-size:15px}
+body.urz-open .side-mods{display:none}
+@media (max-width:767px){
+ .urz-panel{top:auto;bottom:0;left:0;right:0;width:auto;max-height:78dvh;border-radius:22px 22px 0 0;padding-bottom:var(--sb)}
+ body.urz-open #panel{visibility:hidden}
+}

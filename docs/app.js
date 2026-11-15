@@ -22,7 +22,7 @@
   const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
   const BASEMAPS = [
     { id: "map", name: "Mapa", style: true, url: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`, max: 19, attr: "© Esri" },
-    { id: "gp-orto", name: "Ortofoto", url: `${GP}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`, max: 19, attr: "© GUGiK geoportal.gov.pl" },
+    { id: "gp-orto", name: "Satelita", url: `${GP}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`, max: 19, attr: "© GUGiK geoportal.gov.pl" },
   ];
   const overlaySourceIds = new Set(["dzialki", "adresy"]);
   let bmId = store.get("basemap", "map");
@@ -66,7 +66,7 @@
         const response = await fetch("styles/map-light.json", { signal: AbortSignal.timeout(10000) });
         if (response.ok) {
           const vector = await response.json(), keep = /^(highway-name-(path|minor|major)|label_(village|town|city|city_capital|other)|water_name_(point|line)_label|waterway_line_label)$/;
-          const name = ["coalesce", ["get", "name:pl"], ["get", "name"]], show = store.get("orthoLabels", true) ? "visible" : "none";
+          const name = ["coalesce", ["get", "name:pl"], ["get", "name"]], show = "visible"; // names on imagery are always on
           labels = { sources: { openmaptiles: vector.sources.openmaptiles }, layers: vector.layers.filter(l => keep.test(l.id)).map(l => ({ ...l, id: "ortho-" + l.id,
             layout: { ...l.layout, "text-field": name, visibility: show },
             paint: { ...l.paint, "text-color": /water/.test(l.id) ? "#cfe8ff" : "#ffffff", "text-halo-color": "rgba(0,0,0,.82)", "text-halo-width": 1.6, "text-halo-blur": 0.4 } })),

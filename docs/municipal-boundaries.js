@@ -6,6 +6,8 @@
  function visible(){return !window.DistanceModule?.isOpen()&&app.currentTab()==='gmina';}
  // A user gesture after selection cancels the pending fit, so a quick zoom-out is never undone by a late boundary load.
  let gesture=0;map.on('movestart',e=>{if(e.originalEvent)gesture++;});
+ // The whole gmina is in view when its bbox fits inside the visible map (with a small tolerance).
+ function inView(b){const v=map.getBounds(),dx=(b[2]-b[0])*.05,dy=(b[3]-b[1])*.05;return v.getWest()<=b[0]+dx&&v.getEast()>=b[2]-dx&&v.getSouth()<=b[1]+dy&&v.getNorth()>=b[3]-dy;}
  function render(){map.getSource('municipal-boundaries')?.setData(visible()&&data?data:empty());}
  function save(id,value){try{localStorage.setItem('plots.boundary.'+id,JSON.stringify(value));let recent=JSON.parse(localStorage.getItem('plots.boundaryRecent')||'[]');recent=[id,...recent.filter(x=>x!==id)];recent.slice(6).forEach(x=>localStorage.removeItem('plots.boundary.'+x));localStorage.setItem('plots.boundaryRecent',JSON.stringify(recent.slice(0,6)));}catch{/* Storage is optional. */}}
  async function load(id){
@@ -15,7 +17,7 @@
  }
  async function select(id,fit=false){
   if(current!==id){current=id;revision++;data=null;render();}const run=revision,moves=gesture;if(!id)return false;
-  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit&&gesture===moves&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){const anim=window.Motion?.on(),far=map.getZoom()<8.5;app.frame(value.bbox,16,anim?{duration:far?2300:1100}:{});if(anim)map.once('moveend',()=>{if(run===revision)flash();});return true;}if(window.Motion?.on())flash();return true;}
+  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit==='auto')fit=!inView(value.bbox);if(fit&&gesture===moves&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){const anim=window.Motion?.on(),far=map.getZoom()<8.5;app.frame(value.bbox,16,anim?{duration:far?2300:1100}:{});if(anim)map.once('moveend',()=>{if(run===revision)flash();});return true;}if(window.Motion?.on())flash();return true;}
   catch(error){if(run===revision&&fit)app.toast('Granice gminy są chwilowo niedostępne');return false;}
  }
  // Short glow of the outline and fill when a gmina is shown (only with animations on).
@@ -37,6 +39,6 @@
  if(map.loaded())initialize();else map.once('load',initialize);
  document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,visible());});
  document.addEventListener('plots:mode',render);
- document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,false);});
+ document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,'auto');});
  window.MunicipalBoundaries={select,current:()=>current,fit:()=>current?select(current,true):Promise.resolve(false)};
 })();
