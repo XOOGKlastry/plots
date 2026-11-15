@@ -107,7 +107,9 @@
   }
   // Catalogue numbers come as "0757136438" or "+48 75..."; shown as 75 713 64 38 and dialled as +48757136438.
   const digits = n => String(n).replace(/\D/g, "").replace(/^48(?=\d{9}$)/, "").replace(/^0(?=\d{9}$)/, "");
-  const fmtTel = n => { const d = digits(n); return d.length === 9 ? `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 7)} ${d.slice(7)}` : String(n); };
+  // Mobile prefixes read as 602 579 881, landlines with an area code as 75 713 64 38.
+  const MOBILE = /^(45|50|51|53|57|60|66|69|72|73|78|79|88)/;
+  const fmtTel = n => { const d = digits(n); return d.length !== 9 ? String(n) : MOBILE.test(d) ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 7)} ${d.slice(7)}`; };
   const telHref = n => "tel:+48" + digits(n);
   // Phone numbers: the main one from the public-entity catalogue, then any found on the gmina's website (labelled).
   function phones(u) {
