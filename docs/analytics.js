@@ -2,7 +2,7 @@
    KEY is the PostHog project API key (phc_…), public by design. Empty KEY = nothing is loaded.
    ?notrack=1 turns tracking off in this browser (for our own visits), ?notrack=0 turns it back on. */
 (function () {
-  const KEY = "";
+  const KEY = "phc_yAbPrHp6goJUMAa4uSuk4c3Q3PToeRypAFv6J3Q2qqvB";
   const HOST = "https://eu.i.posthog.com";
   const REPLAY = false; // session recordings: off without a consent banner
 
