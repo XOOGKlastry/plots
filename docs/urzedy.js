@@ -219,7 +219,12 @@
     const hero = u.foto ? `<img alt="Budynek: ${esc(u.n)}" src="${esc(px(u.foto.u, 960))}">` : orto(u.c[0], u.c[1], 18);
     const n = (u.okolica || []).length;
     p.innerHTML = `<header class="section-head urz-head"><h2>${ic("bank")}Urząd gminy</h2><button class="icbtn" type="button" data-urz-panel-close aria-label="Zamknij panel urzędu">${ic("x")}</button></header>
-     <div class="urz-body"><section class="urz">
+     <div class="urz-body">${office(u, poza)}</div>`;
+  }
+  function office(u, poza) {
+    const hero = u.foto ? `<img alt="Budynek: ${esc(u.n)}" src="${esc(px(u.foto.u, 960))}">` : orto(u.c[0], u.c[1], 18);
+    const n = (u.okolica || []).length;
+    return `<section class="urz">
       <button type="button" class="urz-hero" data-urz-open="0">${hero}<span class="urz-grad"></span><span class="urz-ttl"><small>Siedziba urzędu</small><b>${esc(u.n)}</b><em>${esc(u.a)}, ${esc(u.pc)}</em></span>${n ? `<span class="urz-cnt">${ic("image")}${n + 1}</span>` : ""}</button>
       ${n ? `<div class="urz-thumbs" aria-label="Okolica urzędu">${u.okolica.map((f, j) => `<button type="button" data-urz-open="${j + 1}" aria-label="Okolica, zdjęcie ${j + 1}"><img alt="" loading="lazy" src="${esc(small(f.u))}"></button>`).join("")}</div>` : ""}
       ${poza ? `<p class="urz-poza">${ic("map-pin")}<span>Urząd stoi poza gminą, w gminie ${esc(poza)}. To częste w gminach wiejskich otaczających miasto. Na mapie łączy go przerywana linia ze środkiem gminy.</span></p>` : ""}
@@ -236,7 +241,7 @@
       ${people(u)}
       <button type="button" class="urz-map" data-urz-map>${ic("map-pin")}Pokaż urząd na mapie</button>
       <p class="urz-src">Dane: <a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.name)}</a>${u.q === 2 ? " · położenie przybliżone" : ""}${u.foto ? ` · fot. ${credit(u.foto)}, Wikimedia Commons` : " · widok: ortofotomapa GUGiK"}</p>
-     </section></div>`;
+     </section>`;
   }
   function openPanel() {
     if (!cur) return;
@@ -277,5 +282,6 @@
     if (!cur) return;
     if (hid && marker) hideAll(); else if (!hid && !marker) draw();
   }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  window.Urzedy = { rulers, open: openPanel, close: closePanel, photos: openViewer, get: k => load().then(d => d?.urzedy?.[k] || null) };
+  async function report(k) { const d = await load(); const u = d?.urzedy?.[k]; if (!u) return null; return { u, html: office(u, u.poza ? await nameOf(u.poza) : null) }; }
+  window.Urzedy = { rulers, report, open: openPanel, close: closePanel, photos: openViewer, get: k => load().then(d => d?.urzedy?.[k] || null) };
 })();
