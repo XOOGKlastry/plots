@@ -9,10 +9,18 @@ from typing import Any
 from flask import Flask, Response, abort, request
 
 
-def register_admin_api(app: Flask, pool: Any) -> None:
+def register_admin_api(app: Flask, pool: Any, posthog_client: Any = None) -> None:
     """Register the selected municipality and its urban part, without generalization."""
     cache = OrderedDict()
     lock = Lock()
+
+    def capture_event(event: str) -> None:
+        if posthog_client is None:
+            return
+        try:
+            posthog_client.capture(event)
+        except Exception:
+            pass
 
     @app.get('/api/gmina-punkt')
     def municipality_at_point() -> dict[str,str | None]:
@@ -30,7 +38,10 @@ def register_admin_api(app: Flask, pool: Any) -> None:
             rows=connection.execute("""WITH p AS (SELECT ST_Transform(ST_SetSRID(ST_MakePoint(%s,%s),4326),2180) geom)
                 SELECT jpt_kod_je FROM administracja.gminypolskie g,p
                 WHERE g.geom && p.geom AND ST_Contains(g.geom,p.geom) LIMIT 2""",(lon,lat)).fetchall()
-        return {'id':rows[0][0] if len(rows)==1 else None,'source':'administracja.gminypolskie'}
+        municipality_id = rows[0][0] if len(rows)==1 else None
+        if municipality_id:
+            capture_event('municipality_lookup_resolved')
+        return {'id':municipality_id,'source':'administracja.gminypolskie'}
 
     @app.get('/api/gmina-granice')
     def municipality_boundaries() -> Response:
@@ -41,6 +52,7 @@ def register_admin_api(app: Flask, pool: Any) -> None:
         with lock:
             saved = cache.get(code)
             if saved and time.monotonic() - saved[0] < 600:
+                capture_event('municipality_boundaries_viewed')
                 return Response(saved[1], mimetype='application/json')
         city_code = code[:6] + '_4'
         with pool.connection() as connection:
@@ -82,4 +94,5 @@ def register_admin_api(app: Flask, pool: Any) -> None:
             cache.move_to_end(code)
             while len(cache) > 64:
                 cache.popitem(last=False)
+        capture_event('municipality_boundaries_viewed')
         return Response(body, mimetype='application/json', headers={'Cache-Control': 'public,max-age=300'})
