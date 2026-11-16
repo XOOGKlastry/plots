@@ -251,7 +251,12 @@
     picker.hidden = !show; $("#statsCurrent").setAttribute("aria-expanded", show);
     if (show) { pickCat = current?.def?.category || ""; if (pickCat) pickSec = sectionOf(pickCat).name; else pickSection(SECTIONS[0].name); pickerList($("#statsSearch").value); if (!app.isMobile()) $("#statsSearch").focus(); else { sheet(true); panel.scrollTop = 0; } }
   }
-  function update() { compute(); render(); paint(); }
+  let tracked = null;
+  function update() {
+    compute(); render(); paint();
+    const d = defs.find(x => x.key === state.key), t = `${state.key}|${hl || ""}`;
+    if (d && t !== tracked) { tracked = t; window.Track?.("mapa_polski", { wskaznik: d.label, klucz: d.key, grupa: d.group, komitet: hl || undefined }); }
+  }
   /* Phone: the panel is a bottom sheet with a compact state (indicator, colour bar, chosen gmina) and an expanded one. */
   function sheet(expanded) {
     const on = !!expanded;

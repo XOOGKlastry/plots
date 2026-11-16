@@ -58,7 +58,7 @@
     try {
       await load();if(context!==contextRevision)return; const g = data.gminy.find((item) => item.k === id);
       if (!g) { app.toast("Brak profilu tej gminy w bieżącym zestawie"); return; }
-      selected = g;app.setCurrentPlace(null); category = "Przegląd";
+      selected = g;app.setCurrentPlace(null); category = "Przegląd";window.Track?.("gmina_wybrana",{gmina:g.n,teryt:g.k,typ:g.typ});
       selectedYear = null;
       await window.GusClient.seed(g).catch(()=>{});if(context!==contextRevision)return;
       app.store.set("gmina", g.k); app.store.set("gminyRecent", [g.k, ...recentIds().filter((k) => k !== g.k)].slice(0, 5));
@@ -108,7 +108,7 @@
     $("#gminaDetails").scrollTop = keepTop;const active=$("#dataCategories [aria-current=true]");if(active&&app.isMobile())$("#dataCategories").scrollTo({left:Math.max(0,active.offsetLeft-20),behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});
   }
   const EXTRA=["Ludność","Migracje","Dojazdy","Rodziny","Finanse i firmy","Warunki życia"];
-  function changeCategory(value){if(!categories.includes(value)||value===category)return;category=value;renderDetails();const content=$('#gminaDetails');content.classList.remove('category-arrive');void content.offsetWidth;content.classList.add('category-arrive');}
+  function changeCategory(value){if(!categories.includes(value)||value===category)return;category=value;window.Track?.("dane_gminy",{gmina:selected?.n,teryt:selected?.k,kategoria:value});renderDetails();const content=$('#gminaDetails');content.classList.remove('category-arrive');void content.offsetWidth;content.classList.add('category-arrive');}
   /* End of a category: a card with the next one. Scrolling on past the bottom moves there, like turning a page. */
   function nextCard(){const n=categories[categories.indexOf(category)+1];return n?`<button type="button" class="next-cat" data-next-cat="${esc(n)}"><span class="nc-bar"></span><small>Przewiń dalej lub dotknij</small><b>${Icons.svg(categoryIcons[n]||"arrow-right")}${esc(n)}</b>${Icons.svg("arrow-right")}</button>`:"";}
   function goNext(){const n=categories[categories.indexOf(category)+1];if(n){changeCategory(n);$("#gminaDetails").scrollTop=0;}}
@@ -282,7 +282,7 @@
   }
   window.PLOTS_GMINY = {
     select,
-    openDetails(replace=false,cat=null){if(!selected)return;if(cat&&categories.includes(cat))category=cat;renderDetails();if(dialog.open)return;dialog.showModal();window.UIHistory?.open("gmina-details",()=>dialog.close(),replace);},
+    openDetails(replace=false,cat=null){if(!selected)return;if(cat&&categories.includes(cat))category=cat;window.Track?.("dane_gminy",{gmina:selected.n,teryt:selected.k,kategoria:category});renderDetails();if(dialog.open)return;dialog.showModal();window.UIHistory?.open("gmina-details",()=>dialog.close(),replace);},
     async setContext(id,message='') {
       const context=++contextRevision;await load();if(context!==contextRevision)return;const g=id?data.gminy.find(item=>item.k===id):null;
       const changed=selected?.k!==g?.k;selected=g||null;selectedYear=null;

@@ -243,7 +243,7 @@
     window.StatsMap?.isOpen() && window.StatsMap.close(); window.PLOTS?.closeLayers?.();
     if (window.DistanceModule?.isOpen()) window.DistanceModule.close();
     const was = !ensurePanel().hidden;
-    panel.hidden = false; document.body.classList.add("urz-open"); renderPanel(); panel.querySelector(".urz-body")?.scrollTo(0, 0);
+    panel.hidden = false; document.body.classList.add("urz-open"); renderPanel(); window.Track?.("urzad", { teryt: cur.k }); panel.querySelector(".urz-body")?.scrollTo(0, 0);
     if (!was) window.UIHistory?.open?.("urzad", () => closePanel({ history: false }));
   }
   function closePanel(o = {}) {
