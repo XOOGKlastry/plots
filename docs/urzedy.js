@@ -112,10 +112,20 @@
   const fmtTel = n => { const d = digits(n); return d.length !== 9 ? String(n) : MOBILE.test(d) ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 7)} ${d.slice(7)}`; };
   const telHref = n => "tel:+48" + digits(n);
   // Phone numbers: the main one from the public-entity catalogue, then any found on the gmina's website (labelled).
+  /* Numbers found on the gmina's site carry the department or person written next to them; a number with no such
+     description gets the department from the BIP list when the number is there, otherwise it goes to "Inne numery". */
   function phones(u) {
-    const main = u.tel ? fmtTel(u.tel) : null;
-    let h = row("Telefon", main, u.tel ? telHref(u.tel) : null);
-    (u.tels || []).filter(t => fmtTel(t.n) !== main).slice(0, 12).forEach(t => { h += row(t.l || "Telefon", fmtTel(t.n), telHref(t.n)); });
+    const main = u.tel ? fmtTel(u.tel) : null, own = (u.n || "").toLowerCase();
+    const ref = new Map((u.ref || []).filter(r => r.t).map(r => [fmtTel(r.t), r.n]));
+    const named = l => l && l.length >= 3 && !own.includes(l.toLowerCase()) && !/^(tel\.?|telefon|kontakt)$/i.test(l);
+    let h = row(main && ref.get(main) ? `Centrala · ${ref.get(main)}` : "Centrala", main, u.tel ? telHref(u.tel) : null);
+    const seen = new Set([main]), rest = [];
+    for (const t of u.tels || []) {
+      const n = fmtTel(t.n); if (seen.has(n)) continue; seen.add(n);
+      const l = named(t.l) ? t.l : ref.get(n);
+      if (l) h += row(l, n, telHref(t.n)); else rest.push(t.n);
+    }
+    if (rest.length) h += `<div class="urz-row"><dt>Inne numery<small>bez opisu na stronie gminy</small></dt><dd class="urz-tels">${rest.slice(0, 8).map(n => `<a href="${telHref(n)}">${esc(fmtTel(n))}</a>`).join("")}</dd></div>`;
     return h;
   }
   const g = q => "https://www.google.com/search?q=" + encodeURIComponent(q);

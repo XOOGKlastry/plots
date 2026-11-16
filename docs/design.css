@@ -902,3 +902,16 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 @media print{#repPrint .rep-tab tr{break-inside:avoid}#repPrint .rep-tab thead{display:table-header-group}}
 .rep-crest{overflow:hidden;display:flex;justify-content:center}.rep-crest *{max-width:100%!important;height:auto!important;position:static!important}
 @media(max-width:767px){.rep-crest{width:64px!important}.rep-cover{align-items:flex-start}.rep-cover p{font-size:13px}}
+
+/* report v2: no controls, linked chapters */
+.report a{pointer-events:auto}.report .rep-btn{cursor:default}
+.report *,.report *::before,.report *::after{animation:none!important;transition:none!important}
+.report .rep-toc a{color:#0a84ff;text-decoration:none}.report .rep-toc a:hover{text-decoration:underline}
+.report .rep-up{margin-left:auto;font-size:11px;font-weight:500;color:#0a84ff;text-decoration:none;letter-spacing:0}
+.report .rep-sub{font-size:13px;margin:12px 0 6px}
+.report [data-cl][hidden]{display:block!important}
+.report .rep-btn.gallery-item,.report .rep-btn.neighbor{display:block}
+
+.urz-row dt small{display:block;font-size:10.5px;font-weight:400;color:#8e8e93}
+.urz-tels{display:flex;flex-wrap:wrap;gap:4px 12px}
+.report .pop-area{background:none}

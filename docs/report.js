@@ -5,9 +5,9 @@
   "use strict";
   const app = window.PLOTS, esc = app.esc, svg = n => window.Icons.svg(n);
   const SKIP = ["Przegląd", "Wybory", "Źródła"]; // drawn separately: Przegląd opens the report, Wybory has every election, Źródła closes it
-  const STRIP = ".data-heading,.data-tools,.gus-status,.score-method,.next-cat,.ind-search,.ind-results,.el-tabs,.urz-wl-acts,.urz-wl-links,.urz-map,.urz-actions,.sp-all,.urz-thumbs,.cmp-tools,.cmp-pick,[data-refresh-gus],.cmp-add,.cmp-sugg,.cmp-x,[data-cmp-del],input,select,.urz-cnt,.stat-map-link,[data-wiki-more]";
+  const STRIP = ".data-heading,.data-tools,.gus-status,.score-method,.next-cat,.ind-search,.ind-results,.el-tabs,.urz-wl-acts,.urz-wl-links,.urz-map,.urz-actions,.sp-all,.urz-thumbs,.cmp-tools,.cmp-pick,[data-refresh-gus],.cmp-add,.cmp-sugg,.cmp-x,[data-cmp-del],input,select,.urz-cnt,.stat-map-link,[data-wiki-more],.ext-seg,.pyr-modes,.stats-seg,.tl-play,.mg-play,.ext-map-btn,.ext-back,.pyr-jump,.pyr-hint,.photo-nav,.photo-close,.tl-big";
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  let dlg = null, doc = null, bar = null, printBtn = null, root = null, run = 0, title = "";
+  let uid = 0, dlg = null, doc = null, bar = null, printBtn = null, root = null, run = 0, title = "";
 
   function ensure() {
     if (dlg) return;
@@ -17,7 +17,10 @@
     document.body.append(dlg);
     root = document.createElement("div"); root.id = "repPrint"; root.className = "report"; document.body.append(root);
     doc = dlg.querySelector("#repDoc"); bar = dlg.querySelector("#repBar"); printBtn = dlg.querySelector("[data-rep-print]");
-    dlg.addEventListener("click", e => { if (e.target.closest("[data-rep-close]")) dlg.close(); if (e.target.closest("[data-rep-print]")) print(); });
+    dlg.addEventListener("click", e => {
+      if (e.target.closest("[data-rep-close]")) dlg.close(); if (e.target.closest("[data-rep-print]")) print();
+      const a = e.target.closest('a[href^="#rep-"]'); if (a) { e.preventDefault(); doc.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    });
     dlg.addEventListener("close", () => { run++; window.UIHistory?.dismiss("raport"); });
     addEventListener("afterprint", () => { document.body.classList.remove("rep-printing"); if (title) { document.title = title; title = ""; } root.replaceChildren(); });
   }
@@ -35,9 +38,15 @@
     const out = document.createElement("div"); out.innerHTML = src.innerHTML;
     const live = src.querySelectorAll("canvas"), dead = out.querySelectorAll("canvas");
     dead.forEach((c, i) => { try { const img = new Image(); img.src = live[i].toDataURL("image/png"); img.className = "rep-canvas " + c.className; img.width = live[i].clientWidth || live[i].width; c.replaceWith(img); } catch (e) { c.remove(); } });
+    out.querySelectorAll("[data-cdir]").forEach(b => { const l = out.querySelector(`[data-cl="${b.dataset.cdir}"]`); if (l) { l.hidden = false; l.insertAdjacentHTML("beforebegin", `<h3 class="rep-sub">${esc(txt(b))}</h3>`); } });
     out.querySelectorAll(STRIP).forEach(e => e.remove());
+    out.querySelectorAll("p,small,span,div").forEach(e => { if (!e.children.length && /^(Stuknij|Kliknij|Dotknij|Przesuń|Wybierz)\b/.test(txt(e))) e.remove(); });
+    out.querySelectorAll("p,small").forEach(e => { e.innerHTML = e.innerHTML.replace(/\s*(Stuknij|Kliknij|Dotknij) [^.]*\./g, ""); });
+    out.querySelectorAll("button").forEach(b => { const s = document.createElement("span"); s.className = b.className + " rep-btn"; s.innerHTML = b.innerHTML; b.replaceWith(s); });
     out.querySelectorAll(".indicator-grid").forEach(grid => { const t = table(grid); if (t) grid.outerHTML = t; else grid.remove(); });
-    out.querySelectorAll("[id]").forEach(e => e.removeAttribute("id"));
+    out.querySelectorAll(".m-pre").forEach(e => e.classList.remove("m-pre")); // charts that never scrolled into view stay hidden otherwise
+    out.querySelectorAll("svg [id]").forEach(e => { const id = e.id, nid = id + "-rep" + (++uid), svg = e.closest("svg"); e.id = nid; svg.querySelectorAll("*").forEach(x => [...x.attributes].forEach(a => { if (a.value.includes("#" + id)) a.value = a.value.split("#" + id).join("#" + nid); })); });
+    out.querySelectorAll(":not(svg *)[id]").forEach(e => e.removeAttribute("id"));
     out.querySelectorAll("img[loading]").forEach(i => i.loading = "eager");
     out.querySelectorAll("details").forEach(d => d.open = true);
     out.querySelectorAll(".wiki-card").forEach(d => d.classList.add("open"));
@@ -57,7 +66,8 @@
     return rows ? `<table class="rep-tab"><thead><tr><th>Wskaźnik</th><th>Wartość</th><th>Ocena</th><th>Pozycja</th><th>Zmiana</th></tr></thead><tbody>${rows}</tbody></table>` : "";
   }
   const hasData = html => /metric-row|section|<svg|<img|<li/.test(html);
-  const section = (c, icon, html) => `<section class="rep-sec data-content"><h1 class="rep-h">${icon ? svg(icon) : ""}${esc(c)}</h1>${html}</section>`;
+  const slug = c => "rep-" + c.toLocaleLowerCase("pl-PL").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ł/g, "l").replace(/[^a-z0-9]+/g, "-");
+  const section = (c, icon, html) => `<section class="rep-sec data-content" id="${slug(c)}"><h1 class="rep-h">${icon ? svg(icon) : ""}${esc(c)}<a class="rep-up" href="#rep-toc">Spis treści ↑</a></h1>${html}</section>`;
 
   async function elections(g) {
     const P = window.GminaProfile; let html = "";
@@ -91,7 +101,7 @@
         if (c === "Źródła") el.querySelectorAll(".indicator-grid").forEach(x => x.remove()); // the tables above already name each source
         const h = copy(el);
         if (c === "Przegląd") {
-          parts.push(`<section class="rep-sec rep-first data-content">${h}</section>`);
+          parts.push(`<section class="rep-sec rep-first data-content" id="${slug("Przegląd")}">${h}</section>`);
           const o = await window.Urzedy?.report(g.k).catch(() => null);
           if (o) { const box = document.createElement("div"); box.innerHTML = o.html; box.querySelectorAll(STRIP).forEach(e => e.remove()); parts.push(section("Urząd gminy", "bank", box.innerHTML)); toc.push("Urząd gminy"); }
           continue;
@@ -104,7 +114,7 @@
     const crest = window.MunicipalityCrests?.render(g) || "", D = window.DawneWoj?.dawne[g.k];
     const today = new Date().toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
     const cover = `<header class="rep-cover"><div class="rep-crest">${crest}</div><div><small>Raport gminy</small><h1>${esc(g.n)}</h1><p>${esc(g.typ || "Gmina")} · ${esc(R.region(g))}</p><p>TERYT ${esc(g.k)}${D ? ` · kiedyś stolica województwa ${esc(D[0])} (${D[1]}–1998)` : ""}</p></div></header>
-      <nav class="rep-toc"><h2>W raporcie</h2><ol><li>Przegląd</li>${toc.map(c => `<li>${esc(c)}</li>`).join("")}</ol>
+      <nav class="rep-toc" id="rep-toc"><h2>Spis treści</h2><ol>${["Przegląd", ...toc].map(c => `<li><a href="#${slug(c)}">${esc(c)}</a></li>`).join("")}</ol>
       <p class="rep-note">Stan danych na ${esc(today)}. Źródła: GUS Bank Danych Lokalnych, Narodowy Spis Powszechny 2021, PKW, Krajowy Rejestr Sądowy, Katalog Podmiotów Publicznych, rejestr zabytków NID, GDOŚ, Wikipedia i Wikimedia Commons. Rok każdego wskaźnika podano przy wartości. Zielony oznacza najlepsze 20% gmin, czerwony najsłabsze 20%.</p></nav>`;
     doc.innerHTML = cover + parts.join("") + `<footer class="rep-foot">Wygenerowano ${esc(today)} · xoogklastry.github.io/plots</footer>`;
     progress(`Gotowe: ${toc.length + 1} rozdziałów`, 1);
@@ -112,7 +122,7 @@
   }
   function print() {
     const g = window.PLOTS_GMINY?.report?.gmina();
-    root.innerHTML = doc.innerHTML;
+    root.innerHTML = doc.innerHTML.replace(/(id="|href="#)rep-/g, "$1rp-").replace(/-rep(\d+)/g, "-prn$1");
     title = document.title; document.title = `Raport gminy ${g ? g.n + " " + g.k : ""}`.trim();
     document.body.classList.add("rep-printing");
     window.Track?.("raport_pdf_zapis", { gmina: g?.n, teryt: g?.k });
