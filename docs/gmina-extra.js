@@ -470,6 +470,13 @@
     if (d.mag) chip(d.mag.length, pl(d.mag.length, "magazyn energii", "magazyny energii", "magazynów energii"));
     if (d.lad) chip(d.lad, pl(d.lad, "stacja ładowania", "stacje ładowania", "stacji ładowania"));
     const parts = [];
+    if (d.ocena) {
+      const L = [["wiatr", "Elektrownie wiatrowe"], ["pv", "Farmy fotowoltaiczne"], ["biogaz", "Biogazownie"], ["spoldzielnia", "Spółdzielnia energetyczna"]];
+      const col = v => v >= 70 ? "#2e7d32" : v >= 45 ? "#b26a00" : "#c62828";
+      parts.push(`<p class="ext-sub en-sub"><b>Ocena pod inwestycje OZE</b><a class="terr-map" href="oze.html?k=${g.k}">${Icons.svg("chart-bar")}<span>Arkusz</span></a></p><ul class="terr-list">` +
+        L.filter(([t]) => d.ocena[t]).map(([t, n]) => { const [v, r, all] = d.ocena[t]; return `<li><a href="oze.html?k=${g.k}&t=${t}">${esc(n)}</a>: <b style="color:${col(v)}">${v}/100</b><small>${fmt(r)}. miejsce z ${fmt(all)} gmin</small></li>`; }).join("") +
+        `</ul><small class="muted">Średnia ważona: teren, zasób wiatru lub słońca, sieć, plan ogólny i inne. Wagi zmienisz w arkuszu.</small>`);
+    }
     if (d.klastry || d.spoldz) {
       parts.push(sub("Wspólnoty energetyczne") + `<ul class="terr-list">${(d.klastry || []).map(n => `<li>${esc(n)}<small>klaster energii w rejestrze Prezesa URE</small></li>`).join("")}${(d.spoldz || []).map(n => `<li>${esc(n)}<small>spółdzielnia energetyczna w wykazie KOWR</small></li>`).join("")}</ul>`);
     }

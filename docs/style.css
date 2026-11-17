@@ -164,3 +164,9 @@ details summary{cursor:pointer;color:var(--mut);font-weight:600;padding:6px 0}
 .ext-sub.en-sub .terr-map{flex:none}
 .en-gpz li{padding:2px 0}
 .en-card p{margin:6px 0}
+
+.en-years{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.en-years span{display:flex;flex-direction:column;align-items:center;min-width:42px;padding:4px 6px;border-radius:8px;background:var(--surface-2,#f3f4f6)}
+.en-years small{font-size:11px;color:#6b7280}
+.en-years b{font-size:15px}
+.en-years b.zero{color:#c62828}.en-years b.low{color:#b26a00}.en-years b.ok{color:#2e7d32}

@@ -29,6 +29,12 @@
           layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.1], "text-anchor": "top", "text-max-width": 12 },
           paint: { "text-color": "#7f0000", "text-halo-color": "#fff", "text-halo-width": 1.5 } }],
       legend: () => legendRow([[KV[400], "400 kV", "line"], [KV[220], "220 kV", "line"], [KV[110], "110 kV", "line"], ["#fff", "stacja GPZ", "ring"]]) + note("Źródło: OpenStreetMap, stan 2023. Przebieg linii orientacyjny.") },
+    { id: "moce", label: "Wolne moce przyłączeniowe przy GPZ", desc: "Energa-Operator i PSE: ile MW źródeł można jeszcze przyłączyć", kw: "wolne moce przyłączeniowe dostępna moc przyłączeniowa gpz odmowy przyłączenia warunki przyłączenia energa pse osd",
+      layers: () => [{ id: "en-moce", type: "circle", source: "energia-moce",
+        paint: { "circle-color": ["case", ["!", ["has", "v"]], "#9e9e9e", ["<=", ["get", "v"], 0], "#d32f2f", ["<", ["get", "v"], 30], "#f9a825", "#2e7d32"],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6, 13, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } }],
+      legend: () => legendRow([["#2e7d32", "30 MW i więcej"], ["#f9a825", "do 30 MW"], ["#d32f2f", "brak wolnej mocy"], ["#9e9e9e", "tylko rejestr wniosków"]]) +
+        note("Wolna moc wytwórcza w 2026 r. dla grupy stacji 110 kV (Energa-Operator, stan 31.08.2026) lub węzła 220/400 kV (PSE, stan 31.10.2026). PGE Dystrybucja, Tauron Dystrybucja, Enea Operator i Stoen Operator nie publikują danych w formie, którą można wczytać. Dane informacyjne: nie gwarantują przyłączenia.") },
     { id: "sn", label: "Linie średniego napięcia", desc: "Sieć SN z BDOT10k, widoczna po przybliżeniu", kw: "linie średniego napięcia sn 15 kv 20 kv sieć dystrybucyjna bdot",
       layers: () => [{ id: "en-sn", type: "line", source: SRC, "source-layer": "sn", minzoom: 12, paint: { "line-color": "#f57c00", "line-width": ["interpolate", ["linear"], ["zoom"], 12, .8, 16, 2], "line-opacity": .85 } }],
       legend: () => legendRow([["#f57c00", "linia SN", "line"]]) + note("Źródło: BDOT10k (GUGiK). Widoczne od skali około 1:100 000."), minz: 12 },
@@ -59,7 +65,7 @@
     { id: "odb", label: "Duzi odbiorcy energii", desc: "Zakłady, kopalnie, oczyszczalnie, fermy i inne", kw: "duzi odbiorcy energii zakłady przemysłowe kopalnie oczyszczalnie ścieków fermy hodowlane huty odbiorcy mocy",
       layers: () => [dot("en-odb", "odb", "#455a64", 6, { source: OZE, minzoom: 9 })], legend: () => legendRow([["#455a64", "zakład lub obiekt"]]) + note("Kompleksy przemysłowo-gospodarcze z BDOT10k (GUGiK): zakłady produkcyjne, fermy, oczyszczalnie, kopalnie, wodociągi, huty i inne. Widoczne od skali około 1:1 000 000."), minz: 9 }
   ];
-  const LOOK = { wn: ["lightning", "#c62828"], sn: ["plug", "#f57c00"], wiatr: ["wind", "#1565c0"], pv: ["solar-panel", "#f9a825"], inne: ["factory", "#43a047"], magazyny: ["battery-charging", "#d81b60"], ladowanie: ["charging-station", "#7b1fa2"], wdost: ["wind", "#2e7d32"], pog: ["map-trifold", "#7e57c2"], odb: ["factory", "#455a64"] };
+  const LOOK = { wn: ["lightning", "#c62828"], sn: ["plug", "#f57c00"], wiatr: ["wind", "#1565c0"], pv: ["solar-panel", "#f9a825"], inne: ["factory", "#43a047"], magazyny: ["battery-charging", "#d81b60"], ladowanie: ["charging-station", "#7b1fa2"], moce: ["lightning", "#2e7d32"], wdost: ["wind", "#2e7d32"], pog: ["map-trifold", "#7e57c2"], odb: ["factory", "#455a64"] };
   window.LayerLook = Object.assign(window.LayerLook || {}, Object.fromEntries(Object.entries(LOOK).map(([k, v]) => ["en-" + k, v])));
   function legendRow(items) {
     return `<div class="terr-legend">${items.map(([c, l, kind]) => `<span><i style="${kind === "line" ? `background:${c};height:3px;border-radius:2px` : kind === "box" ? `background:${c};opacity:.7;border-radius:2px` : kind === "ring" ? `background:#fff;border:2px solid ${KV[220]};border-radius:50%` : `background:${c};border-radius:50%`}"></i>${esc(l)}</span>`).join("")}</div>`;
@@ -69,12 +75,13 @@
   const panel = document.getElementById("energyLayers");
   if (!panel) return;
   panel.innerHTML = `<h3>Energetyka</h3>` + LAYERS.map(L => `<div class="layer-entry" data-keywords="${esc(L.kw)}"><label class="sw"><input type="checkbox" id="en-${L.id}"/><span></span><div>${esc(L.label)}<small>${esc(L.desc)}</small></div></label><div class="terr-legend-box" id="en-leg-${L.id}" hidden></div></div>`).join("") +
-    `<p class="source-note muted">Źródła: Prezes URE, GDOŚ i RDOŚ, KOWR, GUGiK (BDOT10k), Rejestr Urbanistyczny, OpenStreetMap, bazamocy.pl.</p>`;
+    `<p class="source-note"><a href="oze.html">Arkusz: gdzie budować OZE</a> (ranking gmin pod wiatr, fotowoltaikę, biogazownie i spółdzielnie energetyczne)</p><p class="source-note muted">Źródła: Prezes URE, GDOŚ i RDOŚ, KOWR, GUGiK (BDOT10k), Rejestr Urbanistyczny, OpenStreetMap, bazamocy.pl.</p>`;
 
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   function ensureSource() {
     if (!map.getSource(SRC)) { map.addSource(SRC, { type: "vector", tiles: [BASE + "/tiles/energia/{z}/{x}/{y}.pbf"], minzoom: 5, maxzoom: 14, attribution: "URE, GDOŚ, KOWR, UDT, GUGiK, © OpenStreetMap" }); app.registerOverlaySource?.(SRC); }
     if (!map.getSource(OZE)) { map.addSource(OZE, { type: "vector", tiles: [BASE + "/tiles/oze/{z}/{x}/{y}.pbf"], minzoom: 7, maxzoom: 14, attribution: "GUGiK, GDOŚ, Rejestr Urbanistyczny" }); app.registerOverlaySource?.(OZE); }
+    if (!map.getSource("energia-moce")) map.addSource("energia-moce", { type: "geojson", data: "data/gpz-moce.geojson", attribution: "Energa-Operator, PSE, © OpenStreetMap" });
     if (!map.getSource("energia-mag")) map.addSource("energia-mag", { type: "geojson", data: "data/magazyny-energii.geojson", attribution: "© OpenStreetMap" });
   }
   const added = new Set();
@@ -98,10 +105,27 @@
   if (map.loaded()) init(); else map.once("load", init);
 
   /* Karta obiektu: tylko punkty (linie nie przechwytują stuknięć, żeby nie zasłaniać działek). */
-  const POINTS = ["en-mag", "en-turb", "en-turb-plan", "en-pv", "en-woda", "en-bio", "en-cie", "en-gpz", "en-lad", "en-odb"];
+  const POINTS = ["en-moce", "en-mag", "en-turb", "en-turb-plan", "en-pv", "en-woda", "en-bio", "en-cie", "en-gpz", "en-lad", "en-odb"];
   const AREAS = ["oze-pog", "oze-wiatr"];
   const cap = t => t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
   const fmt = (v, d = 1) => (+v).toLocaleString("pl-PL", { maximumFractionDigits: d });
+  /* GPZ card: free generation capacity by year, consumer capacity and what is already queued at the station. */
+  const J = v => { try { return typeof v === "string" ? JSON.parse(v) : v; } catch (e) { return null; } };
+  function mocCard(p) {
+    const Y = ["2026", "2027", "2028", "2029", "2030", "2031", "2035"], w = J(p.w), o = J(p.o), pw = J(p.pse_w), rej = J(p.rej), typ = J(p.rej_typ);
+    const TYP = { PV: "fotowoltaika", FW: "wiatr", MEE: "magazyny", MIX: "hybrydy", BG: "biogaz", BM: "biomasa", EW: "woda", OSDN: "sieci innych operatorów", INNE: "inne" };
+    let h = "";
+    if (w) h += `<p class="ext-sub">Wolna moc dla źródeł, grupa stacji <b>${esc(p.grp)}</b></p><div class="en-years">${Y.map((y, i) => w[i] == null ? "" : `<span><small>${y}</small><b class="${w[i] <= 0 ? "zero" : w[i] < 30 ? "low" : "ok"}">${fmt(w[i], 0)}</b></span>`).join("")}</div>` +
+      (o ? `<p class="small">Wolna moc dla odbiorców: <b>${fmt(o[0], 0)} MW</b> w 2026 r., ${fmt(o[4], 0)} MW w 2030 r.</p>` : "") + `<p><small class="muted">MW, Energa-Operator, stan na ${esc(p.stan_w)}. Grupa stacji 110 kV połączonych tak, że dzielą wolną moc.</small></p>`;
+    if (pw) h += `<p class="ext-sub">Sieć przesyłowa 220/400 kV: węzeł <b>${esc(p.pse)}</b></p><p>Wolna moc dla źródeł: <b>${fmt(pw[0], 0)} MW</b> w 2026 r., <b>${fmt(pw[1], 0)} MW</b> w 2031 r. (po uwzględnieniu warunków wydanych do sieci 110 kV).</p><p><small class="muted">PSE, stan na ${esc(p.stan_p)}, grupa ${esc((p.pse_grp || "").toLowerCase())}.</small></p>`;
+    if (rej) {
+      const it = [["um", "umowy o przyłączenie"], ["wp", "wydane warunki"], ["wn", "wnioski w toku"], ["odm", "odmowy"]].filter(([k]) => rej[k]);
+      h += `<p class="ext-sub">Źródła zgłoszone do tej stacji</p><ul class="terr-list">${it.map(([k, l]) => `<li>${esc(l)}: <b>${rej[k]}</b><small>${fmt(rej["mw_" + k] || 0)} MW</small></li>`).join("")}</ul>` +
+        (typ && Object.keys(typ).length ? `<p class="small">Moc z umów i warunków: ${Object.entries(typ).map(([k, v]) => `${esc(TYP[k] || k.toLowerCase())} ${fmt(v)} MW`).join(", ")}.</p>` : "") +
+        `<p><small class="muted">Rejestr Energa-Operator (wnioski, warunki, umowy i odmowy dla sieci powyżej 1 kV), stan na ${esc(p.stan_r)}. Bez odbiorców.</small></p>`;
+    }
+    return h + `<p><small class="muted">Informacja operatorów ma charakter orientacyjny i nie gwarantuje przyłączenia.</small></p>`;
+  }
   function card(f, ll) {
     const p = f.properties || {}, l = f.sourceLayer;
     const row = (k, v) => v ? `<p><span class="muted">${esc(k)}:</span> <b>${esc(v)}</b></p>` : "";
@@ -113,6 +137,7 @@
     else if (l === "biogaz") { title = "Biogazownia rolnicza"; body = row("Wytwórca", p.n) + row("Moc elektryczna", p.mw ? `${fmt(p.mw, 3)} MW` : ""); }
     else if (l === "cieplownie") { title = p.r ? p.r.charAt(0).toUpperCase() + p.r.slice(1) : "Ciepłownia"; }
     else if (l === "ladowanie") { title = "Stacja ładowania samochodów"; body = `<p>Ogólnodostępna stacja ładowania. Moc, złącza i ceny sprawdzisz w <a href="https://eipa.udt.gov.pl/" target="_blank" rel="noopener noreferrer">EIPA</a>.</p>`; }
+    else if (f.source === "energia-moce") { title = p.n || "Stacja elektroenergetyczna"; body = mocCard(p); }
     else if (f.source === "energia-mag") { title = p.typ === "szczytowo-pompowy" ? "Elektrownia szczytowo-pompowa" : "Magazyn energii"; body = row("Nazwa", p.n) + row("Operator", p.op) + row("Moc", p.mw ? `${fmt(p.mw)} MW` : "") + row("Pojemność", p.mwh ? `${fmt(p.mwh)} MWh` : ""); }
     else if (l === "odb") { title = cap(p.r) || "Duży odbiorca energii"; body = row("Opis", p.i) + `<p class="muted small">Kompleks przemysłowo-gospodarczy z bazy BDOT10k, potencjalny duży odbiorca energii lub ciepła.</p>`; }
     else if (l === "pog") { title = cap(p.n) || "Strefa planu ogólnego"; body = row("Oznaczenie", p.o) + row("Gmina", p.gm) + row("Plan ogólny", p.u ? "uchwalony" : "w trakcie uchwalania") +
@@ -121,7 +146,7 @@
       body += `<p class="muted small">Założono turbinę o wysokości 200 m i wirniku 160 m oraz 700 m od budynków mieszkalnych (minimum, które może ustalić plan miejscowy). Lokalizację rozstrzyga plan miejscowy i decyzja środowiskowa.</p>`; }
     else if (l === "gpz") { title = "Stacja elektroenergetyczna (GPZ)"; body = row("Nazwa", (p.n || "").trim().replace(/^[„"]|[”"]$/g, "")); }
     const [lon, lat] = ll || f.geometry.coordinates;
-    app.showInfo(`<div class="phead"><h2>${esc(title)}</h2></div><div class="en-card">${body}<p><small class="muted">Źródło: ${esc(SOURCES[f.source === "energia-mag" ? "magazyny" : l] || "")}</small></p>
+    app.showInfo(`<div class="phead"><h2>${esc(title)}</h2></div><div class="en-card">${body}${f.source === "energia-moce" ? "" : `<p><small class="muted">Źródło: ${esc(SOURCES[f.source === "energia-mag" ? "magazyny" : l] || "")}</small></p>`}
       <p><a href="https://www.google.com/maps/search/?api=1&query=${lat.toFixed(6)},${lon.toFixed(6)}" target="_blank" rel="noopener noreferrer">Zobacz w Google Maps</a></p></div>`);
   }
   function handleClick(e) {
