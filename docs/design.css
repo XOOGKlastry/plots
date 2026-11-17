@@ -968,3 +968,22 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .report .rep-place .place-section>summary::-webkit-details-marker{display:none}
 .report .near-row{min-height:40px}
 .report .rep-place .place-section>summary::after,.report .rep-place .place-section>summary .section-chevron,.report .rep-place .place-section>summary>svg:last-child:not(:first-child){display:none!important}
+.zas-leg{padding:2px 0 10px 0}
+.ios-segc{display:flex;background:rgba(118,118,128,.12);border-radius:9px;padding:2px;margin:4px 0 10px}
+.ios-segc button{flex:1;border:0;background:transparent;border-radius:7px;padding:6px 4px;font:inherit;font-size:13px;font-weight:500;color:#1d1d1f;cursor:pointer;transition:background .15s}
+.ios-segc button[aria-selected=true]{background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.12),0 3px 1px rgba(0,0,0,.04);font-weight:600}
+.zas-ramp{height:10px;border-radius:5px;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.08)}
+.zas-ticks{display:flex;justify-content:space-between;font-size:12px;color:#6e6e73;margin-top:4px;font-variant-numeric:tabular-nums}
+.zas-read{font-size:13px;color:#1d1d1f;margin:8px 0 0;background:#f2f2f7;border-radius:10px;padding:8px 10px}
+.zas-block{background:#fff;border-radius:14px;padding:12px 14px;margin:0 0 10px;box-shadow:0 0 0 .5px rgba(0,0,0,.06)}
+.zas-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}.zas-head>div{flex:1;min-width:0;line-height:1.2}.zas-head b{display:block;font-size:15px}.zas-head small{color:#8e8e93;font-size:12.5px}
+.zas-ic{flex:none;width:30px;height:30px;border-radius:8px;background:var(--c);color:#fff;display:grid;place-items:center}.zas-ic .ph-icon{width:18px;height:18px}
+.zas-map{flex:none;display:inline-flex;align-items:center;gap:4px;border:0;background:rgba(118,118,128,.12);color:#0a84ff;border-radius:999px;padding:5px 10px;font:inherit;font-size:13px;font-weight:500;cursor:pointer}.zas-map .ph-icon{width:15px;height:15px}
+.zas-prof{display:grid;gap:7px}
+.zas-bar{display:grid;grid-template-columns:48px 1fr 66px;align-items:center;gap:8px;font-size:13px}.zas-bar span{color:#6e6e73}.zas-bar b{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.zas-bar i{height:10px;border-radius:5px;background:#eef3f8;overflow:hidden}.zas-bar s{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#a6d6e8,#2c72b0)}
+.zas-bar.hub span,.zas-bar.hub b{color:#1d1d1f}.zas-bar.hub s{background:linear-gradient(90deg,#72bcd8,#2c4f97)}
+.zas-badge{display:inline-block;margin:10px 0 0;font-size:12.5px;font-weight:600;color:#0a4fa8;background:#e8f1fd;border-radius:999px;padding:4px 10px}
+.zas-big{margin:0;font-size:14px;color:#3a3a3c}.zas-big b{font-size:28px;letter-spacing:-.5px;color:#1d1d1f;margin-right:4px}
+.zas-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.zas-chips span{font-size:12.5px;background:#f2f2f7;border-radius:8px;padding:5px 8px;color:#3a3a3c}.zas-chips b{color:#1d1d1f}
+.report .zas-map{display:none}
