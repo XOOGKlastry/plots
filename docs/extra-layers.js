@@ -32,6 +32,22 @@
       `<p>${link(`https://powietrze.gios.gov.pl/pjp/current/station_details/info/${p.id}`, "Aktualne pomiary i indeks jakości powietrza (GIOŚ)")}</p>`;
   }
 
+  /* ---------- road investments ---------- */
+  const ROAD_COL = { b: "#d9480f", p: "#7048e8" };
+  const RS = { r: ["w realizacji", "#d9480f"], t: ["w przetargu", "#e8590c"], p: ["w przygotowaniu", "#7048e8"], u: ["w użytkowaniu", "#2b8a3e"] };
+  const CLS = { A: "autostrada", S: "droga ekspresowa", DK: "droga krajowa", DW: "droga wojewódzka lub lokalna" };
+  function roadCard(p, d, side) {
+    const refs = (p.ref || "").split(";").map(x => x.trim()).filter(Boolean);
+    const title = [refs.map(r => /^\d+$/.test(r) ? (+r < 100 ? "DK" : "DW") + r : r).join(", "), p.n].filter(Boolean).join(" ") || (p.k === "b" ? "Droga w budowie" : "Planowana droga");
+    const odc = side && refs.length ? side.odcinki.filter(o => o.s !== "u" && o.r.some(r => refs.includes(r))) : [];
+    odc.sort((a, b) => "rtp".indexOf(a.s) - "rtp".indexOf(b.s));
+    const date = p.od ? p.od.replace(/^(\d{4})-(\d{2}).*/, "$2.$1").replace(/^(\d{4})$/, "$1") : "";
+    return { title, src: `OpenStreetMap (przebieg, stan ${d?.osm || ""}), GDDKiA Mapa Stanu Budowy Dróg (status i strony odcinków dróg krajowych)`,
+      body: `<p class="gs-st"><i style="background:${ROAD_COL[p.k]}"></i>${p.k === "b" ? "W budowie lub przebudowie" : "Planowana"} · ${esc(CLS[p.c] || "")}</p>` + row("Planowane otwarcie (OpenStreetMap)", date) + (p.refx ? `<p class="muted small">Numer drogi przypisany z sąsiedniego odcinka, bo w OpenStreetMap ten fragment go nie ma.</p>` : "") +
+        (odc.length ? `<p class="ext-sub"><b>Inwestycje GDDKiA na ${esc(refs.join(", "))}</b></p><ul class="terr-list">${odc.slice(0, 10).map(o => `<li><a href="${esc(o.u)}" target="_blank" rel="noopener noreferrer">${esc(o.n || o.d)}</a><small><span style="color:${RS[o.s][1]};font-weight:600">${RS[o.s][0]}</span>${o.w ? " · " + esc(o.w) : ""}</small></li>`).join("")}</ul>${odc.length > 10 ? `<p class="muted small">i ${odc.length - 10} dalszych odcinków.</p>` : ""}` : "") +
+        `<p class="muted small">Przebieg planowanej drogi jest orientacyjny. O tym, którędy pójdzie droga, rozstrzyga decyzja o środowiskowych uwarunkowaniach, a potem decyzja ZRID.</p>` };
+  }
+
   const LAYERS = [
     { id: "gios", box: "airLayers", label: "Stacje pomiarowe GIOŚ", desc: "Pomiary 2025 na tle norm, link do bieżących danych", kw: "stacje pomiarowe gioś monitoring powietrza pomiary indeks jakości powietrza smog",
       icon: ["broadcast", "#34a383"], url: "data/gios/stacje.json", toGeo: stationsGeo,
@@ -39,6 +55,16 @@
         { id: "x-gios-lbl", type: "symbol", source: s, minzoom: 10, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#1f5d4c", "text-halo-color": "#fff", "text-halo-width": 1.5 } }],
       legend: () => legendRow([[ST_COL[1], "normy dotrzymane"], [ST_COL[2], "powyżej norm od 2030 r."], [ST_COL[3], "przekroczona norma"], [ST_COL[0], "bez rocznej serii"]]) + note("Kolor według średnich rocznych 2025 z pomiarów stacji. Źródło: GIOŚ, Państwowy Monitoring Środowiska (lista stacji z API PJP, statystyki roczne z Banku danych pomiarowych)."),
       card: (p, d) => ({ title: p.n, body: stationBody(p, d?.rok || 2025), src: "GIOŚ, Państwowy Monitoring Środowiska: lista stacji (API PJP), statystyki roczne 2025 (Bank danych pomiarowych), ocena roczna 2025 (modelowanie)" }) },
+    { id: "drogi", box: "transportLayers", label: "Inwestycje drogowe", desc: "Drogi w budowie i planowane, status GDDKiA", kw: "inwestycje drogowe budowa dróg gddkia autostrady drogi ekspresowe obwodnice planowane drogi w budowie przetarg przygotowanie s19 s10 s74",
+      icon: ["road-horizon", "#d9480f"], url: "data/drogi/inwestycje.geojson", side: "data/drogi/gddkia.json",
+      layers: s => [
+        { id: "x-drogi-p", type: "line", source: s, filter: ["==", ["get", "k"], "p"], layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": ROAD_COL.p, "line-dasharray": [1.6, 1.4], "line-opacity": .9, "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "c"], ["A", "S"], 1.6, "DK", 1, .6], 12, ["match", ["get", "c"], ["A", "S"], 4.5, "DK", 3.5, 2.5]] } },
+        { id: "x-drogi-b", type: "line", source: s, filter: ["==", ["get", "k"], "b"], layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": ROAD_COL.b, "line-opacity": .95, "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "c"], ["A", "S"], 2, "DK", 1.2, .7], 12, ["match", ["get", "c"], ["A", "S"], 5.5, "DK", 4, 3]] } },
+        { id: "x-drogi-lbl", type: "symbol", source: s, minzoom: 8, filter: ["has", "ref"], layout: { "symbol-placement": "line", "symbol-spacing": 320, "text-field": ["get", "ref"], "text-size": 11, "text-font": ["Noto Sans Bold"] }, paint: { "text-color": "#7a2a05", "text-halo-color": "#fff", "text-halo-width": 1.6 } }],
+      legend: () => legendRow([[ROAD_COL.b, "w budowie lub przebudowie", "line"], [ROAD_COL.p, "planowana", "dash"]]) + note("Grubość linii: autostrady i drogi ekspresowe, drogi krajowe, wojewódzkie. Przebieg: OpenStreetMap. Stan inwestycji i strony odcinków: GDDKiA, Mapa Stanu Budowy Dróg. Przebieg planowanych dróg jest orientacyjny, wiążące są decyzje środowiskowe i ZRID."),
+      card: (p, d, f, side) => roadCard(p, d, side) },
   ];
   const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
@@ -46,7 +72,7 @@
   /* ---------- engine ---------- */
   const cache = {};
   const load = L => cache[L.id] || (cache[L.id] = fetch(L.url).then(r => { if (!r.ok) throw Error(r.status); return r.json(); }).catch(e => { delete cache[L.id]; throw e; }));
-  const raw = {};
+  const raw = {}, sideData = {};
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   const added = new Set();
   async function apply(L, on) {
@@ -55,6 +81,7 @@
     if (on && !added.has(L.id)) {
       let d; try { d = await load(L); } catch (e) { app.toast("Nie udało się wczytać warstwy"); return; }
       raw[L.id] = d;
+      if (L.side) fetch(L.side).then(r => r.ok ? r.json() : null).then(x => { sideData[L.id] = x; }).catch(() => {});
       const src = "x-" + L.id;
       try {
         if (!map.getSource(src)) { map.addSource(src, { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
@@ -89,7 +116,7 @@
   map.on("styledata", () => { for (const L of LAYERS) if (added.has(L.id) && !map.getLayer(L.layers("x-" + L.id)[0].id)) { added.delete(L.id); if (document.getElementById("x-" + L.id)?.checked) apply(L, true); } });
 
   function card(L, f, ll) {
-    const c = L.card(f.properties || {}, raw[L.id], f); if (!c) return false;
+    const c = L.card(f.properties || {}, raw[L.id], f, sideData[L.id]); if (!c) return false;
     const [lon, lat] = ll;
     app.showInfo(`<div class="phead"><h2>${esc(c.title || L.label)}</h2></div><div class="en-card">${c.body || ""}<p><small class="muted">Źródło: ${esc(c.src || "")}</small></p>
       <p><a href="https://www.google.com/maps/search/?api=1&query=${lat.toFixed(6)},${lon.toFixed(6)}" target="_blank" rel="noopener noreferrer">Zobacz w Google Maps</a></p></div>`);
