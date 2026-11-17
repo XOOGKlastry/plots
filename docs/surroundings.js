@@ -147,7 +147,25 @@
   async function nameFor(properties){const n=config.networks.find(n=>n.id===properties.network),tile=properties.tile,path=tile?`poi/${n.id}/n/${tile}.json`:`poi/${n.id}/names.json`;try{if(!namesCache.has(path))namesCache.set(path,fetch(DATA+path,{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error();return r.json();}).catch(e=>{namesCache.delete(path);throw e;}));const names=await namesCache.get(path);while(namesCache.size>24)namesCache.delete(namesCache.keys().next().value);return typeof names[properties.index]==="string"?names[properties.index]:n.label;}catch{return n.label;}}
   const readyResolvers=[];
   function metres(a,b){const R=6371008.8,r=Math.PI/180,dlat=(b.lat-a.lat)*r,dlon=(b.lon-a.lon)*r,q=Math.sin(dlat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dlon/2)**2;return R*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
+  /* Nearest point of each network to (lon,lat), straight line. Looks in the point's own tile first and only reads the 8 neighbours
+     when the best hit is farther than the tile edge. Returns [{network,p,d}|null] in the order of ids. */
+  async function nearest(lon,lat,ids){
+    const T=config.tile,O=config.origin,cx=Math.floor((lon-O[0])/T),cy=Math.floor((lat-O[1])/T),here={lon,lat};
+    const kx=111320*Math.cos(lat*Math.PI/180),edge=Math.min((lon-(O[0]+cx*T))*kx,(O[0]+(cx+1)*T-lon)*kx,(lat-(O[1]+cy*T))*110540,(O[1]+(cy+1)*T-lat)*110540);
+    async function pts(n,x,y){const k=x+"_"+y;try{
+      if(n.ptiles){const e=n.ptiles[k];if(!e)return [];return model.parsePoi(await binary(`poi/${n.id}/t/${k}.bin`),e[1]).map(p=>({...p,tile:k}));}
+      return x===cx&&y===cy?model.parsePoi(await binary(`poi/${n.id}/all.bin`)).map(p=>({...p,tile:""})):[];
+    }catch(e){return [];}}
+    const best=list=>{let b=null;for(const p of list){const d=metres(here,p);if(!b||d<b.d)b={p,d};}return b;};
+    return Promise.all(ids.map(async id=>{
+      const n=config.networks.find(x=>x.id===id);if(!n)return null;
+      let b=best(await pts(n,cx,cy));
+      if(n.ptiles&&(!b||b.d>edge)){const around=[];for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)if(dx||dy)around.push(pts(n,cx+dx,cy+dy));const nb=best((await Promise.all(around)).flat());if(nb&&(!b||nb.d<b.d))b=nb;}
+      return b?{network:n,p:b.p,d:b.d}:null;
+    }));
+  }
   window.PLOTS_SURROUNDINGS={
+    nearest,
     ready(){if(configError)return Promise.reject(configError);return config?Promise.resolve(config):new Promise((resolve,reject)=>readyResolvers.push({resolve,reject}));},
     nameFor,
     async buildings(bounds,network,mode,minutes){

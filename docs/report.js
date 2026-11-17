@@ -7,13 +7,14 @@
   const SKIP = ["Przegląd", "Wybory", "Źródła"]; // drawn separately: Przegląd opens the report, Wybory has every election, Źródła closes it
   const STRIP = ".data-heading,.data-tools,.gus-status,.score-method,.next-cat,.ind-search,.ind-results,.el-tabs,.urz-wl-acts,.urz-wl-links,.urz-map,.urz-actions,.sp-all,.urz-thumbs,.cmp-tools,.cmp-pick,[data-refresh-gus],.cmp-add,.cmp-sugg,.cmp-x,[data-cmp-del],input,select,.urz-cnt,.stat-map-link,[data-wiki-more],.ext-seg,.pyr-modes,.stats-seg,.tl-play,.mg-play,.ext-map-btn,.ext-back,.pyr-jump,.pyr-hint,.photo-nav,.photo-close,.tl-big";
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  let kind = "gmina", placeTitle = "";
   let uid = 0, dlg = null, doc = null, bar = null, printBtn = null, root = null, run = 0, title = "";
 
   function ensure() {
     if (dlg) return;
     dlg = document.createElement("dialog");
     dlg.className = "rep-dialog"; dlg.setAttribute("aria-label", "Raport gminy");
-    dlg.innerHTML = `<header class="rep-bar"><button type="button" class="rep-close" data-rep-close aria-label="Zamknij raport">${svg("x")}</button><div class="rep-state"><b>Raport gminy</b><span id="repProg">Przygotowuję…</span><i><s id="repBar"></s></i></div><button type="button" class="rep-print" data-rep-print disabled>${svg("file-text")}Zapisz PDF</button></header><div class="rep-scroll"><article class="report" id="repDoc"></article></div>`;
+    dlg.innerHTML = `<header class="rep-bar"><button type="button" class="rep-close" data-rep-close aria-label="Zamknij raport">${svg("x")}</button><div class="rep-state"><b id="repKind">Raport gminy</b><span id="repProg">Przygotowuję…</span><i><s id="repBar"></s></i></div><button type="button" class="rep-print" data-rep-print disabled>${svg("file-text")}Zapisz PDF</button></header><div class="rep-scroll"><article class="report" id="repDoc"></article></div>`;
     document.body.append(dlg);
     root = document.createElement("div"); root.id = "repPrint"; root.className = "report"; document.body.append(root);
     doc = dlg.querySelector("#repDoc"); bar = dlg.querySelector("#repBar"); printBtn = dlg.querySelector("[data-rep-print]");
@@ -83,7 +84,7 @@
 
   async function open() {
     const R = window.PLOTS_GMINY?.report, g = R?.gmina(); if (!g) return;
-    ensure(); const id = ++run, before = R.category();
+    ensure(); kind = "gmina"; dlg.querySelector("#repKind").textContent = "Raport gminy"; const id = ++run, before = R.category();
     window.Track?.("raport_pdf", { gmina: g.n, teryt: g.k });
     doc.innerHTML = ""; printBtn.disabled = true; dlg.classList.remove("is-ready");
     if (!dlg.open) { dlg.showModal(); window.UIHistory?.open("raport", () => dlg.close()); }
@@ -123,10 +124,70 @@
   function print() {
     const g = window.PLOTS_GMINY?.report?.gmina();
     root.innerHTML = doc.innerHTML.replace(/(id="|href="#)rep-/g, "$1rp-").replace(/-rep(\d+)/g, "-prn$1");
-    title = document.title; document.title = `Raport gminy ${g ? g.n + " " + g.k : ""}`.trim();
+    title = document.title; document.title = kind === "place" ? placeTitle : `Raport gminy ${g ? g.n + " " + g.k : ""}`.trim();
     document.body.classList.add("rep-printing");
     window.Track?.("raport_pdf_zapis", { gmina: g?.n, teryt: g?.k });
     setTimeout(() => window.print(), 50);
   }
   window.GminaReport = { open };
+
+  /* Parcel / address report: the place card as it is on screen (every section opened), a snapshot of the map and the sources. */
+  const PLACE_STRIP = ".place-distance-action,.copy,.navbtns,.nav-actions,.google-action,.terr-obw-slot:empty,.key-strip,.ios-chev,.lst,[data-near-more]";
+  /* Landscape crop of the map around the place (on a phone the sheet covers the lower half of the canvas). */
+  function snapshot(pl) {
+    return new Promise(res => {
+      let done = false; const t = setTimeout(() => { if (!done) { done = true; res(""); } }, 3000);
+      map.once("render", () => {
+        if (done) return; done = true; clearTimeout(t);
+        try {
+          const c = map.getCanvas(), sx = c.width / c.clientWidth, w = c.width, h = Math.min(c.height, Math.round(w * 0.72));
+          const at = Number.isFinite(+pl.lon) ? map.project([+pl.lon, +pl.lat]) : { y: c.clientHeight / 2 };
+          const y0 = Math.max(0, Math.min(c.height - h, Math.round(at.y * sx - h / 2)));
+          const o = document.createElement("canvas"); o.width = w; o.height = h; o.getContext("2d").drawImage(c, 0, y0, w, h, 0, 0, w, h);
+          res(o.toDataURL("image/jpeg", 0.88));
+        } catch (e) { res(""); }
+      });
+      map.triggerRepaint();
+    });
+  }
+  const map = app.map;
+  async function openPlace() {
+    const card = document.getElementById("card"); if (!card || card.classList.contains("empty")) return;
+    ensure(); kind = "place"; const id = ++run;
+    dlg.querySelector("#repKind").textContent = "Raport działki";
+    doc.innerHTML = ""; printBtn.disabled = true; dlg.classList.remove("is-ready");
+    if (!dlg.open) { dlg.showModal(); window.UIHistory?.open("raport", () => dlg.close()); }
+    window.Track?.("raport_dzialki");
+    card.querySelectorAll("details.place-section").forEach(d => { d.open = true; });
+    progress("Czekam na dane o terenie i planach…", .3);
+    await settle(card, 9000);
+    if (id !== run) return;
+    progress("Zapisuję widok mapy…", .7);
+    const pl0 = app.currentPlace?.() || {};
+    window.PlaceNear?.clear();
+    if (Number.isFinite(+pl0.lon)) { map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 }); map.jumpTo({ center: [+pl0.lon, +pl0.lat], zoom: Math.min(18, Math.max(map.getZoom(), 16.5)) }); }
+    await new Promise(r => { const t = setTimeout(r, 4000); map.once("idle", () => { clearTimeout(t); r(); }); map.triggerRepaint(); });
+    const img = await snapshot(pl0);
+    const out = document.createElement("div"); out.innerHTML = copy(card);
+    out.querySelectorAll(PLACE_STRIP + ",.near-hint").forEach(e => e.remove());
+    out.querySelectorAll(".rep-btn").forEach(e => { if (/^(Pokaż|Ukryj)/.test(txt(e))) e.remove(); });
+    out.querySelectorAll(".near-row.on").forEach(e => e.classList.remove("on"));
+    const head = out.querySelector(".phead"), name = txt(head?.querySelector("h2")) || "Wskazane miejsce", code = txt(head?.querySelector("code"));
+    head?.remove();
+    const srcEls = [...out.querySelectorAll(".source-note")].filter(e => /^Źródł/.test(txt(e)));
+    const notes = [...new Set(srcEls.map(txt))]; srcEls.forEach(e => e.remove());
+    const pl = app.currentPlace?.() || {};
+    const today = new Date().toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
+    const ll = Number.isFinite(+pl.lat) ? `${(+pl.lat).toFixed(5)}, ${(+pl.lon).toFixed(5)}` : "";
+    const link = Number.isFinite(+pl.lat) ? `https://xoogklastry.github.io/plots/?lon=${(+pl.lon).toFixed(5)}&lat=${(+pl.lat).toFixed(5)}&z=17` : "";
+    placeTitle = `Raport ${name}${code ? " " + code : ""}`;
+    doc.innerHTML = `<header class="rep-cover rep-place-cover"><div><small>Raport działki</small><h1>${esc(name)}</h1>${code ? `<p>Identyfikator ${esc(code)}</p>` : ""}${ll ? `<p>Współrzędne ${esc(ll)} (WGS84)</p>` : ""}<p>Stan danych na ${esc(today)}</p></div></header>
+      ${img ? `<figure class="rep-map"><img src="${img}" alt="Widok mapy"><figcaption>Widok mapy z aplikacji w chwili tworzenia raportu. Podkład: Esri, OpenStreetMap; działki: EGiB (GUGiK).</figcaption></figure>` : ""}
+      <section class="rep-sec rep-place data-content">${out.innerHTML}</section>
+      <section class="rep-sec"><h1 class="rep-h">${svg("books")}Źródła danych</h1><ul class="rep-src"><li>Działki i adresy: ewidencja gruntów i budynków (EGiB) oraz Państwowy Rejestr Granic i adresów (PRG), GUGiK.</li>${notes.map(n => `<li>${esc(n.replace(/^Źródła?:\s*/, ""))}</li>`).join("")}</ul>
+      <p class="rep-note">Raport ma charakter informacyjny i nie zastępuje wypisu z rejestru gruntów, wypisu i wyrysu z planu miejscowego ani warunków przyłączenia.</p></section>
+      <footer class="rep-foot">Wygenerowano ${esc(today)} · ${link ? `<a href="${esc(link)}">${esc(link.replace("https://", ""))}</a>` : "xoogklastry.github.io/plots"}</footer>`;
+    progress("Gotowe", 1); printBtn.disabled = false; dlg.classList.add("is-ready");
+  }
+  window.PlaceReport = { open: openPlace };
 })();
