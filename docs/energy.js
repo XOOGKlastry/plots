@@ -32,7 +32,7 @@
       legend: () => legendRow([[KV[400], "400 kV", "line"], [KV[220], "220 kV", "line"], [KV[110], "110 kV", "line"], ["#fff", "stacja GPZ", "ring"]]) + note("Źródło: OpenStreetMap, stan 2023. Przebieg linii orientacyjny.") },
     { id: "moce", label: "Wolne moce przyłączeniowe przy GPZ", desc: "Energa-Operator i PSE: ile MW źródeł można jeszcze przyłączyć", kw: "wolne moce przyłączeniowe dostępna moc przyłączeniowa gpz odmowy przyłączenia warunki przyłączenia energa pse osd",
       layers: () => [{ id: "en-moce", type: "circle", source: "energia-moce",
-        paint: { "circle-color": ["case", ["!", ["has", "v"]], "#9e9e9e", ["<=", ["get", "v"], 0], "#d32f2f", ["<", ["get", "v"], 30], "#f9a825", "#2e7d32"],
+        paint: { "circle-color": ["case", ["!=", ["typeof", ["get", "v"]], "number"], "#9e9e9e", ["<=", ["get", "v"], 0], "#d32f2f", ["<", ["get", "v"], 30], "#f9a825", "#2e7d32"],
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6, 13, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } }],
       legend: () => legendRow([["#2e7d32", "30 MW i więcej"], ["#f9a825", "do 30 MW"], ["#d32f2f", "brak wolnej mocy"], ["#9e9e9e", "tylko rejestr wniosków"]]) +
         note("Wolna moc wytwórcza w 2026 r. dla grupy stacji 110 kV (Energa-Operator, stan 31.08.2026) lub węzła 220/400 kV (PSE, stan 31.10.2026). PGE Dystrybucja, Tauron Dystrybucja, Enea Operator i Stoen Operator nie publikują danych w formie, którą można wczytać. Dane informacyjne: nie gwarantują przyłączenia.") },
@@ -199,5 +199,5 @@
     panel.dispatchEvent(new Event("change", { bubbles: true }));
     app.toast(`Włączono warstwę: ${L.label}`);
   }, true);
-  window.PLOTS_ENERGY = { handleClick, layers: LAYERS.map(L => L.id) };
+  window.PLOTS_ENERGY = { handleClick, layers: LAYERS.map(L => L.id), layerIds: Object.fromEntries(LAYERS.map(L => [L.id, L.layers().map(x => x.id)])) };
 })();

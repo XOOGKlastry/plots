@@ -34,6 +34,8 @@
   if (params.has("lon") && params.has("lat") && params.has("z") && linkView.every(Number.isFinite) && Math.abs(linkView[0]) <= 180 && Math.abs(linkView[1]) <= 85 && linkView[2] >= 0 && linkView[2] <= 21) {
     view.center = linkView.slice(0, 2); view.zoom = linkView[2];
   }
+  // Slow WMS servers (Geoportal, PIG-PIB) must not hold up the basemap and other raster layers in MapLibre's image queue (default 16).
+  try { maplibregl.setMaxParallelImageRequests(32); } catch (e) {}
   const map = new maplibregl.Map({
     container: "map",
     style: { version: 8, sources: {}, layers: [], glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf" },

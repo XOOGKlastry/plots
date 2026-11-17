@@ -6,12 +6,13 @@ Mapa: http://127.0.0.1:5001/
 import json, os, threading, contextlib, re
 from pathlib import Path
 import psycopg
+import concurrent.futures as _TP
 from flask import Flask, Response, request, abort
 
 DSN = os.environ.get("PLOTS_DSN", "postgresql://postgres@localhost/gisss")
 MINZ = int(os.environ.get("PLOTS_MINZ", "13"))
 PORT = int(os.environ.get("PLOTS_PORT", "5001"))
-_SEM = threading.BoundedSemaphore(int(os.environ.get("PLOTS_CONCURRENCY", "6")))
+_SEM = threading.BoundedSemaphore(int(os.environ.get("PLOTS_CONCURRENCY", "10")))
 GRUPY = json.loads("""{
     "1": "Skarb Pa\u0144stwa (bez u\u017cytkownik\u00f3w wieczystych)",
     "2": "Skarb Pa\u0144stwa (ze zbiegiem u\u017cytkownik\u00f3w wieczystych)",
@@ -417,10 +418,19 @@ SELECT ST_AsMVT(q, 'gunb', 4096, 'g') FROM (
 ) q WHERE g IS NOT NULL
 """
 
-def _mvt(sql, params, name_cache=3600):
-    with POOL.connection() as c:
-        b = c.execute(sql, params).fetchone()[0]
-    return Response(bytes(b or b""), mimetype="application/x-protobuf", headers={"Cache-Control": f"public, max-age={name_cache}"})
+_TILE_CACHE, _TILE_CACHE_MAX = {}, 2500
+def _mvt(sql, params, name_cache=3600, memo=False):
+    """Vector tile from PostGIS. memo=True keeps the tile in memory: for static layers (energy, renewables) a pan back
+    or a second visitor gets it at once instead of waiting for the database."""
+    key = (id(sql), tuple(sorted(params.items()))) if memo else None
+    b = _TILE_CACHE.get(key) if memo else None
+    if b is None:
+        with POOL.connection() as c:
+            b = bytes(c.execute(sql, params).fetchone()[0] or b"")
+        if memo:
+            if len(_TILE_CACHE) >= _TILE_CACHE_MAX: _TILE_CACHE.pop(next(iter(_TILE_CACHE)))
+            _TILE_CACHE[key] = b
+    return Response(b, mimetype="application/x-protobuf", headers={"Cache-Control": f"public, max-age={name_cache}"})
 
 @app.route("/tiles/lasy/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
 def tile_lasy(z, x, y):
@@ -461,7 +471,7 @@ ENERGIA_TILE_SQL = "WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 
 def tile_energia(z, x, y):
     if request.method == "OPTIONS": return Response(status=204)
     if z < 5 or z > 22: return Response(b"", mimetype="application/x-protobuf")
-    return _mvt(ENERGIA_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 1.5}, 86400)
+    return _mvt(ENERGIA_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 1.5}, 86400, memo=True)
 
 # ---------- OZE: obszary dla wiatraków (przeliczone w wiatr_dostepnosc), strefy POG z OZE, duzi odbiorcy energii (BDOT10k KUPG) ----------
 OZE_TILE_SQL = "WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (SELECT ST_Transform(e,2180) e2 FROM b) SELECT " + " || ".join([
@@ -488,18 +498,26 @@ OZE_TILE_SQL = "WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (
 def tile_oze(z, x, y):
     if request.method == "OPTIONS": return Response(status=204)
     if z < 7 or z > 22: return Response(b"", mimetype="application/x-protobuf")
-    return _mvt(OZE_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 1.2}, 86400)
+    return _mvt(OZE_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 1.2}, 86400, memo=True)
 
-def _pig_identify(url, lon, lat, extra):
+_PIG_CACHE = {}
+def _pig_identify(url, lon, lat, extra, timeout=4):
+    """ArcGIS identify at PIG-PIB. The server is sometimes very slow, so the wait is short and answers are cached
+    (keyed by ~10 m grid); a timeout returns None and the card simply omits that item."""
     import urllib.request, urllib.parse
+    key = (url, round(lon, 4), round(lat, 4))
+    if key in _PIG_CACHE: return _PIG_CACHE[key]
     sr = extra.pop("sr", 4326)
     q = {"geometry": json.dumps({"x": lon, "y": lat, "spatialReference": {"wkid": sr}}), "geometryType": "esriGeometryPoint", "sr": sr, "f": "json"}
     q.update(extra)
     try:
-        with urllib.request.urlopen(urllib.request.Request(url + "?" + urllib.parse.urlencode(q), headers={"User-Agent": "plots/1.0"}), timeout=8) as r:
-            return json.loads(r.read())
+        with urllib.request.urlopen(urllib.request.Request(url + "?" + urllib.parse.urlencode(q), headers={"User-Agent": "plots/1.0"}), timeout=timeout) as r:
+            out = json.loads(r.read())
     except Exception:
         return None
+    if len(_PIG_CACHE) > 5000: _PIG_CACHE.clear()
+    _PIG_CACHE[key] = out
+    return out
 
 _KV = "(SELECT max(v::int) FROM unnest(string_to_array(voltage, ';')) v WHERE v ~ '^[0-9]+$') / 1000"
 def _teren_energia(c, pt, P):
@@ -561,14 +579,17 @@ def api_teren():
     B = "https://cbdgmapa.pgi.gov.pl/arcgis/rest/services"
     import math
     mx, my = lon * 20037508.34 / 180, math.log(math.tan((90 + lat) * math.pi / 360)) * 6378137
-    e = _pig_identify(B + "/geozagrozenia/egms_2016_2020_pion_interpol/ImageServer/identify", mx, my, {"returnGeometry": "false", "sr": 3857})
+    # three PIG-PIB lookups at once: the card waits for the slowest one (at most ~4 s), not for their sum
+    with _TP.ThreadPoolExecutor(3) as ex:
+        fe = ex.submit(_pig_identify, B + "/geozagrozenia/egms_2016_2020_pion_interpol/ImageServer/identify", mx, my, {"returnGeometry": "false", "sr": 3857})
+        fo = ex.submit(_pig_identify, B + "/geozagrozenia/sopo_obszary/MapServer/identify", lon, lat,
+                       {"layers": "all:14,12", "tolerance": 2, "mapExtent": f"{lon-0.01},{lat-0.01},{lon+0.01},{lat+0.01}", "imageDisplay": "400,400,96", "returnGeometry": "false"})
+        fg = ex.submit(_pig_identify, B + "/geotermia/mpgn/MapServer/identify", lon, lat,
+                       {"layers": "all:7", "tolerance": 0, "mapExtent": f"{lon-0.01},{lat-0.01},{lon+0.01},{lat+0.01}", "imageDisplay": "400,400,96", "returnGeometry": "false"})
+        e, o, g = fe.result(), fo.result(), fg.result()
     try: out["egms"] = float(e["value"])
     except Exception: out["egms"] = None
-    o = _pig_identify(B + "/geozagrozenia/sopo_obszary/MapServer/identify", lon, lat,
-                      {"layers": "all:14,12", "tolerance": 2, "mapExtent": f"{lon-0.01},{lat-0.01},{lon+0.01},{lat+0.01}", "imageDisplay": "400,400,96", "returnGeometry": "false"})
     out["osuwiska"] = [{"warstwa": x.get("layerName"), "aktywnosc": (x.get("attributes") or {}).get("Stopień aktywności")} for x in (o or {}).get("results", [])][:3]
-    g = _pig_identify(B + "/geotermia/mpgn/MapServer/identify", lon, lat,
-                      {"layers": "all:7", "tolerance": 0, "mapExtent": f"{lon-0.01},{lat-0.01},{lon+0.01},{lat+0.01}", "imageDisplay": "400,400,96", "returnGeometry": "false"})
     out["geotermia"] = [{k: v for k, v in (x.get("attributes") or {}).items() if k not in ("OBJECTID", "Shape", "SHAPE", "Shape.STArea()", "Shape.STLength()")} for x in (g or {}).get("results", [])][:1]
     return out
 

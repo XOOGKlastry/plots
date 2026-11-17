@@ -16,7 +16,7 @@
     for (const s of services) {
       const id = "plan-source-" + s.id;
       app.registerOverlaySource(id);
-      map.addSource(id, { type: "raster", tiles: [s.url+"?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS="+s.layers+"&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=TRUE"], tileSize: 256, maxzoom: 20, attribution: "© GUGiK · " + s.label });
+      map.addSource(id, { type: "raster", tiles: [s.url+"?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS="+s.layers+"&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=512&HEIGHT=512&FORMAT=image/png&TRANSPARENT=TRUE"], tileSize: 512, maxzoom: 20, attribution: "© GUGiK · " + s.label });
       const checkbox = document.getElementById("plan-" + s.id);
       checkbox.checked = app.store.get("planning." + s.id, false);
       map.addLayer({ id, type:"raster", source:id, minzoom: 9, layout:{visibility:checkbox.checked?"visible":"none"}, paint:{"raster-opacity":.72,"raster-fade-duration":100} });

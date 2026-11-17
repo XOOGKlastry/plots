@@ -236,8 +236,8 @@
       P.frame([w, s, e, n], 15);
       const layers = GDOS[b.dataset.gotoType];
       if (layers) {
-        map.addSource("gdos-wms", { type: "raster", tileSize: 256, attribution: "GDOŚ",
-          tiles: [`https://sdi.gdos.gov.pl/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${layers}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`] });
+        map.addSource("gdos-wms", { type: "raster", tileSize: 512, attribution: "GDOŚ",
+          tiles: [`https://sdi.gdos.gov.pl/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${layers}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=512&HEIGHT=512&FORMAT=image/png&TRANSPARENT=true`] });
         const before = map.getStyle().layers.find(l => l.type === "symbol")?.id;
         map.addLayer({ id: "gdos-wms", type: "raster", source: "gdos-wms", paint: { "raster-opacity": .7 } }, before);
       }

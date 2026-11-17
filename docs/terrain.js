@@ -5,7 +5,7 @@
   "use strict";
   const app = window.PLOTS, map = app.map, esc = app.esc, BASE = app.base;
   const PIG = "https://cbdgmapa.pgi.gov.pl/arcgis/rest/services";
-  const arcExport = (svc, layers) => `${PIG}/${svc}/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&dpi=96&format=png32&transparent=true&layers=show:${layers}&f=image`;
+  const arcExport = (svc, layers) => `${PIG}/${svc}/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=512,512&dpi=96&format=png32&transparent=true&layers=show:${layers}&f=image`;
   const GAT = { SO: ["sosna", "#e3b94f"], "ŚW": ["świerk", "#2f6b3a"], JD: ["jodła", "#3f8f6a"], MD: ["modrzew", "#9bbf4a"], DG: ["daglezja", "#5a8f3c"],
     DB: ["dąb", "#8c6d31"], BK: ["buk", "#c0712f"], BRZ: ["brzoza", "#efe08a"], OL: ["olsza", "#6aa6a0"], OS: ["osika", "#c9d97a"], GB: ["grab", "#a07d5a"],
     JS: ["jesion", "#7e9c6b"], KL: ["klon", "#d08a4e"], JW: ["jawor", "#d08a4e"], LP: ["lipa", "#d7b77a"], TP: ["topola", "#a9bfd8"], WB: ["wierzba", "#9ccc65"],
@@ -74,15 +74,15 @@
         map.addLayer({ id: "terr-internet", type: "raster", source: "terr-internet", minzoom: 14, paint: { "raster-opacity": .9 } }, firstSymbol()); },
       ids: ["terr-internet"], legend: () => legendRow(["#2479ff", "#3cd7ff", "#d446f5", "#138708", "#a0cf3f", "#fff59d", "#ffffff"], ["w zasięgu", "sieć hurtowa", "zasięg teoretyczny", "planowana prywatnie", "planowana publicznie", "dofinansowana, niezrealizowana", "brak zasięgu"]) + `<small class="terr-unit">Budynki i adresy według zasięgu. Widoczne po przybliżeniu.</small>` },
     { id: "osuwiska", label: "Osuwiska", desc: "Osuwiska i tereny zagrożone (SOPO, PIG-PIB)", kw: "osuwiska sopo zagrożenia geologiczne skarpy",
-      add() { map.addSource("terr-osuwiska", { type: "raster", tiles: [arcExport("geozagrozenia/sopo_obszary", "14,12")], tileSize: 256, attribution: "PIG-PIB, SOPO" });
+      add() { map.addSource("terr-osuwiska", { type: "raster", tiles: [arcExport("geozagrozenia/sopo_obszary", "14,12")], tileSize: 512, attribution: "PIG-PIB, SOPO" });
         map.addLayer({ id: "terr-osuwiska", type: "raster", source: "terr-osuwiska", minzoom: 9, paint: { "raster-opacity": .85 } }, firstSymbol()); },
       ids: ["terr-osuwiska"], legend: () => `<small class="terr-unit">Kolory jak w SOPO: osuwiska według aktywności i tereny zagrożone ruchami masowymi</small>` },
     { id: "gornicze", label: "Tereny górnicze i złoża", desc: "MIDAS, PIG-PIB", kw: "tereny górnicze złoża kopalnie węgiel kruszywo midas",
-      add() { map.addSource("terr-gornicze", { type: "raster", tiles: [arcExport("midas", "0,2")], tileSize: 256, attribution: "PIG-PIB, MIDAS" });
+      add() { map.addSource("terr-gornicze", { type: "raster", tiles: [arcExport("midas", "0,2")], tileSize: 512, attribution: "PIG-PIB, MIDAS" });
         map.addLayer({ id: "terr-gornicze", type: "raster", source: "terr-gornicze", minzoom: 7, paint: { "raster-opacity": .75 } }, firstSymbol()); },
       ids: ["terr-gornicze"], legend: () => `<small class="terr-unit">Udokumentowane złoża kopalin i tereny górnicze</small>` },
     { id: "geotermia", label: "Warunki dla pomp ciepła", desc: "Odwierty pod gruntowe pompy ciepła (MPGN, PIG-PIB)", kw: "pompy ciepła geotermia płytka odwiert gruntowa mpgn",
-      add() { map.addSource("terr-geotermia", { type: "raster", tiles: [arcExport("geotermia/mpgn", "7")], tileSize: 256, attribution: "PIG-PIB, MPGN" });
+      add() { map.addSource("terr-geotermia", { type: "raster", tiles: [arcExport("geotermia/mpgn", "7")], tileSize: 512, attribution: "PIG-PIB, MPGN" });
         map.addLayer({ id: "terr-geotermia", type: "raster", source: "terr-geotermia", minzoom: 6, paint: { "raster-opacity": .7 } }, firstSymbol()); },
       ids: ["terr-geotermia"], legend: () => `<small class="terr-unit">Zielone: odwiert bez przeciwwskazań; żółte i czerwone: z ograniczeniami lub zakazem</small>` },
     { id: "ruch", label: "Ruch na drogach krajowych", desc: "Pojazdy na dobę, GDDKiA GPR 2025", kw: "ruch drogowy natężenie gddkia gpr samochody droga krajowa",
