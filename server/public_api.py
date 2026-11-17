@@ -674,6 +674,45 @@ def tile_internet(z, x, y):
         _SID_CACHE[key] = raw
     return Response(_SID_CACHE[key], mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
 
+# ---------- GDDKiA strategic noise maps 2022 (Geoportal WMS, EPSG:2180 only, no CORS, drawn up to 1:10 000) ----------
+_NOISE = {"ldwn": ("mapaImisyjnaLDWN", "Imisja_wskaznik_LDWN"), "ln": ("mapaImisyjnaLN", "Imisja_wskaznik_LN")}
+_NOISE_CACHE = {}
+_NOISE_TR = {}
+@app.route("/tiles/halas/<kind>/<int:z>/<int:x>/<int:y>.png", methods=["GET", "OPTIONS"])
+def tile_halas(kind, z, x, y):
+    """Noise map tile in web mercator: the WMS image is fetched in EPSG:2180 (axis order N,E) and resampled per pixel."""
+    if request.method == "OPTIONS": return Response(status=204)
+    if kind not in _NOISE or z < 13 or z > 19: return Response(b"", status=204)
+    key = (kind, z, x, y)
+    if key not in _NOISE_CACHE:
+        import io as _io, urllib.request, urllib.parse
+        import numpy as np
+        from PIL import Image
+        from pyproj import Transformer
+        tr = _NOISE_TR.get("t") or _NOISE_TR.setdefault("t", Transformer.from_crs(3857, 2180, always_xy=True))
+        n = 2 ** z; R = 20037508.342789244; size = 2 * R / n
+        xs = -R + (x + (np.arange(256) + .5) / 256) * size; ys = R - (y + (np.arange(256) + .5) / 256) * size
+        X, Y = np.meshgrid(xs, ys)
+        E, N = tr.transform(X.ravel(), Y.ravel()); E = np.asarray(E); N = np.asarray(N)
+        e0, e1, n0, n1 = E.min() - 5, E.max() + 5, N.min() - 5, N.max() + 5
+        px = int(min(2048, max(256, 256 * 2 ** max(0, 16 - z))))
+        svc, lay = _NOISE[kind]
+        q = {"SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap", "LAYERS": lay, "STYLES": "", "CRS": "EPSG:2180",
+             "BBOX": f"{n0},{e0},{n1},{e1}", "WIDTH": px, "HEIGHT": px, "FORMAT": "image/png", "TRANSPARENT": "TRUE"}
+        try:
+            with urllib.request.urlopen(urllib.request.Request(f"https://mapy.geoportal.gov.pl/wss/service/gddkia/{svc}?" + urllib.parse.urlencode(q),
+                                                               headers={"User-Agent": "plots/1.0"}), timeout=25) as r:
+                if "png" not in r.headers.get("Content-Type", ""): raise ValueError("not png")
+                src = np.array(Image.open(_io.BytesIO(r.read())).convert("RGBA"))
+        except Exception:
+            return Response(b"", status=204)
+        c = ((E - e0) / (e1 - e0) * px).astype(int).clip(0, px - 1); rr = ((n1 - N) / (n1 - n0) * px).astype(int).clip(0, px - 1)
+        out = src[rr, c].reshape(256, 256, 4)
+        buf = _io.BytesIO(); Image.fromarray(out, "RGBA").save(buf, "PNG")
+        if len(_NOISE_CACHE) > 800: _NOISE_CACHE.clear()
+        _NOISE_CACHE[key] = buf.getvalue()
+    return Response(_NOISE_CACHE[key], mimetype="image/png", headers={"Cache-Control": "public, max-age=604800"})
+
 # ---------- EGMS: ruch pionowy 2016-2020 (Copernicus, raster 150 m z PIG-PIB) jako kafelki PNG ----------
 _EGMS = {}
 def _egms():

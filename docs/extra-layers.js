@@ -89,6 +89,12 @@
       card: p => ({ title: p.n, src: "GUNB, Rejestr wniosków, decyzji i zgłoszeń (RWDZ), dane.gov.pl",
         body: `<p class="gs-st"><i style="background:${p.z ? "#e8590c" : "#f59f00"}"></i>${p.z ? "Zezwolenie na realizację inwestycji drogowej (ZRID)" : "Pozwolenie na budowę drogi"}</p>` + row("Miejscowość", p.m) + row("Wniosek złożony", p.w) + row("Decyzja wydana", p.d) + row("Działek we wniosku", p.dz) +
           `<p class="muted small">Decyzja pozwala rozpocząć budowę. ZRID dodatkowo przejmuje pod drogę działki w liniach rozgraniczających. Szczegóły wniosku: ${link("https://wyszukiwarka.gunb.gov.pl/", "wyszukiwarka GUNB")}.</p>` }) },
+    ...[["ldwn", "Hałas drogowy w ciągu doby", "Wskaźnik LDWN, mapy akustyczne GDDKiA 2022"], ["ln", "Hałas drogowy nocą", "Wskaźnik LN, mapy akustyczne GDDKiA 2022"]].map(([k, label, desc]) => ({
+      id: "halas-" + k, box: "transportLayers", label, desc, kw: "hałas drogowy mapa akustyczna strategiczna mapa hałasu gddkia ldwn ln decybele db noc", icon: ["speaker-high", k === "ln" ? "#5f3dc4" : "#e8590c"], minz: 13,
+      tiles: () => app.base + "/tiles/halas/" + k + "/{z}/{x}/{y}.png", attr: "GDDKiA, strategiczne mapy hałasu 2022",
+      layers: s => [{ id: "x-halas-" + k, type: "raster", source: s, minzoom: 13, paint: { "raster-opacity": .62, "raster-fade-duration": 0 } }],
+      legend: () => legendRow([["#fa881d", "55–60 dB", "box"], ["#fa5704", "60–65", "box"], ["#dc3c3c", "65–70", "box"], ["#ae7cd6", "70–75", "box"], ["#02a9df", "75–80", "box"], ["#004be4", "80 i więcej", "box"]]) +
+        note(`${k === "ln" ? "Średni poziom hałasu w porze nocnej (22–6)." : "Średni poziom hałasu z całej doby, z wagą dla wieczoru i nocy."} Drogi krajowe o ruchu powyżej 3 mln pojazdów rocznie, poza dużymi miastami, które mają własne mapy. Źródło: GDDKiA, strategiczne mapy hałasu 2022 (Geoportal). Widoczne od skali około 1:70 000.`) })),
     { id: "kolej", box: "transportLayers", label: "Inwestycje kolejowe", desc: "Linie w budowie i planowane, nowe przystanki, Kolej Plus", kw: "inwestycje kolejowe kolej plk modernizacja linii nowe przystanki kolej plus tramwaj metro planowana linia kolejowa",
       icon: ["train", "#1971c2"], url: "data/kolej/inwestycje.geojson", side: "data/kolej/kolejplus.json",
       layers: s => [
@@ -122,13 +128,14 @@
     const leg = document.getElementById("x-leg-" + L.id);
     if (leg) { leg.hidden = !on; if (on) leg.innerHTML = L.legend(); }
     if (on && !added.has(L.id)) {
-      let d; try { d = await load(L); } catch (e) { app.toast("Nie udało się wczytać warstwy"); return; }
+      let d = null;
+      if (!L.tiles) { try { d = await load(L); } catch (e) { app.toast("Nie udało się wczytać warstwy"); return; } }
       raw[L.id] = d;
       if (L.side) fetch(L.side).then(r => r.ok ? r.json() : null).then(x => { sideData[L.id] = x; }).catch(() => {});
       const src = "x-" + L.id;
       try {
-        if (!map.getSource(src)) { map.addSource(src, { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
-        for (const spec of L.layers(src)) if (!map.getLayer(spec.id)) map.addLayer(spec, spec.type === "fill" || spec.type === "line" ? firstSymbol() : undefined);
+        if (!map.getSource(src)) { map.addSource(src, L.tiles ? { type: "raster", tiles: [L.tiles()], tileSize: 256, minzoom: L.minz || 0, maxzoom: 19, attribution: L.attr || "" } : { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
+        for (const spec of L.layers(src)) if (!map.getLayer(spec.id)) map.addLayer(spec, spec.type === "fill" || spec.type === "line" || spec.type === "raster" ? firstSymbol() : undefined);
         added.add(L.id);
       } catch (e) { console.warn(e); return; }
     }
@@ -171,7 +178,7 @@
     const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
     for (const L of LAYERS) {
       if (!added.has(L.id) || !L.card) continue;
-      const ids = L.layers("x-" + L.id).filter(s => s.type !== "symbol" && (s.type !== "fill" || L.fillClick) && !s.noClick).map(s => s.id).filter(vis);
+      const ids = L.layers("x-" + L.id).filter(s => s.type !== "symbol" && s.type !== "raster" && (s.type !== "fill" || L.fillClick) && !s.noClick).map(s => s.id).filter(vis);
       if (!ids.length) continue;
       const hits = map.queryRenderedFeatures(L.fillClick ? e.point : box, { layers: ids });
       if (!hits.length) continue;
