@@ -919,4 +919,40 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .ind-logo{width:22px;height:22px;object-fit:contain;border-radius:50%;background:#fff;flex:none;display:block}.metric-caption .ind-logo{width:36px;height:36px;margin:-8px -2px -8px -6px;background:none}.so-ic .ind-logo,.stats-ico .ind-logo{width:30px;height:30px;background:none}.metric-caption{align-items:center}
 .ind-sym{flex:none;width:36px;height:36px;margin:-8px -2px -8px -6px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 12%,#fff);color:var(--c)}.ind-sym .metric-symbol{color:inherit;width:19px;height:19px}
 .lst{display:block;font-family:inherit;font-style:normal;font-size:12px;line-height:1.35;margin-top:2px;color:#8e8e93}.lst-load::before{content:"";display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;border:1.5px solid #0a84ff;border-right-color:transparent;animation:lst-spin .8s linear infinite;vertical-align:-1px}.lst-fail{color:#c45c00}@keyframes lst-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.lst-load::before{animation:none}}
-.poi-cats{margin:4px 0 8px}.poi-cat{border-top:1px solid rgba(0,0,0,.06)}.poi-cat>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 2px;cursor:pointer;font-size:14px;list-style:none}.poi-cat>summary::-webkit-details-marker{display:none}.poi-cat>summary small{color:#8e8e93;font-size:12px}.poi-nets{display:flex;flex-wrap:wrap;gap:6px;padding:0 0 8px}.poi-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;background:#f2f2f7;font-size:13px;cursor:pointer}.poi-chip input{width:15px;height:15px;margin:0;accent-color:#0a84ff}.poi-chip:has(input:checked){background:#e5f0ff;color:#0a4fa8}.poi-acts{display:flex;gap:8px;flex-wrap:wrap;padding:2px 0 8px}.poi-acts button{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;color:#1d1d1f}
+.ios-search{position:relative;display:flex;align-items:center;margin:6px 0 10px;background:rgba(118,118,128,.12);border-radius:10px;height:38px;padding:0 8px}
+.ios-search .ic{width:17px;height:17px;color:#8e8e93;flex:none}
+.ios-search input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:16px;padding:0 6px;color:#1d1d1f;outline:none;height:100%;-webkit-appearance:none;appearance:none}
+.ios-search input::placeholder{color:#8e8e93}.ios-search input::-webkit-search-cancel-button{display:none}
+.ios-x{flex:none;width:20px;height:20px;border-radius:50%;border:0;background:#aeaeb2;color:#fff;font-size:15px;line-height:20px;padding:0;cursor:pointer}
+.ios-head{margin:14px 4px 6px;font-size:12px;letter-spacing:.02em;text-transform:uppercase;color:#6e6e73}
+.ios-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.06)}
+.ios-row{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:6px 14px;border:0;background:#fff;font:inherit;font-size:15px;color:#1d1d1f;text-align:left;cursor:pointer;position:relative;box-sizing:border-box}
+.ios-row+.ios-row::before,.ios-row+.ios-foot::before{content:"";position:absolute;top:0;left:56px;right:0;height:.5px;background:rgba(60,60,67,.18)}
+.ios-row:active,.ios-hit:hover{background:#f2f2f7}
+.ios-ic{flex:none;width:30px;height:30px;display:grid;place-items:center}
+.ios-badge{width:30px;height:30px;object-fit:contain;display:block}
+.ios-tx{flex:1;min-width:0;line-height:1.25}.ios-tx b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-weight:500;overflow:hidden;overflow-wrap:anywhere}.ios-tx small{display:block;color:#8e8e93;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ios-dist{flex:none;color:#8e8e93;font-size:14px;font-variant-numeric:tabular-nums}
+.ios-chev{flex:none;width:14px;height:14px;color:#c7c7cc}
+.ios-sw{flex:none;position:relative;width:51px;height:31px}
+.ios-sw input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:1}
+.ios-sw i{position:absolute;inset:0;border-radius:16px;background:rgba(120,120,128,.16);transition:background .2s}
+.ios-sw i::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15),0 1px 1px rgba(0,0,0,.16);transition:transform .2s}
+.ios-sw input:checked+i{background:#34c759}.ios-sw input:checked+i::after{transform:translateX(20px)}
+.ios-sw input:focus-visible+i{outline:2px solid #0a84ff;outline-offset:2px}
+.ios-group{margin:0 0 8px}
+.ios-group>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer;background:#fff;border-radius:12px;min-height:46px;padding:0 14px;font-size:15px;box-shadow:0 0 0 .5px rgba(0,0,0,.06)}
+.ios-group>summary::-webkit-details-marker{display:none}
+.ios-group>summary span{flex:1}.ios-group>summary small{color:#8e8e93;font-size:14px}
+.ios-group>summary .ios-chev{transition:transform .2s}.ios-group[open]>summary .ios-chev{transform:rotate(90deg)}
+.ios-group[open]>summary{border-radius:12px 12px 0 0;box-shadow:0 0 0 .5px rgba(0,0,0,.06);position:relative}
+.ios-group[open]>summary::after{content:"";position:absolute;bottom:0;left:14px;right:0;height:.5px;background:rgba(60,60,67,.18)}
+.ios-group[open] .ios-card{border-radius:0 0 12px 12px}
+.ios-foot{position:relative;display:flex;gap:0}
+.ios-foot button{flex:1;border:0;background:#fff;color:#0a84ff;font:inherit;font-size:15px;padding:12px 8px;cursor:pointer}
+.ios-foot button+button{border-left:.5px solid rgba(60,60,67,.18)}
+.ios-seg{display:flex;gap:8px;margin:2px 0 10px}
+.ios-seg button{flex:1;white-space:nowrap;border:0;background:rgba(118,118,128,.12);color:#0a84ff;border-radius:10px;padding:9px 8px;font:inherit;font-size:14px;font-weight:500;cursor:pointer}
+.ios-wait .ios-tx,.ios-empty .ios-tx{color:#8e8e93;font-size:14px}
+.ios-spin{width:18px;height:18px;margin:0 6px;border-radius:50%;border:2px solid #d1d1d6;border-top-color:#8e8e93;animation:iosSpin .8s linear infinite}
+@keyframes iosSpin{to{transform:rotate(360deg)}}

@@ -74,21 +74,74 @@
     allStatus(`${got.length.toLocaleString("pl-PL")} punktów w widoku${got.length>ALLMAX?`, pokazano ${ALLMAX.toLocaleString("pl-PL")}; przybliż mapę`:""}. Stuknij punkt, aby zobaczyć szczegóły.`);
   }
   function scheduleAll(){clearTimeout(all.timer);all.timer=setTimeout(updateAll,200);}
+  // iOS-style panel: search field, grouped inset lists with network badges and switches, search results sorted by distance.
+  const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ł/g,"l");
+  const nameIndex=new Map();
+  async function namesAround(){
+    const c=map.getCenter(),key=Math.floor((c.lng-config.origin[0])/config.tile)+"_"+Math.floor((c.lat-config.origin[1])/config.tile);
+    if(!nameIndex.has(key))nameIndex.set(key,(async()=>{
+      const nets=config.networks.filter(n=>!n.id.startsWith("any_"));
+      const parts=await Promise.all(nets.map(async n=>{try{
+        const entry=n.ptiles?n.ptiles[key]:null;if(n.ptiles&&!entry)return [];
+        const pts=n.ptiles?model.parsePoi(await binary(`poi/${n.id}/t/${key}.bin`),entry[1]):model.parsePoi(await binary(`poi/${n.id}/all.bin`));
+        const path=n.ptiles?`poi/${n.id}/n/${key}.json`:`poi/${n.id}/names.json`;
+        const names=await fetch(DATA+path,{signal:AbortSignal.timeout(15000)}).then(r=>r.ok?r.json():[]).catch(()=>[]);
+        return pts.map(p=>{const name=typeof names[p.index]==="string"?names[p.index]:"";return {...p,name,f:fold(name+" "+n.label),n,tile:n.ptiles?key:""};});
+      }catch(e){return [];}}));
+      return parts.flat();
+    })());
+    while(nameIndex.size>4)nameIndex.delete(nameIndex.keys().next().value);
+    return nameIndex.get(key);
+  }
+  const fmtDist=m=>m<950?`${Math.round(m/10)*10} m`:`${(m/1000).toLocaleString("pl-PL",{maximumFractionDigits:1})} km`;
+  const badge=id=>`<img class="ios-badge" src="${esc(window.PoiIcons?.url?.(id)||"")}" alt="" loading="lazy">`;
   function allPanel(){
     const cats=config.categories.map(c=>({c,nets:config.networks.filter(n=>n.cat===c.id)})).filter(x=>x.nets.length);
     const el=document.createElement("div");el.id="poiLayers";el.className="layer-group";
-    el.innerHTML=`<h3>Usługi i miejsca</h3><div class="layer-entry" data-keywords="usługi miejsca poi obiekty punkty szkoły sklepy apteki przychodnie przystanki paczkomaty bankomaty kościoły place zabaw"><label class="sw"><input id="poiAll" type="checkbox" ${all.on?"checked":""}/><span></span><div>Usługi i miejsca na mapie<small>Wszystkie punkty z modułu odległości</small></div></label></div>
-      <div id="poiCats" class="poi-cats" ${all.on?"":"hidden"}>${cats.map(({c,nets})=>`<details class="poi-cat"><summary><span>${esc(c.label)}</span><small data-cat-count="${esc(c.id)}"></small></summary><div class="poi-nets">${nets.map(n=>`<label class="poi-chip"><input type="checkbox" data-net="${esc(n.id)}" ${all.sel.includes(n.id)?"checked":""}/><span>${esc(n.label)}</span></label>`).join("")}</div><div class="poi-acts"><button type="button" data-cat-all="${esc(c.id)}">Zaznacz grupę</button><button type="button" data-cat-none="${esc(c.id)}">Odznacz grupę</button></div></details>`).join("")}
-      <div class="poi-acts"><button type="button" data-poi-every>Zaznacz wszystkie</button><button type="button" data-poi-clear>Wyczyść</button></div><p id="poiStatus" class="source-note muted" role="status"></p></div>`;
+    const row=n=>`<label class="ios-row"><span class="ios-ic">${badge(n.id)}</span><span class="ios-tx">${esc(n.label)}</span><span class="ios-sw"><input type="checkbox" data-net="${esc(n.id)}" ${all.sel.includes(n.id)?"checked":""}><i></i></span></label>`;
+    el.innerHTML=`<h3>Usługi i miejsca</h3><div class="layer-entry" data-keywords="usługi miejsca poi obiekty punkty szkoły sklepy apteki przychodnie przystanki paczkomaty bankomaty kościoły place zabaw szukaj"><label class="sw"><input id="poiAll" type="checkbox" ${all.on?"checked":""}/><span></span><div>Usługi i miejsca na mapie<small>Wszystkie punkty z modułu odległości</small></div></label></div>
+      <div class="ios-search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input id="poiQ" type="search" enterkeyhint="search" autocomplete="off" placeholder="Szukaj: apteka, Biedronka, szkoła…" aria-label="Szukaj usług i miejsc"><button type="button" id="poiQx" class="ios-x" aria-label="Wyczyść" hidden>×</button></div>
+      <div id="poiRes" class="ios-res" hidden></div>
+      <div id="poiCats" ${all.on?"":"hidden"}>
+        <div class="ios-seg"><button type="button" data-poi-every>Wszystkie</button><button type="button" data-poi-clear>Wyczyść</button></div>
+        ${cats.map(({c,nets})=>`<details class="ios-group"><summary><span>${esc(c.label)}</span><small data-cat-count="${esc(c.id)}"></small>${window.Icons.svg("caret-right","ios-chev")}</summary><div class="ios-card">${nets.map(row).join("")}<div class="ios-foot"><button type="button" data-cat-all="${esc(c.id)}">Włącz całą grupę</button><button type="button" data-cat-none="${esc(c.id)}">Wyłącz grupę</button></div></div></details>`).join("")}
+      </div><p id="poiStatus" class="source-note muted" role="status"></p>`;
     container.after(el);
-    const counts=()=>cats.forEach(({c,nets})=>{const k=nets.filter(n=>all.sel.includes(n.id)).length;const s=el.querySelector(`[data-cat-count="${c.id}"]`);if(s)s.textContent=k?`${k} z ${nets.length}`:"";});
+    const counts=()=>cats.forEach(({c,nets})=>{const k=nets.filter(n=>all.sel.includes(n.id)).length;const s=el.querySelector(`[data-cat-count="${c.id}"]`);if(s)s.textContent=k?`${k} z ${nets.length}`:"Wyłączone";});
     const sync=()=>{el.querySelectorAll("[data-net]").forEach(i=>i.checked=all.sel.includes(i.dataset.net));counts();app.store.set("poiAll.sel",all.sel);scheduleAll();};
-    el.querySelector("#poiAll").onchange=e=>{all.on=e.target.checked;app.store.set("poiAll.on",all.on);el.querySelector("#poiCats").hidden=!all.on;if(all.on&&map.getZoom()<ALLZ)app.toast?.("Przybliż mapę, aby zobaczyć punkty");updateAll();};
-    el.querySelector("#poiCats").addEventListener("change",e=>{const id=e.target.dataset.net;if(!id)return;e.stopPropagation();all.sel=e.target.checked?[...new Set([...all.sel,id])]:all.sel.filter(x=>x!==id);sync();});
+    const master=el.querySelector("#poiAll");
+    const turnOn=()=>{if(!all.on){master.checked=true;master.dispatchEvent(new Event("change",{bubbles:true}));}};
+    master.onchange=e=>{all.on=e.target.checked;app.store.set("poiAll.on",all.on);el.querySelector("#poiCats").hidden=!all.on;if(all.on&&map.getZoom()<ALLZ)app.toast?.("Przybliż mapę, aby zobaczyć punkty");updateAll();};
+    el.addEventListener("change",e=>{const id=e.target.dataset?.net;if(!id)return;e.stopPropagation();all.sel=e.target.checked?[...new Set([...all.sel,id])]:all.sel.filter(x=>x!==id);if(e.target.checked)turnOn();sync();});
     el.querySelector("#poiCats").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
       const cat=b.dataset.catAll||b.dataset.catNone,ids=cat?config.networks.filter(n=>n.cat===cat).map(n=>n.id):config.networks.map(n=>n.id);
       all.sel=b.dataset.catAll||b.dataset.poiEvery!==undefined?[...new Set([...all.sel,...ids])]:all.sel.filter(x=>!ids.includes(x));sync();});
     counts();
+    // Search
+    const q=el.querySelector("#poiQ"),qx=el.querySelector("#poiQx"),res=el.querySelector("#poiRes");let qrev=0,qt=null,hits=[];
+    function show(net,p){
+      turnOn();if(!all.sel.includes(net.id)){all.sel=[...all.sel,net.id];sync();}
+      if(app.isMobile())app.closeLayers?.();
+      map.flyTo({center:[p.lon,p.lat],zoom:Math.max(map.getZoom(),16.5),duration:700});
+      map.once("moveend",()=>window.ServicePlaces?.open({network:net.id,index:p.index,tile:p.tile,type:p.type,lon:p.lon,lat:p.lat,name:p.name||""},net));
+    }
+    async function search(){
+      const run=++qrev,text=fold(q.value.trim());qx.hidden=!q.value;
+      if(text.length<2){res.hidden=true;res.innerHTML="";return;}
+      const words=text.split(/\s+/).filter(Boolean),c=map.getCenter(),here={lon:c.lng,lat:c.lat};
+      const catHit=config.networks.filter(n=>{const cat=config.categories.find(x=>x.id===n.cat);const f=fold(n.label+" "+(cat?.label||"")+" "+n.id.replace(/_/g," "));return words.every(w=>f.includes(w));}).slice(0,6);
+      res.hidden=false;
+      const catHtml=catHit.length?`<p class="ios-head">Kategorie</p><div class="ios-card">${catHit.map(row).join("")}</div>`:"";
+      res.innerHTML=catHtml+`<p class="ios-head">W pobliżu środka mapy</p><div class="ios-card"><div class="ios-row ios-wait"><span class="ios-spin"></span><span class="ios-tx">Szukam…</span></div></div>`;
+      const idx=await namesAround();if(run!==qrev)return;
+      hits=idx.filter(p=>words.every(w=>p.f.includes(w))).map(p=>({...p,d:metres(here,p)})).sort((a,b)=>a.d-b.d).slice(0,25);
+      const list=hits.length?hits.map((p,i)=>`<button type="button" class="ios-row ios-hit" data-hit="${i}"><span class="ios-ic">${badge(p.n.id)}</span><span class="ios-tx"><b>${esc(p.name||p.n.label)}</b><small>${esc(p.n.label)}</small></span><span class="ios-dist">${fmtDist(p.d)}</span>${window.Icons.svg("caret-right","ios-chev")}</button>`).join(""):`<div class="ios-row ios-empty"><span class="ios-tx">Brak wyników w tej okolicy. Przesuń mapę albo wpisz inną nazwę.</span></div>`;
+      res.innerHTML=catHtml+`<p class="ios-head">W pobliżu środka mapy</p><div class="ios-card">${list}</div>`;
+    }
+    q.addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(search,220);});
+    q.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();clearTimeout(qt);search().then(()=>{if(hits[0])show(hits[0].n,hits[0]);});}});
+    qx.onclick=()=>{q.value="";search();q.focus();};
+    res.addEventListener("click",e=>{const b=e.target.closest("[data-hit]");if(b){const p=hits[+b.dataset.hit];if(p)show(p.n,p);}});
   }
   const namesCache=new Map();
   async function nameFor(properties){const n=config.networks.find(n=>n.id===properties.network),tile=properties.tile,path=tile?`poi/${n.id}/n/${tile}.json`:`poi/${n.id}/names.json`;try{if(!namesCache.has(path))namesCache.set(path,fetch(DATA+path,{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error();return r.json();}).catch(e=>{namesCache.delete(path);throw e;}));const names=await namesCache.get(path);while(namesCache.size>24)namesCache.delete(namesCache.keys().next().value);return typeof names[properties.index]==="string"?names[properties.index]:n.label;}catch{return n.label;}}
