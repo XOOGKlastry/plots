@@ -1006,5 +1006,6 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .aq-row small b{font-weight:600}.aq-ok-t{color:#1f8a6d}.aq-mid-t{color:#8a6d00}.aq-warn-t{color:#b4610c}.aq-bad-t{color:#b52a1c}
 .gs-st{display:flex;align-items:center;gap:8px;font-weight:600}.gs-st i{width:12px;height:12px;border-radius:50%;flex:none}
 .gs-tab{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 4px;font-variant-numeric:tabular-nums}.gs-tab th{font-weight:500;color:#8e8e93;text-align:right;font-size:12px;padding:2px 4px}.gs-tab th:first-child,.gs-tab td:first-child{text-align:left}.gs-tab td{padding:5px 4px;border-top:.5px solid #e5e5ea;text-align:right}
+.ep-trend{display:block;width:100%;max-width:340px;height:auto;margin:4px 0 6px}.ep-trend rect{fill:#c92a2a;opacity:.75}.ep-trend text{font-size:10px;fill:#8e8e93}
 .gs-ok{color:#1f8a6d}.gs-warn{color:#b4610c}.gs-bad{color:#b52a1c}
 .gs-near .zas-chips span{font-size:12px}

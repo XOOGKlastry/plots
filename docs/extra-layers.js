@@ -65,6 +65,29 @@
         `<p class="muted small">Zakres i terminy prac PKP PLK: ${link("https://www.plk-inwestycje.pl/", "mapa inwestycji PKP PLK")}.</p>` };
   }
 
+  /* ---------- E-PRTR industrial sources ---------- */
+  const SEC = { 1: ["energetyka", "#c92a2a"], 2: ["produkcja i obróbka metali", "#4263eb"], 3: ["przemysł mineralny", "#868e96"], 4: ["przemysł chemiczny", "#ae3ec9"],
+    5: ["odpady i ścieki", "#2f9e44"], 6: ["papier i drewno", "#a9743f"], 7: ["hodowla zwierząt", "#f08c00"], 8: ["przetwórstwo spożywcze", "#e8590c"], 9: ["inna działalność", "#495057"] };
+  const EPOL = { co2: "dwutlenek węgla CO₂", nox: "tlenki azotu NOx", sox: "tlenki siarki SOx", pm10: "pył PM10", co: "tlenek węgla CO", nh3: "amoniak NH₃", ch4: "metan CH₄",
+    n2o: "podtlenek azotu N₂O", nmvoc: "lotne związki organiczne (NMVOC)", hg: "rtęć", benzen: "benzen", wwa: "WWA", dioksyny: "dioksyny i furany", hcl: "chlor (HCl)", hf: "fluor (HF)",
+    as: "arsen", cd: "kadm", pb: "ołów", zn: "cynk", ni: "nikiel", cr: "chrom", cu: "miedź", hfc: "HFC", hcfc: "HCFC", hcn: "cyjanowodór" };
+  const mass = kg => kg >= 1e9 ? `${fmt(kg / 1e9, 1)} mln t` : kg >= 1e6 ? `${fmt(kg / 1e6, kg >= 1e8 ? 0 : 1)} tys. t` : kg >= 1000 ? `${fmt(kg / 1000, kg >= 1e5 ? 0 : 1)} t` : kg >= 1 ? `${fmt(kg, kg >= 100 ? 0 : 1)} kg` : `${fmt(kg * 1000, 0)} g`;
+  function trendSvg(ser, y0) {
+    const v = ser.map(x => x == null ? null : x), max = Math.max(...v.filter(x => x != null)); if (!(max > 0)) return "";
+    const w = 260, h = 54, bw = w / v.length;
+    return `<svg class="ep-trend" viewBox="0 0 ${w} ${h + 14}" role="img" aria-label="Emisja w kolejnych latach">${v.map((x, i) => x == null ? "" : `<rect x="${(i * bw + 1).toFixed(1)}" y="${(h - x / max * h).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${Math.max(1, x / max * h).toFixed(1)}" rx="1.5"></rect>`).join("")}<text x="0" y="${h + 12}">${y0}</text><text x="${w}" y="${h + 12}" text-anchor="end">${y0 + v.length - 1}</text></svg>`;
+  }
+  function eprtrCard(p, d) {
+    const f = (d?.features || []).find(x => x.properties.id === p.id), q = f ? f.properties : p, sec = SEC[q.s] || SEC[9];
+    const e = J(q.e), t = J(q.t), y0 = d?.lata?.[0] || 2007;
+    const tk = ["co2", "nox", "pm10", "sox"].find(k => t[k]);
+    return { title: q.n, src: "EEA, Industrial Reporting under IED and E-PRTR, wersja 16 (luty 2026), licencja CC BY 4.0",
+      body: `<p class="gs-st"><i style="background:${sec[1]}"></i>${esc(sec[0])} · działalność ${esc(q.a)} wg załącznika I E-PRTR</p>` + row("Miejscowość", q.m) + row("Rok sprawozdania", q.y) +
+        (Object.keys(e).length ? `<table class="gs-tab"><thead><tr><th>Emisja do powietrza w ${q.y} r.</th><th>rocznie</th></tr></thead><tbody>${Object.entries(e).slice(0, 12).map(([k, v]) => `<tr><td>${esc(EPOL[k] || k)}</td><td><b>${esc(mass(v))}</b></td></tr>`).join("")}</tbody></table>` : "<p class=\"muted\">Zakład nie zgłosił emisji do powietrza powyżej progów.</p>") +
+        (tk ? `<p class="ext-sub"><b>${esc(EPOL[tk])} w latach ${y0}–${y0 + t[tk].length - 1}</b></p>${trendSvg(t[tk], y0)}` : "") +
+        `<p class="muted small">Dane podaje sam zakład, tylko dla substancji powyżej progów rozporządzenia E-PRTR. Mniejsze źródła, jak domowe piece i ruch drogowy, nie są tu ujęte.</p><p>${link("https://industry.eea.europa.eu/", "Europejski portal emisji przemysłowych (EEA)")}</p>` };
+  }
+
   const LAYERS = [
     { id: "gios", box: "airLayers", label: "Stacje pomiarowe GIOŚ", desc: "Pomiary 2025 na tle norm, link do bieżących danych", kw: "stacje pomiarowe gioś monitoring powietrza pomiary indeks jakości powietrza smog",
       icon: ["broadcast", "#34a383"], url: "data/gios/stacje.json", toGeo: stationsGeo,
@@ -72,6 +95,16 @@
         { id: "x-gios-lbl", type: "symbol", source: s, minzoom: 10, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#1f5d4c", "text-halo-color": "#fff", "text-halo-width": 1.5 } }],
       legend: () => legendRow([[ST_COL[1], "normy dotrzymane"], [ST_COL[2], "powyżej norm od 2030 r."], [ST_COL[3], "przekroczona norma"], [ST_COL[0], "bez rocznej serii"]]) + note("Kolor według średnich rocznych 2025 z pomiarów stacji. Źródło: GIOŚ, Państwowy Monitoring Środowiska (lista stacji z API PJP, statystyki roczne z Banku danych pomiarowych)."),
       card: (p, d) => ({ title: p.n, body: stationBody(p, d?.rok || 2025), src: "GIOŚ, Państwowy Monitoring Środowiska: lista stacji (API PJP), statystyki roczne 2025 (Bank danych pomiarowych), ocena roczna 2025 (modelowanie)" }) },
+    { id: "eprtr", box: "airLayers", label: "Duże źródła emisji (E-PRTR)", desc: "Elektrownie, huty, zakłady i fermy, emisje zgłoszone za 2024 r.", kw: "e-prtr eprtr emisje przemysłowe zakłady elektrownia huta ciepłownia ferma co2 pył tlenki azotu źródła zanieczyszczeń komin",
+      icon: ["factory", "#c92a2a"], url: "data/emisje/eprtr.geojson",
+      layers: s => {
+        const r = k => ["min", 26, ["+", 3, ["*", k, ["sqrt", ["max", ["get", "co2"], ["/", ["get", "nx"], 4000]]]]]];
+        return [{ id: "x-eprtr", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "s"], ...Object.entries(SEC).flatMap(([k, v]) => [+k, v[1]]), "#495057"], "circle-opacity": .78,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, r(.11), 10, r(.2), 14, r(.3)], "circle-stroke-color": "#fff", "circle-stroke-width": 1.3 } },
+        { id: "x-eprtr-lbl", type: "symbol", source: s, minzoom: 10, layout: { "text-field": ["get", "m"], "text-size": 10.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#5c1a1a", "text-halo-color": "#fff", "text-halo-width": 1.5 } }];
+      },
+      legend: () => legendRow(Object.values(SEC).map(([l, c]) => [c, l])) + note("Wielkość punktu według rocznej emisji CO₂ (gdy jej brak, według tlenków azotu). Ponad 680 zakładów, które zgłosiły emisje za lata 2022–2024. Źródło: Europejska Agencja Środowiska, Industrial Reporting (E-PRTR), wersja 16 z lutego 2026 r., CC BY 4.0."),
+      card: (p, d) => eprtrCard(p, d) },
     { id: "drogi", box: "transportLayers", label: "Inwestycje drogowe", desc: "Drogi w budowie i planowane, status GDDKiA", kw: "inwestycje drogowe budowa dróg gddkia autostrady drogi ekspresowe obwodnice planowane drogi w budowie przetarg przygotowanie s19 s10 s74",
       icon: ["road-horizon", "#d9480f"], url: "data/drogi/inwestycje.geojson", side: "data/drogi/gddkia.json",
       layers: s => [
