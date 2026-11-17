@@ -1,0 +1,741 @@
+{
+ "@context": {
+  "dcat": "http://www.w3.org/ns/dcat#",
+  "dct": "http://purl.org/dc/terms/",
+  "foaf": "http://xmlns.com/foaf/0.1/",
+  "xsd": "http://www.w3.org/2001/XMLSchema#",
+  "vcard": "http://www.w3.org/2006/vcard/ns#"
+ },
+ "@id": "https://xoogklastry.github.io/plots/data/katalog.jsonld",
+ "@type": "dcat:Catalog",
+ "dct:title": {
+  "@language": "pl",
+  "@value": "Plots: katalog danych"
+ },
+ "dct:description": {
+  "@language": "pl",
+  "@value": "Zbiory danych używane i publikowane przez aplikację Plots, z licencją, źródłem i datą każdego zbioru."
+ },
+ "dct:modified": {
+  "@type": "xsd:date",
+  "@value": "2026-11-17"
+ },
+ "dct:language": {
+  "@id": "http://publications.europa.eu/resource/authority/language/POL"
+ },
+ "foaf:homepage": {
+  "@id": "https://xoogklastry.github.io/plots/"
+ },
+ "dcat:dataset": [
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#gios-stacje",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "gios-stacje",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Stacje pomiarowe jakości powietrza"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Stacje Państwowego Monitoringu Środowiska z wynikami rocznymi 2025 (PM2,5, PM10, NO₂, benzo(a)piren, arsen, ozon, SO₂) i wartością z modelu w tym samym miejscu. Bieżący indeks nie jest kopiowany: API GIOŚ blokuje zapytania z innych stron, więc karta stacji odsyła do strony GIOŚ."
+   },
+   "dcat:theme": "Środowisko",
+   "dct:temporal": "pomiary 2025, lista stacji 17.11.2026",
+   "dct:accrualPeriodicity": "raz w roku (statystyki), lista stacji na bieżąco",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://powietrze.gios.gov.pl/pjp/content/api",
+     "dct:title": "GIOŚ, API PJP (lista stacji)"
+    },
+    {
+     "@id": "https://powietrze.gios.gov.pl/pjp/archives",
+     "dct:title": "GIOŚ, Bank danych pomiarowych (statystyki roczne)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/gios/stacje.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/gios/stacje.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#powietrze-model",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "powietrze-model",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Jakość powietrza: wyniki modelowania"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Roczne stężenia zanieczyszczeń w siatce około 1,5 km z rocznej oceny jakości powietrza."
+   },
+   "dcat:theme": "Środowisko",
+   "dct:temporal": "rok 2025",
+   "dct:accrualPeriodicity": "raz w roku",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://powietrze.gios.gov.pl",
+     "dct:title": "GIOŚ, roczna ocena jakości powietrza 2025 (modelowanie)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/zasoby/"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/zasoby/"
+     },
+     "dct:format": "PNG/BIN",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#wiatr-slonce",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "wiatr-slonce",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Zasoby wiatru i słońca"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Prędkość i gęstość mocy wiatru na 10–200 m, uzysk fotowoltaiki (PVOUT), nasłonecznienie (GHI) i temperatura w siatce 250 m."
+   },
+   "dcat:theme": "Energia",
+   "dct:temporal": "modele wieloletnie (GWA 3: 2008–2017, GSA 2: 1994–2018)",
+   "dct:accrualPeriodicity": "bez stałego cyklu",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://globalwindatlas.info",
+     "dct:title": "DTU i Bank Światowy, Global Wind Atlas 3"
+    },
+    {
+     "@id": "https://globalsolaratlas.info",
+     "dct:title": "Solargis i Bank Światowy, Global Solar Atlas 2"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl",
+    "dct:title": "CC BY 4.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/zasoby/"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/zasoby/"
+     },
+     "dct:format": "PNG/BIN",
+     "dct:license": {
+      "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#emisje-eprtr",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "emisje-eprtr",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Duże źródła emisji przemysłowych (E-PRTR)"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Zakłady w Polsce z emisjami do powietrza zgłoszonymi do europejskiego rejestru, z historią od 2007 r. Dane zgłaszają same zakłady i tylko powyżej progów rozporządzenia E-PRTR."
+   },
+   "dcat:theme": "Środowisko",
+   "dct:temporal": "lata 2007–2024 (wydanie z lutego 2026 r.)",
+   "dct:accrualPeriodicity": "raz w roku",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/657ac3cb-affa-4295-a4a9-27b4f539adab",
+     "dct:title": "Europejska Agencja Środowiska, Industrial Reporting under IED and E-PRTR, wersja 16"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl",
+    "dct:title": "CC BY 4.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/emisje/eprtr.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/emisje/eprtr.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#drogi-inwestycje",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "drogi-inwestycje",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Inwestycje drogowe"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Drogi w budowie i planowane (autostrady, ekspresowe, krajowe, wojewódzkie) ze statusem odcinków dróg krajowych. Przebieg z OpenStreetMap (ODbL). Rejestr GDDKiA nie ma geometrii, więc dołączamy z niego tylko status i odnośniki (informacja publiczna)."
+   },
+   "dcat:theme": "Transport",
+   "dct:temporal": "stan 17.11.2026",
+   "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://www.openstreetmap.org",
+     "dct:title": "OpenStreetMap (przebieg)"
+    },
+    {
+     "@id": "https://www.gov.pl/web/gddkia/mapa-stanu-budowy-drog",
+     "dct:title": "GDDKiA, Mapa Stanu Budowy Dróg (status, strony odcinków)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "dct:title": "ODbL 1.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/drogi/inwestycje.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/drogi/inwestycje.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    },
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/drogi/gddkia.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/drogi/gddkia.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#kolej-inwestycje",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "kolej-inwestycje",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Inwestycje kolejowe i kolej dużych prędkości"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Linie w budowie i planowane, nowe przystanki, projekty Programu Kolej Plus i orientacyjne przebiegi KDP. Mapy Port Polska (CPK) nie są kopiowane: ich warunki zabraniają powielania, aplikacja tylko do nich odsyła. Mapa inwestycji PKP PLK to kafle rastrowe bez danych wektorowych."
+   },
+   "dcat:theme": "Transport",
+   "dct:temporal": "stan 17.11.2026",
+   "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://www.openstreetmap.org",
+     "dct:title": "OpenStreetMap (przebieg)"
+    },
+    {
+     "@id": "https://www.plk-inwestycje.pl/projekty/program-kolej-plus/",
+     "dct:title": "PKP PLK, Program Kolej Plus (lista projektów)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "dct:title": "ODbL 1.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/kolej/inwestycje.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/kolej/inwestycje.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    },
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/kolej/kolejplus.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/kolej/kolejplus.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#drogi-decyzje",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "drogi-decyzje",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Decyzje na budowę dróg (ZRID i pozwolenia)"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Decyzje o zezwoleniu na realizację inwestycji drogowej i pozwolenia na budowę dróg wydane od 2023 r., punkt w środku działek z wniosku. Bez danych osobowych: rejestr nie zawiera inwestorów ani projektantów."
+   },
+   "dcat:theme": "Transport",
+   "dct:temporal": "decyzje do 3.11.2026",
+   "dct:accrualPeriodicity": "co tydzień w źródle",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://dane.gov.pl/pl/dataset/3467",
+     "dct:title": "GUNB, Rejestr Wniosków, Decyzji i Zgłoszeń (dane.gov.pl)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://creativecommons.org/publicdomain/zero/1.0/deed.pl",
+    "dct:title": "CC0 1.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/drogi/decyzje.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/drogi/decyzje.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://creativecommons.org/publicdomain/zero/1.0/deed.pl"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#halas",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "halas",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Hałas drogowy (LDWN, LN)"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Strategiczne mapy hałasu dróg krajowych, pokazywane przez serwer pośredniczący aplikacji, bez kopiowania danych."
+   },
+   "dcat:theme": "Transport",
+   "dct:temporal": "cykl 2022 (następny w 2027 r.)",
+   "dct:accrualPeriodicity": "co 5 lat",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://mapy.geoportal.gov.pl/wss/service/gddkia/mapaImisyjnaLDWN",
+     "dct:title": "GDDKiA, strategiczne mapy hałasu 2022 (usługa WMS w Geoportalu)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": []
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#czyste-powietrze",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "czyste-powietrze",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Czyste Powietrze w gminach"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Liczba wniosków w programie w 2025 r. oraz wnioski na 100 domów jednorodzinnych i na 1000 mieszkańców. Przejmujemy tylko liczby wniosków (informacja publiczna NFOŚiGW), bez opracowania graficznego PAS."
+   },
+   "dcat:theme": "Energia",
+   "dct:temporal": "rok 2025",
+   "dct:accrualPeriodicity": "raz w roku",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://polskialarmsmogowy.pl/2026/03/gminy-z-mazowsza-i-podlasia-liderami-czystego-powietrza-nowy-ranking-za-2025-rok/",
+     "dct:title": "Polski Alarm Smogowy, ranking gmin 2025 (dane NFOŚiGW z dostępu do informacji publicznej)"
+    },
+    {
+     "@id": "https://czystepowietrze.gov.pl/",
+     "dct:title": "NFOŚiGW, ranking gmin IV 2022 – XII 2023 (liczba domów jednorodzinnych)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#wskazniki-gmin",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "wskazniki-gmin",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Wskaźniki gmin spoza GUS"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Ponad 200 wskaźników: wybory, finanse, energia, wiatr i słońce, jakość powietrza, susza, powódź, planowanie, edukacja."
+   },
+   "dcat:theme": "Gminy",
+   "dct:temporal": "różne, rok podany przy wskaźniku",
+   "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://xoogklastry.github.io/plots/",
+     "dct:title": "Źródło podane przy każdym wskaźniku (PKW, MF, GIOŚ, GUNB, CKE, Wody Polskie, URE, KOWR, Eurostat i inne)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#gus",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "gus",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Dane GUS dla gmin"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Ludność, energia, mieszkania i inne zmienne z Banku Danych Lokalnych."
+   },
+   "dcat:theme": "Gminy",
+   "dct:temporal": "do 2025 r.",
+   "dct:accrualPeriodicity": "raz w roku",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://bdl.stat.gov.pl/bdl/start",
+     "dct:title": "GUS, Bank Danych Lokalnych (API)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl",
+    "dct:title": "CC BY 4.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/gus-energia.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/gus-energia.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl"
+     }
+    },
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/gus-population.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/gus-population.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#lotniska",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "lotniska",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Lotniska i orientacyjne strefy ograniczenia wysokości"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Lotniska, lądowiska i lądowiska śmigłowcowe oraz orientacyjny zasięg powierzchni ograniczających (ICAO, załącznik 14). Strefy są szacunkiem z długości drogi startowej. Wiążące powierzchnie określa rejestracja lotniska w ULC. Strefy przestrzeni powietrznej PAŻP (P, R, D, TSA) nie mają otwartego pliku danych, aplikacja odsyła do DroneMap i AIP."
+   },
+   "dcat:theme": "Transport",
+   "dct:temporal": "stan z dnia pobrania",
+   "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://www.openstreetmap.org",
+     "dct:title": "OpenStreetMap"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "dct:title": "ODbL 1.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/lotnictwo/lotniska.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/lotnictwo/lotniska.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    },
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/lotnictwo/strefy.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/lotnictwo/strefy.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#wojsko",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "wojsko",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Tereny wojskowe"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Tereny zamknięte, poligony, strzelnice i obszary niebezpieczne na lądzie."
+   },
+   "dcat:theme": "Planowanie",
+   "dct:temporal": "stan z dnia pobrania",
+   "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://www.openstreetmap.org",
+     "dct:title": "OpenStreetMap"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "dct:title": "ODbL 1.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/lotnictwo/wojsko.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/lotnictwo/wojsko.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#przesyl",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "przesyl",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Linie przesyłowe w budowie i planowane"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Linie 110 kV i wyższe oraz stacje w budowie lub planowane."
+   },
+   "dcat:theme": "Energia",
+   "dct:temporal": "stan z dnia pobrania",
+   "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-17"
+   },
+   "dct:source": [
+    {
+     "@id": "https://www.openstreetmap.org",
+     "dct:title": "OpenStreetMap"
+    },
+    {
+     "@id": "https://www.pse.pl",
+     "dct:title": "PSE, inwestycje (opis projektów)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "dct:title": "ODbL 1.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/przesyl/inwestycje.geojson"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/przesyl/inwestycje.geojson"
+     },
+     "dct:format": "GeoJSON",
+     "dct:license": {
+      "@id": "https://opendatacommons.org/licenses/odbl/1-0/"
+     }
+    }
+   ]
+  }
+ ],
+ "dcat:service": [
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#wms",
+   "@type": "dcat:DataService",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Usługa WMS: energetyka i OZE"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Przeglądanie map (OGC WMS 1.3.0, GetCapabilities i GetMap) w układach EPSG:2180, EPSG:3857, EPSG:4326. Warstwy: siec_wn i gpz (OpenStreetMap, ODbL), wiatr_dostepnosc i oze_miejsca (obliczenia własne, CC BY 4.0). Adres serwera zmienia się wraz z tunelem, aktualny podaje strona katalogu."
+   },
+   "dct:conformsTo": {
+    "@id": "https://www.opengeospatial.org/standards/wms"
+   },
+   "dcat:endpointDescription": "/wms?SERVICE=WMS&REQUEST=GetCapabilities"
+  }
+ ]
+}

@@ -1,0 +1,93 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Katalog danych · Plots</title><meta name="description" content="Zbiory danych aplikacji Plots: źródła, licencje i aktualność.">
+<link rel="alternate" type="application/ld+json" href="data/katalog.jsonld">
+<style>
+:root{color-scheme:light;--ink:#1c1c1e;--mute:#6e6e73;--line:#e5e5ea;--bg:#f2f2f7;--card:#fff;--acc:#0a84ff}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 48px} h1{font-size:28px;margin:8px 0 4px} .lead{color:var(--mute);margin:0 0 18px}
+.ds{background:var(--card);border-radius:14px;padding:14px 16px;margin:0 0 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)} .ds h2{font-size:18px;margin:0 0 4px} .ds p{margin:0 0 8px}
+dl{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;margin:0;font-size:14px} dt{color:var(--mute)} dd{margin:0;overflow-wrap:anywhere}
+a{color:var(--acc);text-decoration:none} .note{font-size:13px;color:var(--mute);border-top:.5px solid var(--line);padding-top:8px;margin-top:8px!important}
+code{font-size:12.5px;background:var(--bg);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere} h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);margin:22px 4px 8px}
+@media (max-width:520px){dl{grid-template-columns:1fr} dt{margin-top:4px}}
+</style></head><body><main>
+<p><a href="./">← Mapa</a></p><h1>Katalog danych</h1>
+<p class="lead">Skąd pochodzą dane w aplikacji, na jakiej licencji i z jakiego okresu. Opis maszynowy w standardzie DCAT-AP: <a href="data/katalog.jsonld">katalog.jsonld</a>. Stan na 2026-11-17.</p>
+<h3>Usługi</h3><article class="ds" id="wms"><h2>Usługa WMS: energetyka i OZE</h2><p>Przeglądanie map (OGC WMS 1.3.0, GetCapabilities i GetMap) w układach EPSG:2180, EPSG:3857, EPSG:4326. Warstwy: siec_wn i gpz (OpenStreetMap, ODbL), wiatr_dostepnosc i oze_miejsca (obliczenia własne, CC BY 4.0).</p><dl><dt>Adres</dt><dd><code data-wms="/wms">/wms</code></dd>
+<dt>Opis usługi</dt><dd><a data-wms-cap="/wms" href="#">GetCapabilities</a></dd></dl><p class="note">Adres zmienia się, gdy serwer dostaje nowy tunel. Aktualny adres jest wstawiany automatycznie. W QGIS: Warstwa, Dodaj warstwę WMS, wklej adres.</p></article><h3>Zbiory danych</h3><article class="ds" id="gios-stacje"><h2>Stacje pomiarowe jakości powietrza</h2><p>Stacje Państwowego Monitoringu Środowiska z wynikami rocznymi 2025 (PM2,5, PM10, NO₂, benzo(a)piren, arsen, ozon, SO₂) i wartością z modelu w tym samym miejscu.</p><dl>
+<dt>Źródło</dt><dd><a href="https://powietrze.gios.gov.pl/pjp/content/api" rel="noopener" target="_blank">GIOŚ, API PJP (lista stacji)</a><br><a href="https://powietrze.gios.gov.pl/pjp/archives" rel="noopener" target="_blank">GIOŚ, Bank danych pomiarowych (statystyki roczne)</a></dd>
+<dt>Licencja</dt><dd><a href="https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641" rel="noopener" target="_blank">Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła</a></dd>
+<dt>Stan danych</dt><dd>pomiary 2025, lista stacji 17.11.2026</dd><dt>Aktualizacja</dt><dd>raz w roku (statystyki), lista stacji na bieżąco</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/gios/stacje.json">stacje.json</a></dd>
+</dl><p class="note">Bieżący indeks nie jest kopiowany: API GIOŚ blokuje zapytania z innych stron, więc karta stacji odsyła do strony GIOŚ.</p></article><article class="ds" id="powietrze-model"><h2>Jakość powietrza: wyniki modelowania</h2><p>Roczne stężenia zanieczyszczeń w siatce około 1,5 km z rocznej oceny jakości powietrza.</p><dl>
+<dt>Źródło</dt><dd><a href="https://powietrze.gios.gov.pl" rel="noopener" target="_blank">GIOŚ, roczna ocena jakości powietrza 2025 (modelowanie)</a></dd>
+<dt>Licencja</dt><dd><a href="https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641" rel="noopener" target="_blank">Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła</a></dd>
+<dt>Stan danych</dt><dd>rok 2025</dd><dt>Aktualizacja</dt><dd>raz w roku</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/zasoby/">data/zasoby/</a></dd>
+</dl></article><article class="ds" id="wiatr-slonce"><h2>Zasoby wiatru i słońca</h2><p>Prędkość i gęstość mocy wiatru na 10–200 m, uzysk fotowoltaiki (PVOUT), nasłonecznienie (GHI) i temperatura w siatce 250 m.</p><dl>
+<dt>Źródło</dt><dd><a href="https://globalwindatlas.info" rel="noopener" target="_blank">DTU i Bank Światowy, Global Wind Atlas 3</a><br><a href="https://globalsolaratlas.info" rel="noopener" target="_blank">Solargis i Bank Światowy, Global Solar Atlas 2</a></dd>
+<dt>Licencja</dt><dd><a href="https://creativecommons.org/licenses/by/4.0/deed.pl" rel="noopener" target="_blank">CC BY 4.0</a></dd>
+<dt>Stan danych</dt><dd>modele wieloletnie (GWA 3: 2008–2017, GSA 2: 1994–2018)</dd><dt>Aktualizacja</dt><dd>bez stałego cyklu</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/zasoby/">data/zasoby/</a></dd>
+</dl></article><article class="ds" id="emisje-eprtr"><h2>Duże źródła emisji przemysłowych (E-PRTR)</h2><p>Zakłady w Polsce z emisjami do powietrza zgłoszonymi do europejskiego rejestru, z historią od 2007 r.</p><dl>
+<dt>Źródło</dt><dd><a href="https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/657ac3cb-affa-4295-a4a9-27b4f539adab" rel="noopener" target="_blank">Europejska Agencja Środowiska, Industrial Reporting under IED and E-PRTR, wersja 16</a></dd>
+<dt>Licencja</dt><dd><a href="https://creativecommons.org/licenses/by/4.0/deed.pl" rel="noopener" target="_blank">CC BY 4.0</a></dd>
+<dt>Stan danych</dt><dd>lata 2007–2024 (wydanie z lutego 2026 r.)</dd><dt>Aktualizacja</dt><dd>raz w roku</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/emisje/eprtr.geojson">eprtr.geojson</a></dd>
+</dl><p class="note">Dane zgłaszają same zakłady i tylko powyżej progów rozporządzenia E-PRTR.</p></article><article class="ds" id="drogi-inwestycje"><h2>Inwestycje drogowe</h2><p>Drogi w budowie i planowane (autostrady, ekspresowe, krajowe, wojewódzkie) ze statusem odcinków dróg krajowych.</p><dl>
+<dt>Źródło</dt><dd><a href="https://www.openstreetmap.org" rel="noopener" target="_blank">OpenStreetMap (przebieg)</a><br><a href="https://www.gov.pl/web/gddkia/mapa-stanu-budowy-drog" rel="noopener" target="_blank">GDDKiA, Mapa Stanu Budowy Dróg (status, strony odcinków)</a></dd>
+<dt>Licencja</dt><dd><a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener" target="_blank">ODbL 1.0</a></dd>
+<dt>Stan danych</dt><dd>stan 17.11.2026</dd><dt>Aktualizacja</dt><dd>przy każdej aktualizacji aplikacji</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/drogi/inwestycje.geojson">inwestycje.geojson</a> <a href="data/drogi/gddkia.json">gddkia.json</a></dd>
+</dl><p class="note">Przebieg z OpenStreetMap (ODbL). Rejestr GDDKiA nie ma geometrii, więc dołączamy z niego tylko status i odnośniki (informacja publiczna).</p></article><article class="ds" id="kolej-inwestycje"><h2>Inwestycje kolejowe i kolej dużych prędkości</h2><p>Linie w budowie i planowane, nowe przystanki, projekty Programu Kolej Plus i orientacyjne przebiegi KDP.</p><dl>
+<dt>Źródło</dt><dd><a href="https://www.openstreetmap.org" rel="noopener" target="_blank">OpenStreetMap (przebieg)</a><br><a href="https://www.plk-inwestycje.pl/projekty/program-kolej-plus/" rel="noopener" target="_blank">PKP PLK, Program Kolej Plus (lista projektów)</a></dd>
+<dt>Licencja</dt><dd><a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener" target="_blank">ODbL 1.0</a></dd>
+<dt>Stan danych</dt><dd>stan 17.11.2026</dd><dt>Aktualizacja</dt><dd>przy każdej aktualizacji aplikacji</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/kolej/inwestycje.geojson">inwestycje.geojson</a> <a href="data/kolej/kolejplus.json">kolejplus.json</a></dd>
+</dl><p class="note">Mapy Port Polska (CPK) nie są kopiowane: ich warunki zabraniają powielania, aplikacja tylko do nich odsyła. Mapa inwestycji PKP PLK to kafle rastrowe bez danych wektorowych.</p></article><article class="ds" id="drogi-decyzje"><h2>Decyzje na budowę dróg (ZRID i pozwolenia)</h2><p>Decyzje o zezwoleniu na realizację inwestycji drogowej i pozwolenia na budowę dróg wydane od 2023 r., punkt w środku działek z wniosku.</p><dl>
+<dt>Źródło</dt><dd><a href="https://dane.gov.pl/pl/dataset/3467" rel="noopener" target="_blank">GUNB, Rejestr Wniosków, Decyzji i Zgłoszeń (dane.gov.pl)</a></dd>
+<dt>Licencja</dt><dd><a href="https://creativecommons.org/publicdomain/zero/1.0/deed.pl" rel="noopener" target="_blank">CC0 1.0</a></dd>
+<dt>Stan danych</dt><dd>decyzje do 3.11.2026</dd><dt>Aktualizacja</dt><dd>co tydzień w źródle</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/drogi/decyzje.geojson">decyzje.geojson</a></dd>
+</dl><p class="note">Bez danych osobowych: rejestr nie zawiera inwestorów ani projektantów.</p></article><article class="ds" id="halas"><h2>Hałas drogowy (LDWN, LN)</h2><p>Strategiczne mapy hałasu dróg krajowych, pokazywane przez serwer pośredniczący aplikacji, bez kopiowania danych.</p><dl>
+<dt>Źródło</dt><dd><a href="https://mapy.geoportal.gov.pl/wss/service/gddkia/mapaImisyjnaLDWN" rel="noopener" target="_blank">GDDKiA, strategiczne mapy hałasu 2022 (usługa WMS w Geoportalu)</a></dd>
+<dt>Licencja</dt><dd><a href="https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641" rel="noopener" target="_blank">Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła</a></dd>
+<dt>Stan danych</dt><dd>cykl 2022 (następny w 2027 r.)</dd><dt>Aktualizacja</dt><dd>co 5 lat</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+
+</dl></article><article class="ds" id="czyste-powietrze"><h2>Czyste Powietrze w gminach</h2><p>Liczba wniosków w programie w 2025 r. oraz wnioski na 100 domów jednorodzinnych i na 1000 mieszkańców.</p><dl>
+<dt>Źródło</dt><dd><a href="https://polskialarmsmogowy.pl/2026/03/gminy-z-mazowsza-i-podlasia-liderami-czystego-powietrza-nowy-ranking-za-2025-rok/" rel="noopener" target="_blank">Polski Alarm Smogowy, ranking gmin 2025 (dane NFOŚiGW z dostępu do informacji publicznej)</a><br><a href="https://czystepowietrze.gov.pl/" rel="noopener" target="_blank">NFOŚiGW, ranking gmin IV 2022 – XII 2023 (liczba domów jednorodzinnych)</a></dd>
+<dt>Licencja</dt><dd><a href="https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641" rel="noopener" target="_blank">Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła</a></dd>
+<dt>Stan danych</dt><dd>rok 2025</dd><dt>Aktualizacja</dt><dd>raz w roku</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/wskazniki-inne.json">wskazniki-inne.json</a></dd>
+</dl><p class="note">Przejmujemy tylko liczby wniosków (informacja publiczna NFOŚiGW), bez opracowania graficznego PAS.</p></article><article class="ds" id="wskazniki-gmin"><h2>Wskaźniki gmin spoza GUS</h2><p>Ponad 200 wskaźników: wybory, finanse, energia, wiatr i słońce, jakość powietrza, susza, powódź, planowanie, edukacja.</p><dl>
+<dt>Źródło</dt><dd><a href="https://xoogklastry.github.io/plots/" rel="noopener" target="_blank">Źródło podane przy każdym wskaźniku (PKW, MF, GIOŚ, GUNB, CKE, Wody Polskie, URE, KOWR, Eurostat i inne)</a></dd>
+<dt>Licencja</dt><dd><a href="https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641" rel="noopener" target="_blank">Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła</a></dd>
+<dt>Stan danych</dt><dd>różne, rok podany przy wskaźniku</dd><dt>Aktualizacja</dt><dd>przy każdej aktualizacji aplikacji</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/wskazniki-inne.json">wskazniki-inne.json</a></dd>
+</dl></article><article class="ds" id="gus"><h2>Dane GUS dla gmin</h2><p>Ludność, energia, mieszkania i inne zmienne z Banku Danych Lokalnych.</p><dl>
+<dt>Źródło</dt><dd><a href="https://bdl.stat.gov.pl/bdl/start" rel="noopener" target="_blank">GUS, Bank Danych Lokalnych (API)</a></dd>
+<dt>Licencja</dt><dd><a href="https://creativecommons.org/licenses/by/4.0/deed.pl" rel="noopener" target="_blank">CC BY 4.0</a></dd>
+<dt>Stan danych</dt><dd>do 2025 r.</dd><dt>Aktualizacja</dt><dd>raz w roku</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/gus-energia.json">gus-energia.json</a> <a href="data/gus-population.json">gus-population.json</a></dd>
+</dl></article><article class="ds" id="lotniska"><h2>Lotniska i orientacyjne strefy ograniczenia wysokości</h2><p>Lotniska, lądowiska i lądowiska śmigłowcowe oraz orientacyjny zasięg powierzchni ograniczających (ICAO, załącznik 14).</p><dl>
+<dt>Źródło</dt><dd><a href="https://www.openstreetmap.org" rel="noopener" target="_blank">OpenStreetMap</a></dd>
+<dt>Licencja</dt><dd><a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener" target="_blank">ODbL 1.0</a></dd>
+<dt>Stan danych</dt><dd>stan z dnia pobrania</dd><dt>Aktualizacja</dt><dd>przy każdej aktualizacji aplikacji</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/lotnictwo/lotniska.geojson">lotniska.geojson</a> <a href="data/lotnictwo/strefy.geojson">strefy.geojson</a></dd>
+</dl><p class="note">Strefy są szacunkiem z długości drogi startowej. Wiążące powierzchnie określa rejestracja lotniska w ULC. Strefy przestrzeni powietrznej PAŻP (P, R, D, TSA) nie mają otwartego pliku danych, aplikacja odsyła do DroneMap i AIP.</p></article><article class="ds" id="wojsko"><h2>Tereny wojskowe</h2><p>Tereny zamknięte, poligony, strzelnice i obszary niebezpieczne na lądzie.</p><dl>
+<dt>Źródło</dt><dd><a href="https://www.openstreetmap.org" rel="noopener" target="_blank">OpenStreetMap</a></dd>
+<dt>Licencja</dt><dd><a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener" target="_blank">ODbL 1.0</a></dd>
+<dt>Stan danych</dt><dd>stan z dnia pobrania</dd><dt>Aktualizacja</dt><dd>przy każdej aktualizacji aplikacji</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/lotnictwo/wojsko.geojson">wojsko.geojson</a></dd>
+</dl></article><article class="ds" id="przesyl"><h2>Linie przesyłowe w budowie i planowane</h2><p>Linie 110 kV i wyższe oraz stacje w budowie lub planowane.</p><dl>
+<dt>Źródło</dt><dd><a href="https://www.openstreetmap.org" rel="noopener" target="_blank">OpenStreetMap</a><br><a href="https://www.pse.pl" rel="noopener" target="_blank">PSE, inwestycje (opis projektów)</a></dd>
+<dt>Licencja</dt><dd><a href="https://opendatacommons.org/licenses/odbl/1-0/" rel="noopener" target="_blank">ODbL 1.0</a></dd>
+<dt>Stan danych</dt><dd>stan z dnia pobrania</dd><dt>Aktualizacja</dt><dd>przy każdej aktualizacji aplikacji</dd><dt>Sprawdzono</dt><dd>2026-11-17</dd>
+<dt>Pliki</dt><dd><a href="data/przesyl/inwestycje.geojson">inwestycje.geojson</a></dd>
+</dl></article>
+<p class="note">Dane z OpenStreetMap: © współtwórcy OpenStreetMap, licencja ODbL. Nie publikujemy danych osobowych z rejestrów (wnioskodawców, inwestorów, projektantów).</p>
+</main><script src="config.js"></script><script>
+(function(){var q=new URLSearchParams(location.search).get("tiles"),b=(q||(window.PLOTS_CONFIG||{}).TILES_URL||"").replace(/\/$/,"");if(!b)return;
+document.querySelectorAll("[data-wms]").forEach(function(e){e.textContent=b+e.getAttribute("data-wms")});
+document.querySelectorAll("[data-wms-cap]").forEach(function(e){e.href=b+e.getAttribute("data-wms-cap")+"?SERVICE=WMS&REQUEST=GetCapabilities";e.target="_blank";e.rel="noopener"});})();
+</script></body></html>

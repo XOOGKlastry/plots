@@ -55,6 +55,11 @@ class Pool:
             yield c
 POOL = Pool()
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wms as _wms  # OGC WMS 1.3.0 at /wms (layers with open licences only)
+_wms.register(app, POOL)
+
 @app.after_request
 def after(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"

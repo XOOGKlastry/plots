@@ -136,6 +136,27 @@
         `<p class="muted small">Dane podaje sam zakład, tylko dla substancji powyżej progów rozporządzenia E-PRTR. Mniejsze źródła, jak domowe piece i ruch drogowy, nie są tu ujęte.</p><p>${link("https://industry.eea.europa.eu/", "Europejski portal emisji przemysłowych (EEA)")}</p>` };
   }
 
+  /* ---------- airports, military areas, transmission investments ---------- */
+  const AERO = { p: ["port lotniczy", "#1c7ed6"], a: ["lotnisko", "#4dabf7"], w: ["lotnisko wojskowe", "#495057"], l: ["lądowisko lub lotnisko bez kodu ICAO", "#91a7ff"], h: ["lądowisko dla śmigłowców", "#ae3ec9"] };
+  const LAW_H = "Obiekty o wysokości od 50 do 100 m zgłasza się Ministrowi Obrony Narodowej najpóźniej 2 miesiące przed osiągnięciem 50 m (Prawo lotnicze, art. 87¹a). Obiekty od 100 m wzwyż są przeszkodami lotniczymi w całym kraju, a w pobliżu lotnisk także niższe obiekty w powierzchniach ograniczających (art. 87).";
+  async function lotFetch() {
+    const get = u => fetch(u).then(r => { if (!r.ok) throw Error(r.status); return r.json(); });
+    const [a, z] = await Promise.all([get("data/lotnictwo/lotniska.geojson"), get("data/lotnictwo/strefy.geojson")]);
+    return { type: "FeatureCollection", osm: a.osm, features: [...z.features.map(f => ({ ...f, properties: { ...f.properties, src: "s" } })), ...a.features.map(f => ({ ...f, properties: { ...f.properties, src: "a" } }))] };
+  }
+  const aeroLinks = `<p>${link("https://dronemap.pansa.pl", "Strefy w przestrzeni powietrznej: DroneMap PAŻP")} · ${link("https://www.ais.pansa.pl/publikacje/aip-polska/", "AIP Polska")} · ${link("https://ulc.gov.pl/pl/lotniska-i-infrastruktura", "lotniska w ULC")}</p>`;
+  function lotCard(p) {
+    if (p.src === "s") return { title: `${p.n || p.icao}: ${p.s === "i" ? "pozioma powierzchnia ograniczająca" : "stożkowa powierzchnia ograniczająca"} (szacunek)`, src: "Szacunek według ICAO, załącznik 14, z drogi startowej w OpenStreetMap",
+      body: `<p class="gs-st"><i style="background:${p.s === "i" ? "#e03131" : "#f08c00"}"></i>${p.s === "i" ? `Zabudowa do około ${p.h} m nad poziomem lotniska` : `Dopuszczalna wysokość rośnie od 45 do około ${p.h} m nad poziomem lotniska`}</p>
+        <p>Szacunek dla drogi startowej kodu ${p.cd}. Wysokości liczy się od poziomu lotniska, nie od terenu działki. Wiążące powierzchnie i ograniczenia wysokości podaje zarządzający lotniskiem i Urząd Lotnictwa Cywilnego, a dla lotnisk wojskowych organ wojskowy.</p><p class="muted small">${esc(LAW_H)}</p>` + aeroLinks };
+    const t = AERO[p.k] || AERO.l;
+    return { title: p.n || t[0], src: "OpenStreetMap (współtwórcy OpenStreetMap, ODbL)",
+      body: `<p class="gs-st"><i style="background:${t[1]}"></i>${esc(t[0])}</p>` + row("Kod ICAO", p.icao) + row("Kod IATA", p.iata) + row("Najdłuższa droga startowa", p.rw ? `${fmt(p.rw, 0)} m${p.tw ? ", utwardzona" : ""}` : "") + row("Zarządzający", p.op) +
+        (p.www ? `<p>${link(p.www, "Strona lotniska")}</p>` : "") + `<p class="muted small">${esc(LAW_H)}</p>` + aeroLinks };
+  }
+  const MIL = { t: ["teren wojskowy", "#868e96"], p: ["poligon lub strzelnica", "#e8590c"], c: ["teren ćwiczeń", "#f59f00"], l: ["lotnisko wojskowe", "#495057"], b: ["baza wojskowa", "#5c7cfa"], n: ["obszar niebezpieczny", "#e03131"] };
+  const PSE_COL = { b: "#c2255c", p: "#f783ac" };
+
   const LAYERS = [
     { id: "gios", box: "airLayers", label: "Stacje pomiarowe GIOŚ", desc: "Pomiary 2025 na tle norm, link do bieżących danych", kw: "stacje pomiarowe gioś monitoring powietrza pomiary indeks jakości powietrza smog",
       icon: ["broadcast", "#34a383"], url: "data/gios/stacje.json", toGeo: stationsGeo,
@@ -163,6 +184,37 @@
       legend: mdLegend,
       legendInit: box => { const r = box.querySelector("#md-range"); if (r) r.oninput = () => mdApply(+r.value); mdApply(mdYear); },
       card: (p, d, f, side) => p.src === "z" ? zridCard(p) : p.src === "k" ? railCard(p, d, sideData["mapa-drogowa-k"]) : roadCard(p, d, side) },
+    { id: "lotniska", box: "limitLayers", label: "Lotniska i ograniczenia wysokości", desc: "Lotniska, lądowiska i orientacyjne strefy wokół dróg startowych", kw: "lotnisko lotniska lądowisko port lotniczy ograniczenie wysokości przeszkody lotnicze powierzchnie ograniczające wiatrak komin maszt ulc",
+      icon: ["airplane-tilt", "#1c7ed6"], url: "lotniska", fetch: lotFetch, fillClick: true,
+      layers: s => [
+        { id: "x-lot-c", type: "fill", source: s, filter: ["all", ["==", ["get", "src"], "s"], ["==", ["get", "s"], "c"]], paint: { "fill-color": "#f08c00", "fill-opacity": .12 } },
+        { id: "x-lot-i", type: "fill", source: s, filter: ["all", ["==", ["get", "src"], "s"], ["==", ["get", "s"], "i"]], paint: { "fill-color": "#e03131", "fill-opacity": .13 } },
+        { id: "x-lot-ol", type: "line", source: s, filter: ["==", ["get", "src"], "s"], paint: { "line-color": ["match", ["get", "s"], "i", "#e03131", "#f08c00"], "line-width": 1, "line-dasharray": [2, 2], "line-opacity": .7 }, noClick: true },
+        { id: "x-lot-a", type: "circle", source: s, filter: ["==", ["get", "src"], "a"], paint: { "circle-color": ["match", ["get", "k"], ...Object.entries(AERO).flatMap(([k, v]) => [k, v[1]]), "#91a7ff"],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "k"], "p", 6, "a", 4.5, "w", 4.5, 3], 12, ["match", ["get", "k"], "p", 11, 8]], "circle-stroke-color": "#fff", "circle-stroke-width": 2 } },
+        { id: "x-lot-lbl", type: "symbol", source: s, minzoom: 8, filter: ["==", ["get", "src"], "a"], layout: { "text-field": ["coalesce", ["get", "n"], ""], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#164a7a", "text-halo-color": "#fff", "text-halo-width": 1.5 } }],
+      legend: () => legendRow(Object.values(AERO).map(([l, c]) => [c, l])) + legendRow([["#e03131", "pozioma powierzchnia (około 45 m nad lotniskiem)", "box"], ["#f08c00", "powierzchnia stożkowa (do 100 m)", "box"]]) +
+        note("Strefy są szacunkiem według ICAO (załącznik 14) z długości drogi startowej, tylko dla lotnisk z kodem ICAO. Wiążące są powierzchnie ograniczające z rejestracji lotniska w ULC. Strefy przestrzeni powietrznej (zakazane, ograniczone, niebezpieczne, TSA) publikuje PAŻP na mapie DroneMap i w AIP, bez otwartego pliku danych. Źródło lotnisk: OpenStreetMap.") + aeroLinks,
+      card: p => lotCard(p) },
+    { id: "wojsko", box: "limitLayers", label: "Tereny wojskowe", desc: "Tereny zamknięte, poligony, strzelnice, lotniska wojskowe", kw: "teren wojskowy wojsko poligon strzelnica teren zamknięty jednostka wojskowa baza obszar niebezpieczny",
+      icon: ["shield-warning", "#495057"], url: "data/lotnictwo/wojsko.geojson", fillClick: true,
+      layers: s => [
+        { id: "x-woj-f", type: "fill", source: s, paint: { "fill-color": ["match", ["get", "k"], ...Object.entries(MIL).flatMap(([k, v]) => [k, v[1]]), "#868e96"], "fill-opacity": .22 } },
+        { id: "x-woj-l", type: "line", source: s, paint: { "line-color": ["match", ["get", "k"], ...Object.entries(MIL).flatMap(([k, v]) => [k, v[1]]), "#868e96"], "line-width": ["interpolate", ["linear"], ["zoom"], 6, .6, 13, 2], "line-dasharray": [3, 1.5] }, noClick: true }],
+      legend: () => legendRow(Object.values(MIL).map(([l, c]) => [c, l, "box"])) + note("Obszary co najmniej 2 ha według OpenStreetMap. Granice terenów zamkniętych ustala Minister Obrony Narodowej, a wiążące dane ma starostwo (ewidencja gruntów i budynków). Na terenie zamkniętym plan ogólny i plan miejscowy nie obowiązują."),
+      card: p => { const t = MIL[p.k] || MIL.t; return { title: p.n || t[0], src: "OpenStreetMap (współtwórcy OpenStreetMap, ODbL)",
+        body: `<p class="gs-st"><i style="background:${t[1]}"></i>${esc(t[0])}</p>` + row("Powierzchnia", p.ha ? `${fmt(p.ha, 0)} ha` : "") +
+          `<p class="muted small">Granice według OpenStreetMap są orientacyjne. Czy działka leży na terenie zamkniętym, potwierdza wypis z ewidencji gruntów w starostwie. Budowa w sąsiedztwie poligonu może wymagać uzgodnienia z organem wojskowym.</p>` }; } },
+    { id: "przesyl", box: "limitLayers", label: "Linie przesyłowe w budowie", desc: "Linie 110 kV i wyższe oraz stacje w budowie lub planowane", kw: "linie przesyłowe pse budowa linii 400 kv 220 kv 110 kv planowana linia stacja elektroenergetyczna przesył energii",
+      icon: ["lightning", "#c2255c"], url: "data/przesyl/inwestycje.geojson",
+      layers: s => [
+        { id: "x-pse-p", type: "line", source: s, filter: ["all", ["==", ["get", "k"], "p"], ["!=", ["get", "c"], "st"]], layout: { "line-cap": "round" }, paint: { "line-color": PSE_COL.p, "line-dasharray": [1.6, 1.4], "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.4, 12, 4] } },
+        { id: "x-pse-b", type: "line", source: s, filter: ["all", ["==", ["get", "k"], "b"], ["!=", ["get", "c"], "st"]], layout: { "line-cap": "round" }, paint: { "line-color": PSE_COL.b, "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", [">=", ["get", "v"], 220], 2.2, 1.4], 12, ["case", [">=", ["get", "v"], 220], 5, 3.5]] } },
+        { id: "x-pse-st", type: "circle", source: s, filter: ["==", ["get", "c"], "st"], paint: { "circle-color": "#fff", "circle-stroke-color": ["match", ["get", "k"], "b", PSE_COL.b, PSE_COL.p], "circle-stroke-width": 2.5, "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 12, 7] } }],
+      legend: () => legendRow([[PSE_COL.b, "w budowie", "line"], [PSE_COL.p, "planowana", "dash"], ["#fff", "nowa stacja"]]) + note("Linie 110 kV i wyższe oznaczone w OpenStreetMap jako budowane lub planowane, przebieg orientacyjny. Zakres i terminy inwestycji podaje PSE (linie 220 i 400 kV) i operator sieci dystrybucyjnej (110 kV).") + `<p class="small">${link("https://www.pse.pl/inwestycje", "Inwestycje PSE")}</p>`,
+      card: (p, d) => ({ title: p.n || (p.c === "st" ? "Nowa stacja elektroenergetyczna" : `Linia ${p.v ? p.v + " kV" : "wysokiego napięcia"}`), src: `OpenStreetMap (stan ${d?.osm || ""}, ODbL)`,
+        body: `<p class="gs-st"><i style="background:${PSE_COL[p.k]}"></i>${p.k === "b" ? "W budowie" : "Planowana"}${p.c === "kab" ? " · linia kablowa" : ""}</p>` + row("Napięcie", p.v ? `${p.v} kV` : "") + row("Operator", p.op) +
+          `<p class="muted small">Przebieg z OpenStreetMap jest orientacyjny. Pas technologiczny linii ogranicza zabudowę, jego szerokość podaje operator.</p><p>${link("https://www.pse.pl/inwestycje", "Inwestycje PSE")}</p>` }) },
     { id: "drogi", box: "transportLayers", label: "Inwestycje drogowe", desc: "Drogi w budowie i planowane, status GDDKiA", kw: "inwestycje drogowe budowa dróg gddkia autostrady drogi ekspresowe obwodnice planowane drogi w budowie przetarg przygotowanie s19 s10 s74",
       icon: ["road-horizon", "#d9480f"], url: "data/drogi/inwestycje.geojson", side: "data/drogi/gddkia.json",
       layers: s => [
@@ -269,9 +321,12 @@
     const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
     for (const L of LAYERS) {
       if (!added.has(L.id) || !L.card) continue;
-      const ids = L.layers("x-" + L.id).filter(s => s.type !== "symbol" && s.type !== "raster" && (s.type !== "fill" || L.fillClick) && !s.noClick).map(s => s.id).filter(vis);
-      if (!ids.length) continue;
-      const hits = map.queryRenderedFeatures(L.fillClick ? e.point : box, { layers: ids });
+      const specs = L.layers("x-" + L.id).filter(s => s.type !== "symbol" && s.type !== "raster" && (s.type !== "fill" || L.fillClick) && !s.noClick && vis(s.id));
+      if (!specs.length) continue;
+      // points and lines get a finger-sized box; areas only the exact point, so a point inside an area wins
+      const near = specs.filter(s => s.type !== "fill").map(s => s.id), areas = specs.filter(s => s.type === "fill").map(s => s.id);
+      let hits = near.length ? map.queryRenderedFeatures(box, { layers: near }) : [];
+      if (!hits.length && areas.length) hits = map.queryRenderedFeatures(e.point, { layers: areas });
       if (!hits.length) continue;
       const pick = hits.map(f => { const g = f.geometry, c = g.type === "Point" ? g.coordinates : [e.lngLat.lng, e.lngLat.lat], q = map.project(c); return [Math.hypot(q.x - e.point.x, q.y - e.point.y), f, c]; }).sort((a, b) => a[0] - b[0])[0];
       if (card(L, pick[1], pick[2])) return true;
