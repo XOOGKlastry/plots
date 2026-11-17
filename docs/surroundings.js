@@ -4,6 +4,8 @@
   const DATA="https://xoogklastry.github.io/jakdaleko/",container=document.getElementById("surroundingsLayers");
   const cache=new Map(),pending=new Map();let config=null,configError=null,revision=0,priceRevision=0,selectionRevision=0,timer=null;
   const state={network:app.store.get("surroundings.network","poz"),poi:app.store.get("surroundings.poi",false),prices:app.store.get("surroundings.prices",false)};
+  // "Usługi i miejsca na mapie": every point of the distance module, any categories at once, without opening the module.
+  const all={on:app.store.get("poiAll.on",false),sel:app.store.get("poiAll.sel",null),rev:0,timer:null};
   const collection=features=>({type:"FeatureCollection",features});
   async function binary(path){if(cache.has(path))return cache.get(path);if(!pending.has(path))pending.set(path,fetch(DATA+path,{signal:AbortSignal.timeout(20000)}).then(r=>{if(!r.ok)throw Error("Nie udało się pobrać danych otoczenia");return r.arrayBuffer();}).then(b=>{cache.set(path,b);while(cache.size>32)cache.delete(cache.keys().next().value);return b;}).finally(()=>pending.delete(path)));return pending.get(path);}
   const net=()=>config.networks.find(n=>n.id===state.network);
@@ -12,7 +14,7 @@
   function status(text){document.getElementById("surroundingsStatus").textContent=text;}
   function source(id){return map.getSource(id);}
   function save(){Object.entries(state).forEach(([key,value])=>app.store.set("surroundings."+key,value));}
-  document.addEventListener("plots:mode",()=>update());
+  document.addEventListener("plots:mode",()=>{update();scheduleAll();});
   async function update(){
     if(!map.getSource("near-poi"))return;
     if(!config||!source("near-poi"))return;
@@ -50,6 +52,44 @@
     document.getElementById("priceLegend").hidden=!state.prices;
   }
   function remember(){save();container.dispatchEvent(new Event("change",{bubbles:true}));}
+  const ALLZ=13,ALLMAX=8000;
+  function allStatus(t){const el=document.getElementById("poiStatus");if(el)el.textContent=t;}
+  async function updateAll(){
+    const src=map.getSource("poi-all");if(!src||!config)return;
+    const run=++all.rev;
+    if(!all.on||document.body.classList.contains("distance-mode")){src.setData(collection([]));allStatus(all.on?"W module odległości widać punkty wybranej tam kategorii.":"");return;}
+    const sel=config.networks.filter(n=>all.sel.includes(n.id));
+    if(!sel.length){src.setData(collection([]));allStatus("Wybierz co najmniej jedną kategorię.");return;}
+    if(map.getZoom()<ALLZ){src.setData(collection([]));allStatus("Przybliż mapę, aby zobaczyć punkty.");return;}
+    const bounds=map.getBounds(),keys=tiles(bounds);if(!keys.length){allStatus("Przybliż mapę.");return;}
+    allStatus("Wczytuję punkty…");
+    const loads=sel.map(async n=>{try{
+      if(n.ptiles){const out=[];for(const tile of keys){const entry=n.ptiles[tile];if(!entry)continue;out.push(...model.parsePoi(await binary(`poi/${n.id}/t/${tile}.bin`),entry[1]).filter(p=>inView(p,bounds)).map(p=>({p,tile,n})));}return out;}
+      return model.parsePoi(await binary(`poi/${n.id}/all.bin`)).filter(p=>inView(p,bounds)).map(p=>({p,tile:"",n}));
+    }catch(e){return [];}});
+    const got=(await Promise.all(loads)).flat();
+    if(run!==all.rev)return;
+    const feats=got.slice(0,ALLMAX).map(({p,tile,n})=>({type:"Feature",geometry:{type:"Point",coordinates:[p.lon,p.lat]},properties:{network:n.id,index:p.index,tile,type:p.type}}));
+    src.setData(collection(feats));
+    allStatus(`${got.length.toLocaleString("pl-PL")} punktów w widoku${got.length>ALLMAX?`, pokazano ${ALLMAX.toLocaleString("pl-PL")}; przybliż mapę`:""}. Stuknij punkt, aby zobaczyć szczegóły.`);
+  }
+  function scheduleAll(){clearTimeout(all.timer);all.timer=setTimeout(updateAll,200);}
+  function allPanel(){
+    const cats=config.categories.map(c=>({c,nets:config.networks.filter(n=>n.cat===c.id)})).filter(x=>x.nets.length);
+    const el=document.createElement("div");el.id="poiLayers";el.className="layer-group";
+    el.innerHTML=`<h3>Usługi i miejsca</h3><div class="layer-entry" data-keywords="usługi miejsca poi obiekty punkty szkoły sklepy apteki przychodnie przystanki paczkomaty bankomaty kościoły place zabaw"><label class="sw"><input id="poiAll" type="checkbox" ${all.on?"checked":""}/><span></span><div>Usługi i miejsca na mapie<small>Wszystkie punkty z modułu odległości</small></div></label></div>
+      <div id="poiCats" class="poi-cats" ${all.on?"":"hidden"}>${cats.map(({c,nets})=>`<details class="poi-cat"><summary><span>${esc(c.label)}</span><small data-cat-count="${esc(c.id)}"></small></summary><div class="poi-nets">${nets.map(n=>`<label class="poi-chip"><input type="checkbox" data-net="${esc(n.id)}" ${all.sel.includes(n.id)?"checked":""}/><span>${esc(n.label)}</span></label>`).join("")}</div><div class="poi-acts"><button type="button" data-cat-all="${esc(c.id)}">Zaznacz grupę</button><button type="button" data-cat-none="${esc(c.id)}">Odznacz grupę</button></div></details>`).join("")}
+      <div class="poi-acts"><button type="button" data-poi-every>Zaznacz wszystkie</button><button type="button" data-poi-clear>Wyczyść</button></div><p id="poiStatus" class="source-note muted" role="status"></p></div>`;
+    container.after(el);
+    const counts=()=>cats.forEach(({c,nets})=>{const k=nets.filter(n=>all.sel.includes(n.id)).length;const s=el.querySelector(`[data-cat-count="${c.id}"]`);if(s)s.textContent=k?`${k} z ${nets.length}`:"";});
+    const sync=()=>{el.querySelectorAll("[data-net]").forEach(i=>i.checked=all.sel.includes(i.dataset.net));counts();app.store.set("poiAll.sel",all.sel);scheduleAll();};
+    el.querySelector("#poiAll").onchange=e=>{all.on=e.target.checked;app.store.set("poiAll.on",all.on);el.querySelector("#poiCats").hidden=!all.on;if(all.on&&map.getZoom()<ALLZ)app.toast?.("Przybliż mapę, aby zobaczyć punkty");updateAll();};
+    el.querySelector("#poiCats").addEventListener("change",e=>{const id=e.target.dataset.net;if(!id)return;e.stopPropagation();all.sel=e.target.checked?[...new Set([...all.sel,id])]:all.sel.filter(x=>x!==id);sync();});
+    el.querySelector("#poiCats").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+      const cat=b.dataset.catAll||b.dataset.catNone,ids=cat?config.networks.filter(n=>n.cat===cat).map(n=>n.id):config.networks.map(n=>n.id);
+      all.sel=b.dataset.catAll||b.dataset.poiEvery!==undefined?[...new Set([...all.sel,...ids])]:all.sel.filter(x=>!ids.includes(x));sync();});
+    counts();
+  }
   const namesCache=new Map();
   async function nameFor(properties){const n=config.networks.find(n=>n.id===properties.network),tile=properties.tile,path=tile?`poi/${n.id}/n/${tile}.json`:`poi/${n.id}/names.json`;try{if(!namesCache.has(path))namesCache.set(path,fetch(DATA+path,{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error();return r.json();}).catch(e=>{namesCache.delete(path);throw e;}));const names=await namesCache.get(path);while(namesCache.size>24)namesCache.delete(namesCache.keys().next().value);return typeof names[properties.index]==="string"?names[properties.index]:n.label;}catch{return n.label;}}
   const readyResolvers=[];
@@ -77,7 +117,7 @@
     },
     handleClick(e){
     if(!config)return false;
-    const ids=["near-poi-points"].filter(id=>map.getLayer(id));
+    const ids=["near-poi-points","poi-all-points"].filter(id=>map.getLayer(id));if(!ids.length)return false;
     const hit=map.queryRenderedFeatures([[e.point.x-5,e.point.y-5],[e.point.x+5,e.point.y+5]],{layers:ids})[0];if(!hit)return false;
     const p={...hit.properties,lon:hit.geometry.coordinates[0],lat:hit.geometry.coordinates[1]};
     const network=config.networks.find(n=>n.id===p.network);window.ServicePlaces.open(p,network);
@@ -87,9 +127,12 @@
     try{const r=await fetch("data/surroundings.json");if(!r.ok)throw Error();config=await r.json();config.networks=config.networks.filter(n=>n.id!=='uczelnia');if(!net())state.network=config.networks[0].id;readyResolvers.splice(0).forEach(p=>p.resolve(config));
       container.innerHTML=`<h3>Usługi i otoczenie</h3><label class="network-select-label">Kategoria usług<select id="networkSelect" aria-label="Kategoria usług">${config.categories.map(c=>`<optgroup label="${esc(c.label)}">${config.networks.filter(n=>n.cat===c.id).map(n=>`<option value="${esc(n.id)}" ${n.id===state.network?"selected":""}>${esc(n.label)}</option>`).join("")}</optgroup>`).join("")}</select></label><p id="networkSource" class="source-note muted"></p><div class="layer-entry" data-keywords="usługi punkty zdrowie edukacja transport sklepy paczkomaty" hidden><label class="sw"><input id="surPoi" type="checkbox" ${state.poi?"checked":""}/><span></span><div>Obiekty na mapie<small>Odległości w osobnym module</small></div></label></div><div class="layer-entry" data-keywords="ceny mieszkania rcn nieruchomości"><label class="sw"><input id="surPrices" type="checkbox" ${state.prices?"checked":""}/><span></span><div>Ceny mieszkań · RCN<small>Mediana zł/m² · min. 5 transakcji</small></div></label></div><div id="priceLegend" class="price-legend" ${state.prices?"":"hidden"}><div><i style="background:#fff2bc"></i>&lt; 5 tys.</div><div><i style="background:#fed381"></i>5–8 tys.</div><div><i style="background:#fda85b"></i>8–11 tys.</div><div><i style="background:#ef6c45"></i>11–14 tys.</div><div><i style="background:#b93338"></i>≥ 14 tys. zł/m²</div><p>${esc(config.price.period[0])} – ${esc(config.price.period[1])}</p></div><p id="surroundingsStatus" class="source-note muted" role="status"></p>`;
       // The catalogue is ready without the map; layers wait for the map's first load (slow tiles must not leave the distance module empty).
-      const layers=()=>{for(const id of ["near-poi"]){app.registerOverlaySource(id);map.addSource(id,{type:"geojson",data:collection([])});}
-      window.PoiIcons?.attach(map);map.addLayer({id:"near-poi-points",type:"symbol",source:"near-poi",minzoom:11,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],11,0.55,14,0.8,17,1.05],"icon-allow-overlap":["step",["zoom"],false,15,true],"icon-padding":1}});map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(update,150);});update();if(state.prices)loadPrices();};
-      if(map.loaded())layers();else map.once("load",layers);
+      if(!Array.isArray(all.sel)){const want=["szkola","przedszkole","poz","apteka","przystanek","przystanek_kolejowy","zabka","biedronka","lidl","dino","inpost","poczta","bankomat","kosciol","plac_zabaw","biblioteka","urzad"];all.sel=config.networks.map(n=>n.id).filter(id=>want.includes(id));if(!all.sel.length)all.sel=config.networks.slice(0,10).map(n=>n.id);}
+      allPanel();
+      const layers=()=>{for(const id of ["near-poi","poi-all"]){app.registerOverlaySource(id);map.addSource(id,{type:"geojson",data:collection([])});}
+      window.PoiIcons?.attach(map);map.addLayer({id:"near-poi-points",type:"symbol",source:"near-poi",minzoom:11,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],11,0.55,14,0.8,17,1.05],"icon-allow-overlap":["step",["zoom"],false,15,true],"icon-padding":1}});map.addLayer({id:"poi-all-points",type:"symbol",source:"poi-all",minzoom:ALLZ,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],13,0.6,15,0.8,17,1.05],"icon-allow-overlap":["step",["zoom"],false,16,true],"icon-padding":1}});
+        map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(update,150);scheduleAll();});update();updateAll();if(state.prices)loadPrices();};
+      let added=false;const tryLayers=()=>{if(added||!map.isStyleLoaded())return;added=true;map.off("styledata",tryLayers);map.off("idle",tryLayers);layers();};if(map.isStyleLoaded())tryLayers();else{map.on("styledata",tryLayers);map.on("idle",tryLayers);}
       document.getElementById("networkSelect").onchange=e=>{state.network=e.target.value;remember();update();};
       for(const [id,key] of [["surPoi","poi"],["surPrices","prices"]])document.getElementById(id).onchange=e=>{state[key]=e.target.checked;remember();if(key==="prices")loadPrices();else update();};
       remember();

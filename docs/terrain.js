@@ -218,12 +218,14 @@
     if (cb.checked && cardPlace) app.framePoint(cardPlace.lon, cardPlace.lat, layerZoom(id, b.dataset.m));
     app.toast(cb.checked ? `Włączono warstwę: ${LAYERS.find(L => L.id === id).label}` : "Warstwa wyłączona");
   });
+  /* Returns [main, tail]: residents and forest go to the end of the card (tail), after hazards, grid and investments. */
   function render(t, l) {
-    const out = [];
+    const out = [], tail = [], res = [];
     if (l && l.r) {
       const r1 = l.r["1000"], ages = ["0–9", "10–19", "20–29", "30–39", "40–49", "50–59", "60–69", "70–79", "80+"], mx = Math.max(1, ...r1.wiek);
       out.push(row("users-three", "Mieszkańcy w okolicy", `<p>${["500", "1000", "3000"].map(k => `<span class="terr-chip"><b>${fmt(l.r[k].lud)}</b> do ${k === "1000" ? "1 km" : k === "3000" ? "3 km" : "500 m"}</span>`).join("")}</p>` +
         (r1.lud > 30 ? agesHTML(r1.wiek, l.polska || null, "mieszkańców w promieniu 1 km") : ""), "spis"));
+      res.push(out.pop());
     }
     if (t) {
       if (t.pozwolenia?.length) {
@@ -236,8 +238,8 @@
         const list = [...uniq.values()], g = {}; list.forEach(p => { const k = katName(p.kat); g[k] = (g[k] || 0) + 1; });
         out.push(row("crane", `Nowe inwestycje do 500 m (3 lata)`, `<p>${Object.entries(g).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="terr-chip"><b>${n}</b> ${esc(k)}</span>`).join("")}</p><ul class="terr-list">${list.slice(0, 5).map(p => `<li>${esc((p.opis || p.zam || "").replace(/\s+/g, " ").slice(0, 110))}<small>${esc(p.data || "")} · ${p.m} m · ${p.typ === "zgloszenie" ? "zgłoszenie" : "wniosek o pozwolenie"}${p.n > 1 ? ` · ${p.n} wnioski w tej sprawie` : ""}</small></li>`).join("")}</ul>${list.length > 5 ? `<small class="muted">i ${list.length - 5} kolejnych inwestycji, wszystkie po włączeniu warstwy</small>` : ""}`, "gunb"));
       }
-      if (t.las) out.push(row("tree", "Las w tym miejscu", `<p>${t.las.gatunek ? `Drzewostan: <b>${esc(gatName(t.las.gatunek))}</b>${t.las.wiek && t.las.wiek !== "0" ? `, ${esc(t.las.wiek)} lat` : ""}` : "Grunt leśny bez drzewostanu"}${t.las.funkcja ? `, las ${esc(FUN[t.las.funkcja] || t.las.funkcja.toLowerCase())}` : ""}.</p><small class="muted">${esc((t.las.nadlesnictwo || "").replace(/^BDL_\d+_\d+_/, "Nadleśnictwo ").replace(/_\d{4}$/, "").replace(/_/g, " ").toLowerCase().replace(/^n/, "N").replace(/ (\p{L})/gu, (m, c) => " " + c.toUpperCase()))}</small>`, "lasy"));
-      else if (t.las_najblizszy) out.push(row("tree", "Najbliższy las", `<p><b>${fmt(t.las_najblizszy.m)} m</b>, ${esc(gatName(t.las_najblizszy.gatunek))}${t.las_najblizszy.wiek ? `, ${t.las_najblizszy.wiek} lat` : ""}</p>`, "lasy", t.las_najblizszy.m));
+      if (t.las) tail.push(row("tree", "Las w tym miejscu", `<p>${t.las.gatunek ? `Drzewostan: <b>${esc(gatName(t.las.gatunek))}</b>${t.las.wiek && t.las.wiek !== "0" ? `, ${esc(t.las.wiek)} lat` : ""}` : "Grunt leśny bez drzewostanu"}${t.las.funkcja ? `, las ${esc(FUN[t.las.funkcja] || t.las.funkcja.toLowerCase())}` : ""}.</p><small class="muted">${esc((t.las.nadlesnictwo || "").replace(/^BDL_\d+_\d+_/, "Nadleśnictwo ").replace(/_\d{4}$/, "").replace(/_/g, " ").toLowerCase().replace(/^n/, "N").replace(/ (\p{L})/gu, (m, c) => " " + c.toUpperCase()))}</small>`, "lasy"));
+      else if (t.las_najblizszy) tail.push(row("tree", "Najbliższy las", `<p><b>${fmt(t.las_najblizszy.m)} m</b>, ${esc(gatName(t.las_najblizszy.gatunek))}${t.las_najblizszy.wiek ? `, ${t.las_najblizszy.wiek} lat` : ""}</p>`, "lasy", t.las_najblizszy.m));
       if (t.ruch) out.push(row("road-horizon", `Droga krajowa nr ${t.ruch.droga}`, `<p><b>${fmt(t.ruch.sdrr)}</b> pojazdów na dobę, ${fmt(t.ruch.m)} m stąd</p><small class="muted">${esc(t.ruch.odcinek || "")} · GDDKiA GPR ${t.ruch.rok}</small>`, "ruch", t.ruch.m));
       if (t.energia) out.push(energyRows(t.energia));
       if (t.egms != null) { const v = t.egms, txt = v <= -10 ? "szybko osiada" : v <= -3 ? "osiada" : v <= -1.5 ? "lekko osiada" : v >= 3 ? "wypiętrza się" : v >= 1.5 ? "lekko się wypiętrza" : "stabilny";
@@ -247,7 +249,7 @@
       if (t.geotermia?.length) { const g = t.geotermia[0], txt = g["Opis klasy"] || Object.values(g).find(v => typeof v === "string") || "";
         out.push(row("thermometer-hot", "Gruntowa pompa ciepła", `<p>${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</p><small class="muted">PIG-PIB, mapa potencjału geotermii niskotemperaturowej</small>`, "geotermia")); }
     }
-    return out.join("") || `<p class="muted small">Brak danych dla tego miejsca.</p>`;
+    return [out.join("") || (tail.length || res.length ? "" : `<p class="muted small">Brak danych dla tego miejsca.</p>`), res.join(""), tail.join("")];
   }
   /* Grid distances, the plan's renewable zone and whether a wind turbine may stand here. */
   const km = m => m >= 1000 ? `${(m / 1000).toLocaleString("pl-PL", { maximumFractionDigits: m >= 10000 ? 0 : 1 })} km` : `${fmt(m)} m`;
@@ -381,16 +383,19 @@
   let seq = 0;
   async function loadInto(place, el) {
     if (!place || !el) return;
-    cardPlace = place; const my = ++seq; el.innerHTML = `<div data-slot="powodz"><p class="muted small">Sprawdzam zagrożenie powodziowe…</p></div><div data-slot="net"></div><div data-slot="rest"><p class="muted small">Wczytuję dane o terenie…</p></div>`;
+    cardPlace = place; const my = ++seq; el.innerHTML = `<div data-slot="powodz"><p class="muted small">Sprawdzam zagrożenie powodziowe…</p></div><div data-slot="rest"><p class="muted small">Wczytuję dane o terenie…</p></div><div data-slot="net"></div><div data-slot="tail"></div>`;
     const q = `?lon=${place.lon}&lat=${place.lat}`, live = () => my === seq && el.isConnected;
     floodAt(place).then(f => { if (live()) fillSlot(el, "powodz", place, floodView(f), "waves"); });
     app.api("/api/internet" + q).catch(() => null).then(r => { if (live()) fillSlot(el, "net", place, netView(r), "wifi-high"); });
     const [t, l] = await Promise.all([app.api("/api/teren" + q).catch(() => null), app.api("/api/ludnosc" + q).catch(() => null)]);
     if (!live()) return;
     const rest = el.querySelector('[data-slot="rest"]');
-    rest.innerHTML = render(t, l) + `<div class="terr-obw-slot"></div>`;
-    bindAges(rest);
-    obwodInto(place, rest.querySelector(".terr-obw-slot"));
+    const [main, res, forest] = render(t, l), end = el.querySelector('[data-slot="tail"]');
+    rest.innerHTML = main;
+    // residents (with the census district) and forest close the card
+    end.innerHTML = res + `<div class="terr-obw-slot"></div>` + forest;
+    bindAges(end);
+    obwodInto(place, end.querySelector(".terr-obw-slot"));
   }
   window.PLOTS_TERRAIN = { loadInto, handleClick };
   // Every place card has the MPZP section (#placePlans): put „Teren i otoczenie” right after it.
