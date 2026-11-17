@@ -491,12 +491,21 @@
       parts.push(sub("Sieć wysokich napięć", "wn") + (km ? `<p>${km}</p>` : "") + (d.gpz?.length ? `<ul class="terr-list en-gpz">${d.gpz.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "") +
         `<small class="muted">OpenStreetMap, stan 2023. Długość linii liczona po trasach, linie wielotorowe mogą być liczone kilka razy.</small>`);
     }
+    if (d.wiatr && d.wiatr[0]) {
+      const [gm, ust, wyt, ochk] = d.wiatr, pc = v => fmt(v / gm * 100, v / gm < .1 ? 1 : 0);
+      parts.push(sub("Miejsce na elektrownie wiatrowe", "wdost") + `<p>Poza strefami zakazu z ustawy wiatrakowej: <b>${fmt(ust)} ha</b> (${pc(ust)}% gminy). Po wyłączeniu lasów z pasem 200 m, wód, użytków ekologicznych i zespołów przyrodniczo-krajobrazowych: <b>${fmt(wyt)} ha</b> (${pc(wyt)}%).${ochk ? ` Z tego ${fmt(ochk)} ha w obszarze chronionego krajobrazu.` : ""}</p>` +
+        `<small class="muted">Obliczenia na podstawie ustawy o inwestycjach w zakresie elektrowni wiatrowych (Dz.U. 2024 poz. 317): 700 m od budynków mieszkalnych, zakaz w parkach narodowych (z pasem 10H), rezerwatach (z pasem 500 m), parkach krajobrazowych i obszarach Natura 2000, pas 480 m od linii 220 i 400 kV. Turbina 200 m. Dane: BDOT10k (GUGiK), CRFOP (GDOŚ). Bez skrawków poniżej 1 ha.</small>`);
+    }
+    if (d.odb) {
+      const e = Object.entries(d.odb).sort((a, b) => b[1] - a[1]), n = e.reduce((a, x) => a + x[1], 0);
+      parts.push(sub("Duzi odbiorcy energii", "odb") + `<p>${e.map(([r, k]) => `<span class="terr-chip">${esc(r)}: <b>${fmt(k)}</b></span>`).join(" ")}</p><small class="muted">${fmt(n)} ${pl(n, "obiekt", "obiekty", "obiektów")} z kompleksów przemysłowo-gospodarczych BDOT10k (GUGiK): potencjalni odbiorcy energii z lokalnych źródeł.</small>`);
+    }
     if (d.pog) {
       const p = d.pog, ha = d.pog_oze_ha, st = { uchwalony: "uchwalony", projekt: "w opracowaniu", brak: "brak w Geoportalu" }[p.stan] || p.stan;
-      parts.push(sub("Plan ogólny gminy") + `<p>Stan: <b>${esc(st)}</b>${p.od ? ` (${esc(p.od)})` : ""}.${ha && (ha[0] || ha[1]) ? ` Strefy dopuszczające instalacje OZE: <b>${fmt(ha[0] || ha[1])} ha</b>${ha[0] ? "" : " w projekcie"}.` : ""}</p>`);
+      parts.push(sub("Plan ogólny gminy", ha && (ha[0] || ha[1]) ? "pog" : "") + `<p>Stan: <b>${esc(st)}</b>${p.od ? ` (${esc(p.od)})` : ""}.${ha && (ha[0] || ha[1]) ? ` Strefy dopuszczające instalacje OZE: <b>${fmt(ha[0] || ha[1])} ha</b>${ha[0] ? "" : " w projekcie"}.` : ""}</p>`);
     }
     return section("lightning", "Energetyka w gminie", `<div class="ext-card">${chips.length ? `<p>${chips.join(" ")}</p>` : ""}${parts.join("")}</div>`,
-      `Źródła: Prezes URE (rejestr klastrów energii, rejestr MIOZE, koncesje), KOWR (spółdzielnie energetyczne, biogazownie rolnicze), UDT (EIPA), GDOŚ i RDOŚ (decyzje środowiskowe, zestawienie bazamocy.pl), Geoportal GUGiK (plany ogólne), OpenStreetMap (sieć wysokich napięć, magazyny energii). Stan ${esc((await json(`data/energia/${g.k.slice(0, 2)}.json`))?.stan || "")}.`);
+      `Źródła: Prezes URE (rejestr klastrów energii, rejestr MIOZE, koncesje), KOWR (spółdzielnie energetyczne, biogazownie rolnicze), UDT (EIPA), GDOŚ i RDOŚ (decyzje środowiskowe, zestawienie bazamocy.pl), Geoportal GUGiK (plany ogólne), GUGiK (BDOT10k), GDOŚ (CRFOP), OpenStreetMap (sieć wysokich napięć, magazyny energii). Stan ${esc((await json(`data/energia/${g.k.slice(0, 2)}.json`))?.stan || "")}.`);
   }
 
   async function fill(g, el, category, lud) {

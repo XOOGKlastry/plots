@@ -463,6 +463,28 @@ def tile_energia(z, x, y):
     if z < 5 or z > 22: return Response(b"", mimetype="application/x-protobuf")
     return _mvt(ENERGIA_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 1.5}, 86400)
 
+# ---------- OZE: obszary dla wiatraków (przeliczone w wiatr_dostepnosc), strefy POG z OZE, duzi odbiorcy energii (BDOT10k KUPG) ----------
+OZE_TILE_SQL = "WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (SELECT ST_Transform(e,2180) e2 FROM b) SELECT " + " || ".join([
+    """coalesce((SELECT ST_AsMVT(q, 'wiatr', 4096, 'g') FROM (SELECT t.klasa AS c,
+         ST_AsMVTGeom(ST_Transform(ST_SimplifyPreserveTopology(t.geom, %(tol)s),3857), b.e, 4096, 16, true) g
+       FROM wiatr_dostepnosc.dostepne t, b, b2 WHERE t.geom && b2.e2) q WHERE g IS NOT NULL), ''::bytea)""",
+    """coalesce((SELECT ST_AsMVT(q, 'pog', 4096, 'g') FROM (SELECT t.oznaczenie AS o, t.nazwa_strefy AS n, t.gmina AS gm,
+         (t.status = 'uchwalony')::int AS u, round(t.ha::numeric, 1) AS ha,
+         (t.profil_dodatkowy_nazwy ILIKE '%%słoneczn%%')::int AS pv, (t.profil_dodatkowy_nazwy ILIKE '%%biogaz%%')::int AS bio,
+         ((coalesce(t.profil_dodatkowy_nazwy,'') || coalesce(t.profil_podstawowy_nazwy,'')) ILIKE '%%wiatr%%')::int AS wi,
+         ST_AsMVTGeom(ST_Transform(ST_SimplifyPreserveTopology(t.geom, %(tol)s),3857), b.e, 4096, 16, true) g
+       FROM bazamocy.strefy_pog_oze t, b, b2 WHERE %(z)s >= 9 AND t.geom && b2.e2) q WHERE g IS NOT NULL), ''::bytea)""",
+    """coalesce((SELECT ST_AsMVT(q, 'odb', 4096, 'g') FROM (SELECT t."RODZAJ" AS r, nullif(t."INFORMACJADODATKOWA", '') AS i,
+         ST_AsMVTGeom(ST_Transform(t.geom,3857), b.e, 4096, 16, true) g
+       FROM bazamocy.potencjalni_odbiorcy_mocy_kupg t, b, b2 WHERE %(z)s >= 9 AND t.geom && b2.e2) q WHERE g IS NOT NULL), ''::bytea)""",
+])
+
+@app.route("/tiles/oze/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
+def tile_oze(z, x, y):
+    if request.method == "OPTIONS": return Response(status=204)
+    if z < 7 or z > 22: return Response(b"", mimetype="application/x-protobuf")
+    return _mvt(OZE_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 1.2}, 86400)
+
 def _pig_identify(url, lon, lat, extra):
     import urllib.request, urllib.parse
     sr = extra.pop("sr", 4326)
@@ -473,6 +495,33 @@ def _pig_identify(url, lon, lat, extra):
             return json.loads(r.read())
     except Exception:
         return None
+
+_KV = "(SELECT max(v::int) FROM unnest(string_to_array(voltage, ';')) v WHERE v ~ '^[0-9]+$') / 1000"
+def _teren_energia(c, pt, P):
+    """Grid and energy facts for a point: nearest GPZ, HV/EHV/MV lines and charging station, POG renewable zone,
+    and whether wind turbines may stand here (statutory exclusions and environmental guideline zones)."""
+    e = {}
+    def one(sql):
+        try: return c.execute(sql, P).fetchone()
+        except Exception: c.rollback() if hasattr(c, "rollback") else None; return None
+    r = one(f"SELECT replace(coalesce(name,''),'Stacja elektroenergetyczna',''), ST_Distance(geom, {pt}) FROM elektro.gpz_2023 WHERE ST_DWithin(geom, {pt}, 40000) ORDER BY geom <-> {pt} LIMIT 1")
+    if r: e["gpz"] = {"n": r[0].strip(" ,"), "m": round(r[1])}
+    for key, cond in (("kv110", "BETWEEN 100 AND 150"), ("kv220", ">= 220")):
+        r = one(f"SELECT kv, d FROM (SELECT {_KV} kv, ST_Distance(geom, {pt}) d FROM elektro.siec_wysoka_najwyzsza_2023 WHERE ST_DWithin(geom, {pt}, 40000)) l WHERE kv {cond} ORDER BY d LIMIT 1")
+        if r: e[key] = {"kv": r[0], "m": round(r[1])}
+    r = one(f"SELECT ST_Distance(geom, {pt}) FROM elektro.siec_srednia WHERE ST_DWithin(geom, {pt}, 5000) ORDER BY geom <-> {pt} LIMIT 1")
+    if r: e["sn"] = {"m": round(r[0])}
+    r = one(f"SELECT ST_Distance(geom, {pt}) FROM bazamocy.stacje_ladowania WHERE ST_DWithin(geom, {pt}, 40000) ORDER BY geom <-> {pt} LIMIT 1")
+    if r: e["lad"] = {"m": round(r[0])}
+    r = one(f"""SELECT oznaczenie, nazwa_strefy, status, gmina, profil_dodatkowy_nazwy ILIKE '%%słoneczn%%', profil_dodatkowy_nazwy ILIKE '%%biogaz%%',
+                 (coalesce(profil_dodatkowy_nazwy,'') || coalesce(profil_podstawowy_nazwy,'')) ILIKE '%%wiatr%%'
+                FROM bazamocy.strefy_pog_oze WHERE geom && {pt} AND ST_Intersects(geom, {pt}) LIMIT 1""")
+    if r: e["pog_oze"] = {"ozn": r[0], "strefa": r[1], "status": r[2], "gmina": r[3], "pv": r[4], "biogaz": r[5], "wiatr": r[6]}
+    r = one(f"""SELECT (SELECT array_agg(DISTINCT z) FROM wiatr_dostepnosc.ustawa_src WHERE geom && {pt} AND ST_Intersects(geom, {pt})),
+                       (SELECT array_agg(DISTINCT z) FROM wiatr_dostepnosc.wytyczne_src WHERE geom && {pt} AND ST_Intersects(geom, {pt})),
+                       EXISTS (SELECT 1 FROM wiatr_dostepnosc.ochk_src WHERE geom && {pt} AND ST_Intersects(geom, {pt}))""")
+    if r: e["wiatr"] = {"ustawa": r[0] or [], "wytyczne": r[1] or [], "ochk": r[2]}
+    return e
 
 @app.get("/api/teren")
 def api_teren():
@@ -503,6 +552,7 @@ def api_teren():
                                AND (zamierzenie ILIKE 'budowa%%' OR zamierzenie ILIKE 'rozbudowa%%' OR zamierzenie ILIKE 'nadbudowa%%') AND kategoria NOT IN ('XXVI','XXV','VIII')
                              ORDER BY data_wplywu DESC LIMIT 60""", P).fetchall()
         out["pozwolenia"] = [{"typ": r[0], "kat": r[1], "zam": r[2], "opis": r[3], "data": r[4].isoformat() if r[4] else None, "m": int(r[5])} for r in rows]
+        out["energia"] = _teren_energia(c, pt, P)
     B = "https://cbdgmapa.pgi.gov.pl/arcgis/rest/services"
     import math
     mx, my = lon * 20037508.34 / 180, math.log(math.tan((90 + lat) * math.pi / 360)) * 6378137

@@ -239,6 +239,7 @@
       if (t.las) out.push(row("tree", "Las w tym miejscu", `<p>${t.las.gatunek ? `Drzewostan: <b>${esc(gatName(t.las.gatunek))}</b>${t.las.wiek && t.las.wiek !== "0" ? `, ${esc(t.las.wiek)} lat` : ""}` : "Grunt leśny bez drzewostanu"}${t.las.funkcja ? `, las ${esc(FUN[t.las.funkcja] || t.las.funkcja.toLowerCase())}` : ""}.</p><small class="muted">${esc((t.las.nadlesnictwo || "").replace(/^BDL_\d+_\d+_/, "Nadleśnictwo ").replace(/_\d{4}$/, "").replace(/_/g, " ").toLowerCase().replace(/^n/, "N").replace(/ (\p{L})/gu, (m, c) => " " + c.toUpperCase()))}</small>`, "lasy"));
       else if (t.las_najblizszy) out.push(row("tree", "Najbliższy las", `<p><b>${fmt(t.las_najblizszy.m)} m</b>, ${esc(gatName(t.las_najblizszy.gatunek))}${t.las_najblizszy.wiek ? `, ${t.las_najblizszy.wiek} lat` : ""}</p>`, "lasy", t.las_najblizszy.m));
       if (t.ruch) out.push(row("road-horizon", `Droga krajowa nr ${t.ruch.droga}`, `<p><b>${fmt(t.ruch.sdrr)}</b> pojazdów na dobę, ${fmt(t.ruch.m)} m stąd</p><small class="muted">${esc(t.ruch.odcinek || "")} · GDDKiA GPR ${t.ruch.rok}</small>`, "ruch", t.ruch.m));
+      if (t.energia) out.push(energyRows(t.energia));
       if (t.egms != null) { const v = t.egms, txt = v <= -10 ? "szybko osiada" : v <= -3 ? "osiada" : v <= -1.5 ? "lekko osiada" : v >= 3 ? "wypiętrza się" : v >= 1.5 ? "lekko się wypiętrza" : "stabilny";
         out.push(row(v <= -3 ? "warning-circle" : "mountains", "Ruch terenu 2016–2020", `<p>Teren <b>${txt}</b>: ${v > 0 ? "+" : ""}${String(v).replace(".", ",")} mm/rok</p><small class="muted">Copernicus EGMS, pomiar satelitarny, uśrednienie ok. 150 m</small>`, "egms")); }
       if (t.tereny_gornicze?.length || t.zloza?.length) out.push(row("shovel", t.tereny_gornicze?.length ? "Teren górniczy" : "Złoże kopaliny", `<p>${[...(t.tereny_gornicze || []).map(x => `Teren górniczy <b>${esc(x.nazwa)}</b> (${esc((x.kopalina || "").toLowerCase())})`), ...(t.zloza || []).map(x => `Złoże <b>${esc(x.nazwa)}</b>: ${esc((x.kopalina || "").toLowerCase())}`)].join("<br>")}</p><small class="muted">PIG-PIB, MIDAS</small>`, "gornicze"));
@@ -247,6 +248,26 @@
         out.push(row("thermometer-hot", "Gruntowa pompa ciepła", `<p>${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</p><small class="muted">PIG-PIB, mapa potencjału geotermii niskotemperaturowej</small>`, "geotermia")); }
     }
     return out.join("") || `<p class="muted small">Brak danych dla tego miejsca.</p>`;
+  }
+  /* Grid distances, the plan's renewable zone and whether a wind turbine may stand here. */
+  const km = m => m >= 1000 ? `${(m / 1000).toLocaleString("pl-PL", { maximumFractionDigits: m >= 10000 ? 0 : 1 })} km` : `${fmt(m)} m`;
+  const WHY = { bud700: "do 700 m od budynku mieszkalnego", pn: "w parku narodowym lub do 2 km od niego (10H)", rez: "w rezerwacie przyrody lub do 500 m od niego", pk: "w parku krajobrazowym",
+    n2k: "na obszarze Natura 2000", nn: "przy linii 220 lub 400 kV (pas 480 m)", las200: "w lesie lub do 200 m od lasu", woda: "na wodach powierzchniowych", uzytek: "w użytku ekologicznym", zpk: "w zespole przyrodniczo-krajobrazowym" };
+  const enBtn = (layer, label) => `<button type="button" class="terr-map" data-en-layer="${layer}">${window.Icons.svg("map-trifold")}<span>${label}</span></button>`;
+  function energyRows(e) {
+    const out = [], chips = [];
+    if (e.gpz) chips.push(`<span class="terr-chip"><b>${km(e.gpz.m)}</b> do stacji GPZ${e.gpz.n ? ` ${esc(e.gpz.n.replace(/^[„"]|[”"]$/g, ""))}` : ""}</span>`);
+    if (e.kv110) chips.push(`<span class="terr-chip"><b>${km(e.kv110.m)}</b> do linii 110 kV</span>`);
+    if (e.kv220) chips.push(`<span class="terr-chip"><b>${km(e.kv220.m)}</b> do linii ${e.kv220.kv >= 380 ? "400" : "220"} kV</span>`);
+    if (e.sn) chips.push(`<span class="terr-chip"><b>${km(e.sn.m)}</b> do linii średniego napięcia</span>`);
+    if (e.lad) chips.push(`<span class="terr-chip"><b>${km(e.lad.m)}</b> do stacji ładowania</span>`);
+    if (chips.length) out.push(row("lightning", "Sieć elektroenergetyczna", `<p>${chips.join("")}</p><small class="muted">Odległości w linii prostej. Linie i GPZ: OpenStreetMap 2023, sieć SN: BDOT10k, ładowarki: EIPA (UDT).</small><p>${enBtn("wn", "Pokaż sieć")}</p>`));
+    if (e.pog_oze) { const z = e.pog_oze, oze = [z.pv && "elektrownie słoneczne", z.biogaz && "biogazownie", z.wiatr && "elektrownie wiatrowe"].filter(Boolean);
+      out.push(row("solar-panel", "Plan ogólny dopuszcza OZE", `<p>Strefa <b>${esc(z.ozn || "")}</b> ${esc(z.strefa || "")}${oze.length ? `: ${esc(oze.join(", "))}` : ""}.</p><small class="muted">Plan ogólny gminy ${esc(z.gmina || "")} ${z.status === "uchwalony" ? "uchwalony" : "w trakcie uchwalania"}. Rejestr Urbanistyczny.</small>`)); }
+    if (e.wiatr) { const w = e.wiatr, u = w.ustawa.map(z => WHY[z]).filter(Boolean), g = w.wytyczne.map(z => WHY[z]).filter(Boolean);
+      const txt = u.length ? `<p>Elektrownia wiatrowa <b>niedozwolona</b>: ${esc(u.join(", "))}.</p>` : g.length ? `<p>Według ustawy <b>dopuszczalna</b>, ale ${esc(g.join(", "))}, co według wytycznych środowiskowych wymaga ostrożności.</p>` : `<p>Miejsce <b>poza strefami zakazu</b> z ustawy wiatrakowej i poza lasami oraz wodami.</p>`;
+      out.push(row("wind", "Elektrownia wiatrowa", txt + (w.ochk ? `<p class="small">Obszar chronionego krajobrazu: sprawdź zakazy w uchwale sejmiku.</p>` : "") + `<small class="muted">Ustawa o inwestycjach w zakresie elektrowni wiatrowych (Dz.U. 2024 poz. 317), turbina 200 m, 700 m od budynków mieszkalnych. Rozstrzyga plan miejscowy.</small><p>${enBtn("wdost", "Pokaż obszary")}</p>`)); }
+    return out.join("");
   }
   /* Interactive age bars: tap a bar to see the count and share; the thin mark shows the share in Poland. */
   const AGES10 = ["0–9", "10–19", "20–29", "30–39", "40–49", "50–59", "60–69", "70–79", "80+"];
