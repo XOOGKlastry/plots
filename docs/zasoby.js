@@ -283,7 +283,7 @@
       <p class="zas-big"><b>${ni(v.pvout)}</b> kWh z 1 kWp rocznie</p>${badge("pvout", "Więcej")}
       <div class="zas-chips"><span><b>ok. ${nf(v.pvout * 10 / 1000)} MWh</b> rocznie z instalacji 10 kWp</span><span><b>ok. ${ni(v.pvout)} MWh</b> rocznie z farmy 1 MW</span>${v.opta != null ? `<span><b>${Math.round(v.opta)}°</b> optymalne nachylenie paneli</span>` : ""}${v.ghi != null ? `<span><b>${ni(v.ghi)} kWh/m²</b> nasłonecznienie</span>` : ""}${v.temp != null ? `<span><b>${nf(v.temp)} °C</b> średnia temperatura</span>` : ""}</div></div>` : "";
     box.innerHTML = wind + sun + `<p class="source-note muted">Źródła: ${esc(m.zrodla.gwa)}; ${esc(m.zrodla.gsa)}. Wartości modelowe, średnie wieloletnie. Nie zastępują pomiarów wietrzności ani symulacji uzysku konkretnej instalacji.</p>`;
-    if (airBox) airBox.innerHTML = airHtml(m, L, v);
+    if (airBox) { airBox.innerHTML = airHtml(m, L, v); window.GiosNear?.(place, airBox); }
   }
   function airStatus(Lx, val) {
     const N = Lx.norms || [], cur = N.find(([, t]) => /obecna norma|^poziom docelowy$/.test(t)), eu = N.find(([, t]) => /2030/.test(t)), who = N.find(([, t]) => /WHO/.test(t));

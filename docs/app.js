@@ -489,6 +489,7 @@
       if(window.DistanceModule?.handleClick(e))return;
       if(window.PLOTS_TERRAIN?.handleClick(e))return;
       if(window.PLOTS_ENERGY?.handleClick(e))return;
+      if(window.ExtraLayers?.handleClick?.(e))return;
       const point={lon:e.lngLat.lng,lat:e.lngLat.lat};
       if(map.getZoom()<MINZ){addressRequest++;await window.MunicipalityContext.update(point);if(click!==clickRevision)return;const id=window.PLOTS_GMINY.current();if(id)window.PLOTS_GMINY.select(id,true);else {tab("gmina");snap("half");}return;}
       if (window.PLOTS_PLANNING?.inspecting()) return;
