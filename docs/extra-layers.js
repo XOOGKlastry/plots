@@ -48,6 +48,54 @@
         `<p class="muted small">Przebieg planowanej drogi jest orientacyjny. O tym, którędy pójdzie droga, rozstrzyga decyzja o środowiskowych uwarunkowaniach, a potem decyzja ZRID.</p>` };
   }
 
+  const zridCard = p => ({ title: p.n, src: "GUNB, Rejestr wniosków, decyzji i zgłoszeń (RWDZ), dane.gov.pl",
+    body: `<p class="gs-st"><i style="background:${p.z ? "#e8590c" : "#f59f00"}"></i>${p.z ? "Zezwolenie na realizację inwestycji drogowej (ZRID)" : "Pozwolenie na budowę drogi"}</p>` + row("Miejscowość", p.m) + row("Wniosek złożony", p.w) + row("Decyzja wydana", p.d) + row("Działek we wniosku", p.dz) +
+      `<p class="muted small">Decyzja pozwala rozpocząć budowę. ZRID dodatkowo przejmuje pod drogę działki w liniach rozgraniczających. Szczegóły wniosku: ${link("https://wyszukiwarka.gunb.gov.pl/", "wyszukiwarka GUNB")}.</p>` });
+
+  /* ---------- road map over time: roads, rail and road decisions in one view, with a year slider ---------- */
+  const MD_Y0 = 2023, MD_Y1 = 2032;
+  let mdYear = Math.min(MD_Y1, Math.max(MD_Y0, new Date().getFullYear()));
+  const yearOf = s => { const m = /(20\d\d)/.exec(s || ""); return m ? +m[1] : 0; };
+  async function mdFetch() {
+    const get = u => fetch(u).then(r => { if (!r.ok) throw Error(r.status); return r.json(); });
+    const [dr, kol, dec] = await Promise.all([get("data/drogi/inwestycje.geojson"), get("data/kolej/inwestycje.geojson"), get("data/drogi/decyzje.geojson")]);
+    const lenKm = g => { let s = 0; const cs = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : []; for (const c of cs) for (let i = 1; i < c.length; i++) s += dist({ lon: c[i - 1][0], lat: c[i - 1][1] }, { lon: c[i][0], lat: c[i][1] }); return s / 1000; };
+    const feats = [];
+    for (const f of dr.features) feats.push({ ...f, properties: { ...f.properties, src: "d", y: yearOf(f.properties.od), km: lenKm(f.geometry) } });
+    for (const f of kol.features) if (f.properties.c === "rail" || f.properties.c === "kdp") feats.push({ ...f, properties: { ...f.properties, src: "k", y: yearOf(f.properties.od), km: lenKm(f.geometry) } });
+    for (const f of dec.features) feats.push({ ...f, properties: { ...f.properties, src: "z", y: yearOf(f.properties.d) } });
+    return { type: "FeatureCollection", osm: dr.osm, features: feats };
+  }
+  const MD_OPEN = "#2b8a3e";
+  function mdFilters(Y) {
+    const lin = ["in", ["get", "src"], ["literal", ["d", "k"]]], dated = [">", ["get", "y"], 0];
+    return {
+      "x-md-open": ["all", lin, dated, ["<=", ["get", "y"], Y]],
+      "x-md-b": ["all", lin, ["==", ["get", "k"], "b"], ["any", ["!", dated], [">", ["get", "y"], Y]]],
+      "x-md-p": ["all", lin, ["==", ["get", "k"], "p"], ["any", ["!", dated], [">", ["get", "y"], Y]]],
+      "x-md-z": ["all", ["==", ["get", "src"], "z"], [">", ["get", "y"], 0], ["<=", ["get", "y"], Y]]
+    };
+  }
+  function mdApply(Y) {
+    mdYear = Y;
+    for (const [id, f] of Object.entries(mdFilters(Y))) if (map.getLayer(id)) map.setFilter(id, f);
+    if (map.getLayer("x-md-z")) map.setPaintProperty("x-md-z", "circle-radius", ["interpolate", ["linear"], ["zoom"], 6, ["case", ["==", ["get", "y"], Y], 3, 1.2], 13, ["case", ["==", ["get", "y"], Y], 7, 3.5]]);
+    const box = document.getElementById("x-leg-mapa-drogowa"), d = raw["mapa-drogowa"];
+    if (!box) return;
+    const lab = box.querySelector("[data-md-y]"); if (lab) lab.textContent = Y;
+    const out = box.querySelector("[data-md-stat]"); if (!out || !d) return;
+    let open = 0, bud = 0, plan = 0, dec = 0, decY = 0;
+    for (const f of d.features) {
+      const p = f.properties;
+      if (p.src === "z") { if (p.y && p.y <= Y) dec++; if (p.y === Y) decY++; continue; }
+      if (p.y && p.y <= Y) open += p.km; else if (p.k === "b") bud += p.km; else plan += p.km;
+    }
+    out.innerHTML = `<b>${fmt(open, 0)} km</b> dróg i torów z planowanym otwarciem do końca ${Y} r. · <b>${fmt(bud, 0)} km</b> w budowie · <b>${fmt(plan, 0)} km</b> planowanych · <b>${fmt(dec, 0)}</b> decyzji drogowych od 2023 r., w tym <b>${fmt(decY, 0)}</b> w ${Y} r.`;
+  }
+  const mdLegend = () => `<div class="md-year"><label for="md-range">Rok: <b data-md-y>${mdYear}</b></label><input id="md-range" type="range" min="${MD_Y0}" max="${MD_Y1}" step="1" value="${mdYear}"><div class="md-ticks"><span>${MD_Y0}</span><span>${MD_Y1}</span></div></div><p class="small" data-md-stat></p>` +
+    legendRow([[MD_OPEN, "planowane otwarcie do wybranego roku", "line"], ["#d9480f", "w budowie", "line"], ["#7048e8", "planowane", "dash"], ["#e8590c", "decyzja ZRID lub pozwolenie na drogę"]]) +
+    note("Daty otwarcia pochodzą z OpenStreetMap i ma je tylko część odcinków; bez daty odcinek zostaje w stanie „w budowie” lub „planowany”. Drogi: OpenStreetMap i GDDKiA. Kolej: OpenStreetMap i PKP PLK. Decyzje: GUNB, RWDZ (rok wydania), widoczne od skali około 1:8 000 000.");
+
   /* ---------- rail investments ---------- */
   const RAIL_COL = { b: "#1971c2", p: "#4dabf7" };
   const RCLS = { rail: "linia kolejowa", tram: "linia tramwajowa", metro: "metro", kdp: "kolej dużych prędkości" };
@@ -105,6 +153,16 @@
       },
       legend: () => legendRow(Object.values(SEC).map(([l, c]) => [c, l])) + note("Wielkość punktu według rocznej emisji CO₂ (gdy jej brak, według tlenków azotu). Ponad 680 zakładów, które zgłosiły emisje za lata 2022–2024. Źródło: Europejska Agencja Środowiska, Industrial Reporting (E-PRTR), wersja 16 z lutego 2026 r., CC BY 4.0."),
       card: (p, d) => eprtrCard(p, d) },
+    { id: "mapa-drogowa", box: "transportLayers", label: "Mapa drogowa na osi czasu", desc: "Drogi, kolej i decyzje drogowe, suwak lat 2023–2032", kw: "mapa drogowa oś czasu harmonogram kiedy otwarcie drogi kolej inwestycje suwak lat zrid plan",
+      icon: ["calendar-dots", "#2b8a3e"], url: "mapa-drogowa", fetch: mdFetch, side: "data/drogi/gddkia.json", side2: ["mapa-drogowa-k", "data/kolej/kolejplus.json"],
+      layers: s => [
+        { id: "x-md-p", type: "line", source: s, filter: mdFilters(mdYear)["x-md-p"], layout: { "line-cap": "round" }, paint: { "line-color": "#7048e8", "line-dasharray": [1.6, 1.4], "line-opacity": .85, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3.5] } },
+        { id: "x-md-b", type: "line", source: s, filter: mdFilters(mdYear)["x-md-b"], layout: { "line-cap": "round" }, paint: { "line-color": "#d9480f", "line-opacity": .9, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.3, 12, 4] } },
+        { id: "x-md-open", type: "line", source: s, filter: mdFilters(mdYear)["x-md-open"], layout: { "line-cap": "round" }, paint: { "line-color": MD_OPEN, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 12, 5.5] } },
+        { id: "x-md-z", type: "circle", source: s, minzoom: 6, filter: mdFilters(mdYear)["x-md-z"], paint: { "circle-color": ["match", ["get", "z"], 1, "#e8590c", "#f59f00"], "circle-opacity": .85, "circle-radius": 3, "circle-stroke-color": "#fff", "circle-stroke-width": 1 } }],
+      legend: mdLegend,
+      legendInit: box => { const r = box.querySelector("#md-range"); if (r) r.oninput = () => mdApply(+r.value); mdApply(mdYear); },
+      card: (p, d, f, side) => p.src === "z" ? zridCard(p) : p.src === "k" ? railCard(p, d, sideData["mapa-drogowa-k"]) : roadCard(p, d, side) },
     { id: "drogi", box: "transportLayers", label: "Inwestycje drogowe", desc: "Drogi w budowie i planowane, status GDDKiA", kw: "inwestycje drogowe budowa dróg gddkia autostrady drogi ekspresowe obwodnice planowane drogi w budowie przetarg przygotowanie s19 s10 s74",
       icon: ["road-horizon", "#d9480f"], url: "data/drogi/inwestycje.geojson", side: "data/drogi/gddkia.json",
       layers: s => [
@@ -119,9 +177,7 @@
       icon: ["stamp", "#e8590c"], url: "data/drogi/decyzje.geojson", minz: 8,
       layers: s => [{ id: "x-zrid", type: "circle", source: s, minzoom: 8, paint: { "circle-color": ["match", ["get", "z"], 1, "#e8590c", "#f59f00"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, ["match", ["get", "z"], 1, 4, 2.5], 13, ["match", ["get", "z"], 1, 8, 6]], "circle-stroke-color": "#fff", "circle-stroke-width": 1.2 } }],
       legend: () => legendRow([["#e8590c", "zezwolenie na realizację inwestycji drogowej (ZRID)"], ["#f59f00", "pozwolenie na budowę drogi lub ulicy"]]) + note("Decyzje wydane od 2023 r. w kategorii XXV (drogi), punkt w środku działek objętych wnioskiem. Źródło: GUNB, Rejestr wniosków, decyzji i zgłoszeń (dane.gov.pl). Rejestr nie obejmuje wszystkich decyzji wojewodów, więc brak punktu nie oznacza braku inwestycji. Widoczne od skali około 1:2 000 000."),
-      card: p => ({ title: p.n, src: "GUNB, Rejestr wniosków, decyzji i zgłoszeń (RWDZ), dane.gov.pl",
-        body: `<p class="gs-st"><i style="background:${p.z ? "#e8590c" : "#f59f00"}"></i>${p.z ? "Zezwolenie na realizację inwestycji drogowej (ZRID)" : "Pozwolenie na budowę drogi"}</p>` + row("Miejscowość", p.m) + row("Wniosek złożony", p.w) + row("Decyzja wydana", p.d) + row("Działek we wniosku", p.dz) +
-          `<p class="muted small">Decyzja pozwala rozpocząć budowę. ZRID dodatkowo przejmuje pod drogę działki w liniach rozgraniczających. Szczegóły wniosku: ${link("https://wyszukiwarka.gunb.gov.pl/", "wyszukiwarka GUNB")}.</p>` }) },
+      card: p => zridCard(p) },
     ...[["ldwn", "Hałas drogowy w ciągu doby", "Wskaźnik LDWN, mapy akustyczne GDDKiA 2022"], ["ln", "Hałas drogowy nocą", "Wskaźnik LN, mapy akustyczne GDDKiA 2022"]].map(([k, label, desc]) => ({
       id: "halas-" + k, box: "transportLayers", label, desc, kw: "hałas drogowy mapa akustyczna strategiczna mapa hałasu gddkia ldwn ln decybele db noc", icon: ["speaker-high", k === "ln" ? "#5f3dc4" : "#e8590c"], minz: 13,
       tiles: () => app.base + "/tiles/halas/" + k + "/{z}/{x}/{y}.png", attr: "GDDKiA, strategiczne mapy hałasu 2022",
@@ -153,7 +209,7 @@
 
   /* ---------- engine ---------- */
   const cache = {};
-  const load = L => cache[L.url] || (cache[L.url] = fetch(L.url).then(r => { if (!r.ok) throw Error(r.status); return r.json(); }).catch(e => { delete cache[L.url]; throw e; }));
+  const load = L => cache[L.url] || (cache[L.url] = (L.fetch ? L.fetch() : fetch(L.url).then(r => { if (!r.ok) throw Error(r.status); return r.json(); })).catch(e => { delete cache[L.url]; throw e; }));
   const raw = {}, sideData = {};
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   const added = new Set();
@@ -165,6 +221,7 @@
       if (!L.tiles) { try { d = await load(L); } catch (e) { app.toast("Nie udało się wczytać warstwy"); return; } }
       raw[L.id] = d;
       if (L.side) fetch(L.side).then(r => r.ok ? r.json() : null).then(x => { sideData[L.id] = x; }).catch(() => {});
+      if (L.side2) fetch(L.side2[1]).then(r => r.ok ? r.json() : null).then(x => { sideData[L.side2[0]] = x; }).catch(() => {});
       const src = "x-" + L.id;
       try {
         if (!map.getSource(src)) { map.addSource(src, L.tiles ? { type: "raster", tiles: [L.tiles()], tileSize: 256, minzoom: L.minz || 0, maxzoom: 19, attribution: L.attr || "" } : { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
@@ -174,6 +231,7 @@
     }
     if (!added.has(L.id)) return;
     for (const spec of L.layers("x-" + L.id)) if (map.getLayer(spec.id)) map.setLayoutProperty(spec.id, "visibility", on ? "visible" : "none");
+    if (on && leg && L.legendInit) L.legendInit(leg);
     L.onToggle?.(on);
   }
   function mount() {
