@@ -11,6 +11,7 @@
     turbiny: "Prezes URE, rejestr koncesji", turbiny_plan: "GDOŚ i RDOŚ, decyzje środowiskowe dla farm wiatrowych (zestawienie bazamocy.pl)",
     pv: "bazamocy.pl, GDOŚ", woda: "bazamocy.pl, GDOŚ", biogaz: "KOWR, rejestr wytwórców biogazu rolniczego", cieplownie: "bazamocy.pl",
     ladowanie: "Ewidencja Infrastruktury Paliw Alternatywnych EIPA (UDT)", magazyny: "OpenStreetMap (magazyny energii), stan 17.11.2026",
+    miejsca: "plany ogólne gmin (Rejestr Urbanistyczny, zestawienie bazamocy.pl), BDOT10k (GUGiK), CRFOP (GDOŚ), Energa-Operator i PSE; obliczenia własne",
     pog: "plany ogólne gmin (Rejestr Urbanistyczny, zestawienie bazamocy.pl)", odb: "BDOT10k, GUGiK (kompleksy przemysłowo-gospodarcze)",
     wiatr: "obliczenia własne na podstawie BDOT10k (GUGiK), CRFOP (GDOŚ) i ustawy o inwestycjach w zakresie elektrowni wiatrowych"
   };
@@ -53,6 +54,14 @@
       legend: () => legendRow([["#d81b60", "magazyn energii"]]) + note("Źródło: OpenStreetMap. Rejestry URE nie podają położenia magazynów, więc lista może być niepełna.") },
     { id: "ladowanie", label: "Stacje ładowania samochodów", desc: "Ogólnodostępne stacje z ewidencji EIPA", kw: "stacje ładowania ładowarki samochody elektryczne elektromobilność eipa udt",
       layers: () => [dot("en-lad", "ladowanie", "#7b1fa2", 6, { minzoom: 7 })], legend: () => legendRow([["#7b1fa2", "stacja ładowania"]]) + note("Źródło: Ewidencja Infrastruktury Paliw Alternatywnych EIPA (UDT)."), minz: 7 },
+    { id: "miejsca", label: "Miejsca pod wiatraki i fotowoltaikę", desc: "Strefy planów ogólnych dopuszczające OZE, na wolnym terenie", kw: "miejsca inwestycji oze gdzie budować farma wiatrowa fotowoltaiczna plan ogólny pog teren pod inwestycję ocena działki pod farmę",
+      layers: () => [{ id: "oze-miejsca", type: "fill", source: OZE, "source-layer": "miejsca", minzoom: 8,
+          paint: { "fill-color": ["match", ["get", "pv"], 1, "#ef6c00", "#1565c0"], "fill-opacity": ["interpolate", ["linear"], ["get", "s"], 20, .15, 60, .4, 85, .7] } },
+        { id: "oze-miejsca-line", type: "line", source: OZE, "source-layer": "miejsca", minzoom: 10,
+          paint: { "line-color": ["match", ["get", "pv"], 1, "#e65100", "#0d47a1"], "line-width": ["case", ["==", ["get", "u"], 1], 1.6, .8], "line-dasharray": ["case", ["==", ["get", "u"], 1], ["literal", [1, 0]], ["literal", [3, 2]]] } }],
+      legend: () => legendRow([["#1565c0", "elektrownia wiatrowa", "box"], ["#ef6c00", "elektrownia słoneczna", "box"]]) +
+        note("Części stref planów ogólnych gmin, w których plan dopuszcza elektrownię wiatrową lub słoneczną. Dla wiatru tylko teren poza strefami zakazu ustawy wiatrakowej, dla fotowoltaiki tylko grunty rolne, łąki i nieużytki (BDOT10k, GUGiK) bez parków narodowych i rezerwatów. Im mocniejszy kolor, tym wyższa ocena miejsca. Linia ciągła: plan uchwalony, przerywana: w trakcie uchwalania. Budowę i tak musi dopuścić plan miejscowy. Widoczne od skali około 1:2 000 000.") +
+        `<p class="small"><a href="oze.html?t=miejsca">Lista miejsc w arkuszu</a></p>`, minz: 8 },
     { id: "wdost", label: "Obszary dla elektrowni wiatrowych", desc: "Poza strefami zakazu z ustawy wiatrakowej", kw: "obszary dostępne wiatraki elektrownie wiatrowe 700 m 10h lokalizacja farmy wiatrowej natura 2000 ustawa wiatrakowa",
       layers: () => [{ id: "oze-wiatr", type: "fill", source: OZE, "source-layer": "wiatr", minzoom: 7,
         paint: { "fill-color": ["match", ["get", "c"], 1, "#2e7d32", "#c0ca33"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7, .55, 14, .35] } }],
@@ -65,7 +74,7 @@
     { id: "odb", label: "Duzi odbiorcy energii", desc: "Zakłady, kopalnie, oczyszczalnie, fermy i inne", kw: "duzi odbiorcy energii zakłady przemysłowe kopalnie oczyszczalnie ścieków fermy hodowlane huty odbiorcy mocy",
       layers: () => [dot("en-odb", "odb", "#455a64", 6, { source: OZE, minzoom: 9 })], legend: () => legendRow([["#455a64", "zakład lub obiekt"]]) + note("Kompleksy przemysłowo-gospodarcze z BDOT10k (GUGiK): zakłady produkcyjne, fermy, oczyszczalnie, kopalnie, wodociągi, huty i inne. Widoczne od skali około 1:1 000 000."), minz: 9 }
   ];
-  const LOOK = { wn: ["lightning", "#c62828"], sn: ["plug", "#f57c00"], wiatr: ["wind", "#1565c0"], pv: ["solar-panel", "#f9a825"], inne: ["factory", "#43a047"], magazyny: ["battery-charging", "#d81b60"], ladowanie: ["charging-station", "#7b1fa2"], moce: ["lightning", "#2e7d32"], wdost: ["wind", "#2e7d32"], pog: ["map-trifold", "#7e57c2"], odb: ["factory", "#455a64"] };
+  const LOOK = { wn: ["lightning", "#c62828"], sn: ["plug", "#f57c00"], wiatr: ["wind", "#1565c0"], pv: ["solar-panel", "#f9a825"], inne: ["factory", "#43a047"], magazyny: ["battery-charging", "#d81b60"], ladowanie: ["charging-station", "#7b1fa2"], moce: ["lightning", "#2e7d32"], wdost: ["wind", "#2e7d32"], pog: ["map-trifold", "#7e57c2"], miejsca: ["target", "#1565c0"], odb: ["factory", "#455a64"] };
   window.LayerLook = Object.assign(window.LayerLook || {}, Object.fromEntries(Object.entries(LOOK).map(([k, v]) => ["en-" + k, v])));
   function legendRow(items) {
     return `<div class="terr-legend">${items.map(([c, l, kind]) => `<span><i style="${kind === "line" ? `background:${c};height:3px;border-radius:2px` : kind === "box" ? `background:${c};opacity:.7;border-radius:2px` : kind === "ring" ? `background:#fff;border:2px solid ${KV[220]};border-radius:50%` : `background:${c};border-radius:50%`}"></i>${esc(l)}</span>`).join("")}</div>`;
@@ -92,10 +101,12 @@
     for (const spec of L.layers()) if (map.getLayer(spec.id)) map.setLayoutProperty(spec.id, "visibility", on ? "visible" : "none");
     const leg = document.getElementById("en-leg-" + L.id); leg.hidden = !on; if (on) leg.innerHTML = L.legend();
   }
+  /* ?en=miejsca,moce włącza warstwy z linku (np. z arkusza OZE). */
+  const ON = (new URLSearchParams(location.search).get("en") || "").split(",");
   function init() {
     for (const L of LAYERS) {
       const cb = document.getElementById("en-" + L.id);
-      cb.checked = app.store.get("energy." + L.id, false);
+      cb.checked = ON.includes(L.id) || app.store.get("energy." + L.id, false);
       if (cb.checked) apply(L, true);
       cb.onchange = () => { app.store.set("energy." + L.id, cb.checked); apply(L, cb.checked); if (cb.checked && L.minz && map.getZoom() < L.minz) app.toast("Przybliż mapę, aby zobaczyć tę warstwę"); };
     }
@@ -106,7 +117,7 @@
 
   /* Karta obiektu: tylko punkty (linie nie przechwytują stuknięć, żeby nie zasłaniać działek). */
   const POINTS = ["en-moce", "en-mag", "en-turb", "en-turb-plan", "en-pv", "en-woda", "en-bio", "en-cie", "en-gpz", "en-lad", "en-odb"];
-  const AREAS = ["oze-pog", "oze-wiatr"];
+  const AREAS = ["oze-miejsca", "oze-pog", "oze-wiatr"];
   const cap = t => t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
   const fmt = (v, d = 1) => (+v).toLocaleString("pl-PL", { maximumFractionDigits: d });
   /* GPZ card: free generation capacity by year, consumer capacity and what is already queued at the station. */
@@ -140,6 +151,18 @@
     else if (f.source === "energia-moce") { title = p.n || "Stacja elektroenergetyczna"; body = mocCard(p); }
     else if (f.source === "energia-mag") { title = p.typ === "szczytowo-pompowy" ? "Elektrownia szczytowo-pompowa" : "Magazyn energii"; body = row("Nazwa", p.n) + row("Operator", p.op) + row("Moc", p.mw ? `${fmt(p.mw)} MW` : "") + row("Pojemność", p.mwh ? `${fmt(p.mwh)} MWh` : ""); }
     else if (l === "odb") { title = cap(p.r) || "Duży odbiorca energii"; body = row("Opis", p.i) + `<p class="muted small">Kompleks przemysłowo-gospodarczy z bazy BDOT10k, potencjalny duży odbiorca energii lub ciepła.</p>`; }
+    else if (l === "miejsca") {
+      const OCH = { n2k: "Natura 2000", pk: "park krajobrazowy", ochk: "obszar chronionego krajobrazu" };
+      title = p.pv ? "Miejsce pod elektrownię słoneczną" : "Miejsce pod elektrownię wiatrową";
+      body = `<p class="en-score"><b class="${p.s >= 70 ? "ok" : p.s >= 45 ? "low" : "zero"}">${p.s}</b><span>na 100 w ocenie miejsc ${p.pv ? "pod fotowoltaikę" : "pod wiatraki"}</span></p>` +
+        row("Plan ogólny", (p.u ? "uchwalony" : "w trakcie uchwalania") + (p.o ? `, strefa ${p.o}` : "")) + row("Rodzaj strefy", p.st) +
+        row("Powierzchnia", `${fmt(p.ha)} ha` + (!p.pv && p.k1 != null ? `, w tym ${fmt(p.k1)} ha poza lasem i pasem 200 m` : "")) +
+        row("Orientacyjnie", p.pv ? `do ${fmt(p.szac)} MW` : `${fmt(p.szac, 0)} ${p.szac == 1 ? "turbina" : p.szac < 5 ? "turbiny" : "turbin"}`) +
+        row("Linia 110 kV", p.kv != null ? `${fmt(p.kv / 1000)} km` : "") + row("Najbliższa stacja GPZ", p.gm != null ? `${(p.gpz || "").replace(/^[„"]|[”"]$/g, "") || "bez nazwy"}, ${fmt(p.gm / 1000)} km` : "") +
+        row("Wolna moc u operatora", p.mn ? `${fmt(p.mv, 0)} MW (${p.mn})` : "brak danych operatora") + row("Najbliższy dom", p.bm != null ? `${fmt(p.bm, 0)} m` : "") +
+        row("Ochrona przyrody", (p.ochr || "").split(",").filter(Boolean).map(x => OCH[x] || x).join(", ") || "poza obszarami chronionymi") +
+        `<p class="muted small">Plan ogólny dopuszcza tu tę technologię, ale inwestycję musi jeszcze umożliwić plan miejscowy, decyzja środowiskowa i warunki przyłączenia. ${p.pv ? "Grunty klas I–III mają dodatkowe ograniczenia." : "Założono turbinę 200 m i 700 m od domów."} Szacunek: ${p.pv ? "1 MW na 1,4 ha" : "1 turbina na 40 ha"}.</p>` +
+        `<p><a href="oze.html?t=miejsca&id=${p.id}&k=${esc(p.k)}">Porównaj w arkuszu</a></p>`; }
     else if (l === "pog") { title = cap(p.n) || "Strefa planu ogólnego"; body = row("Oznaczenie", p.o) + row("Gmina", p.gm) + row("Plan ogólny", p.u ? "uchwalony" : "w trakcie uchwalania") +
         row("Dopuszczone OZE", [p.pv && "elektrownie słoneczne", p.bio && "biogazownie", p.wi && "elektrownie wiatrowe"].filter(Boolean).join(", ")) + row("Powierzchnia strefy", p.ha ? `${fmt(p.ha)} ha` : ""); }
     else if (l === "wiatr") { title = "Obszar dla elektrowni wiatrowych"; body = p.c === 1 ? `<p>Miejsce <b>poza wszystkimi strefami zakazu</b> z ustawy wiatrakowej i poza lasami, wodami oraz pasem 200 m od lasu.</p>` : `<p>Według ustawy <b>dopuszczalne</b>, ale w lesie lub do 200 m od lasu, na wodach, w użytku ekologicznym albo zespole przyrodniczo-krajobrazowym. Wytyczne środowiskowe zalecają tu ostrożność.</p>`;
@@ -160,7 +183,7 @@
       if (!aids.length || map.getZoom() >= (app.minZoom || 13)) return false;
       const a = map.queryRenderedFeatures(e.point, { layers: aids });
       if (!a.length) return false;
-      card(a.find(f => f.sourceLayer === "pog") || a[0], [e.lngLat.lng, e.lngLat.lat]);
+      card(a.find(f => f.sourceLayer === "miejsca") || a.find(f => f.sourceLayer === "pog") || a[0], [e.lngLat.lng, e.lngLat.lat]);
       return true;
     }
     const near = hits.map(f => { const q = map.project(f.geometry.coordinates); return [Math.hypot(q.x - e.point.x, q.y - e.point.y), f]; }).sort((a, b) => a[0] - b[0])[0][1];

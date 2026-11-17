@@ -9,6 +9,7 @@
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--muted:#6e6e73;--line:#e5e5ea;--accent:#0a66c2;--good:#2e7d32;--mid:#f9a825;--bad:#d32f2f;--chip:#f0f1f4}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 header{padding:18px 16px 8px;max-width:1280px;margin:0 auto}
 header h1{margin:0 0 4px;font-size:24px}
@@ -22,6 +23,7 @@ main{max-width:1280px;margin:0 auto;padding:0 16px 40px}
 .lead{margin:0 0 6px;color:var(--muted)}
 .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+label.chk{justify-content:flex-end}label.chk span{display:flex;align-items:center;gap:8px;min-height:38px;color:var(--ink);font-size:14px}label.chk input{width:18px;height:18px;accent-color:var(--ink)}
 select,input[type=search]{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);width:100%}
 .weights{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 18px;margin-top:10px}
 .weights label{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:13px}
@@ -72,7 +74,7 @@ tr.det td{background:#fbfbfd}
 <body>
 <header>
   <h1>Gdzie budować OZE</h1>
-  <p>Ocena wszystkich gmin pod elektrownie wiatrowe, słoneczne, biogazownie i spółdzielnie energetyczne. Zmień wagi, aby dopasować ranking do swoich założeń. <a href="./">Wróć do mapy</a></p>
+  <p>Miejsca, w których plany ogólne gmin dopuszczają wiatraki i fotowoltaikę, oraz ocena wszystkich gmin pod elektrownie wiatrowe, słoneczne, biogazownie i spółdzielnie energetyczne. <a href="./">Wróć do mapy</a></p>
 </header>
 <main>
   <div class="tabs" role="tablist" id="tabs"></div>
@@ -83,6 +85,13 @@ tr.det td{background:#fbfbfd}
       <label class="f">Województwo<select id="woj"><option value="">cała Polska</option></select></label>
       <label class="f">Rodzaj gminy<select id="typ"><option value="">wszystkie</option><option>wiejska</option><option>miejsko-wiejska</option><option>miejska</option></select></label>
       <label class="f">Pokaż<select id="lim"><option value="100">pierwsze 100</option><option value="300">pierwsze 300</option><option value="5000">wszystkie</option></select></label>
+    </div>
+    <div class="controls" id="mctrl" hidden style="margin-top:10px">
+      <label class="f">Technologia<select id="mt"><option value="">wiatr i fotowoltaika</option><option value="0">elektrownie wiatrowe</option><option value="1">elektrownie słoneczne</option></select></label>
+      <label class="f">Plan ogólny<select id="mp"><option value="">uchwalony lub w projekcie</option><option value="1">tylko uchwalony</option></select></label>
+      <label class="f">Powierzchnia co najmniej<select id="mha"><option value="0">dowolna</option><option value="5">5 ha</option><option value="10">10 ha</option><option value="20">20 ha</option><option value="50">50 ha</option><option value="100">100 ha</option></select></label>
+      <label class="f">Wolna moc przy stacji<select id="mm"><option value="">bez znaczenia</option><option value="nie0">bez stacji z zerową mocą</option><option value="tak">tylko potwierdzona wolna moc</option></select></label>
+      <label class="f chk"><span><input type="checkbox" id="mch"/> poza obszarami chronionymi</span></label>
     </div>
     <div class="weights" id="weights"></div>
     <div class="row-actions"><button class="btn" id="reset" type="button">Przywróć domyślne wagi</button><button class="btn" id="csv" type="button">Pobierz CSV</button></div>

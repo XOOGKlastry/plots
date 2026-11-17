@@ -163,7 +163,7 @@
     const g = gminy.find(x => x.k === selectedId), o = current.values.get(selectedId);
     if (o && current.def.cat) { const w = o.w, c = CATS[o.value];
       return `<div class="stats-selected"><div><strong>${esc(g?.n || selectedId)}</strong><small>${esc(w[5])}: ${esc(w[2])}${w[6] ? ` · rządzi od ${w[6]}` : ""}</small></div><div><b style="color:${c[2]}">${esc(c[1])}</b><small>${esc(w[1])}${w[3] != null ? ` · ${String(w[3]).replace(".", ",")}%${w[4] === 2 ? " w II turze" : ""}` : ""}</small></div></div>
-        <div class="stats-wl-acts"><button type="button" data-wl-hl="${esc(w[1])}" aria-pressed="${hl === w[1]}">${icon("poland")}${hl === w[1] ? "Pokaż wszystkie" : "Gdzie jeszcze wygrał ten komitet"}</button><button type="button" data-wl-hist="${esc(selectedId)}">${icon("clock")}Zobacz historię</button></div>`; }
+        <div class="stats-wl-acts"><button type="button" data-wl-hl="${esc(w[1])}" aria-pressed="${hl === w[1]}">${icon("poland")}${hl === w[1] ? "Pokaż wszystkie" : "Gdzie jeszcze wygrał ten komitet"}</button><button type="button" data-wl-hist="${esc(selectedId)}">${icon("clock")}Historia wyborów w gminie</button></div>`; }
     if (!o) return `<div class="stats-selected"><strong>${esc(g?.n || selectedId)}</strong><span>Brak danych</span></div>`;
     const lower = current.def.lowerBetter, sorted = [...current.values.values()].map(v => v.value).sort((a, b) => lower ? a - b : b - a);
     const rank = sorted.findIndex(v => v === o.value) + 1;
@@ -239,7 +239,7 @@
     const chip = $("#statsCats [aria-selected=true]"), bar = $("#statsCats"); if (chip) requestAnimationFrame(() => { bar.scrollLeft += chip.getBoundingClientRect().left - bar.getBoundingClientRect().left - 40; });
     const match = d => !needle || model.normalize(d.label + " " + d.category + " " + I.of(d).group + " " + (d.unit || "")).includes(needle);
     const cats = I.group(defs.filter(d => match(d) && (needle || d.category === pickCat)), ORDER);
-    $("#statsList").innerHTML = cats.map(c => `<h3 style="--cat:${c.color}">${icon(c.icon)}${esc(c.category)}</h3>${c.groups.map(g => `${c.groups.length > 1 ? `<h4>${esc(g.label)}</h4>` : ""}<ul>${g.items.map(d => `<li><button type="button" data-stat="${esc(d.key)}" aria-current="${d.key === state.key}"><span class="stats-ico" style="--cat:${c.color}">${icon(I.of(d).icon)}</span><span>${esc(d.label)}<small>${esc(d.unit || "")}${d.level === 5 ? " · dane powiatu" : ""}</small></span></button></li>`).join("")}</ul>`).join("")}`).join("") || `<p class="muted small">Brak pasujących wskaźników.</p>`;
+    $("#statsList").innerHTML = cats.map(c => `<h3 style="--cat:${c.color}">${icon(c.icon)}${esc(c.category)}</h3>${c.groups.map(g => `${c.groups.length > 1 ? `<h4>${esc(g.label)}</h4>` : ""}<ul>${g.items.map(d => `<li><button type="button" data-stat="${esc(d.key)}" aria-current="${d.key === state.key}"><span class="stats-ico" style="--cat:${c.color}">${I.html(d)}</span><span>${esc(d.label)}<small>${esc(d.unit || "")}${d.level === 5 ? " · dane powiatu" : ""}</small></span></button></li>`).join("")}</ul>`).join("")}`).join("") || `<p class="muted small">Brak pasujących wskaźników.</p>`;
   }
   function pickSection(name) {
     pickSec = name;

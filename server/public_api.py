@@ -477,6 +477,11 @@ OZE_TILE_SQL = "WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (
     """coalesce((SELECT ST_AsMVT(q, 'odb', 4096, 'g') FROM (SELECT t."RODZAJ" AS r, nullif(t."INFORMACJADODATKOWA", '') AS i,
          ST_AsMVTGeom(ST_Transform(t.geom,3857), b.e, 4096, 16, true) g
        FROM bazamocy.potencjalni_odbiorcy_mocy_kupg t, b, b2 WHERE %(z)s >= 9 AND t.geom && b2.e2) q WHERE g IS NOT NULL), ''::bytea)""",
+    """coalesce((SELECT ST_AsMVT(q, 'miejsca', 4096, 'g') FROM (SELECT t.id, (t.tech = 'pv')::int AS pv, t.ocena AS s, t.ha, t.ha_k1 AS k1,
+         (t.status = 'uchwalony')::int AS u, t.oznaczenie AS o, replace(t.strefa, 'strefa ', '') AS st, t.kv110_m AS kv, t.gpz, t.gpz_m AS gm,
+         t.bud_m AS bm, t.n2k_proc AS n2k, array_to_string(t.ochr, ',') AS ochr, t.szac, t.moc_n AS mn, t.moc_v AS mv, t.k,
+         ST_AsMVTGeom(ST_Transform(ST_SimplifyPreserveTopology(t.geom, %(tol)s),3857), b.e, 4096, 16, true) g
+       FROM oze_analiza.miejsca t, b, b2 WHERE %(z)s >= 8 AND t.geom && b2.e2) q WHERE g IS NOT NULL), ''::bytea)""",
 ])
 
 @app.route("/tiles/oze/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])

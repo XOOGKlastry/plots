@@ -170,3 +170,4 @@ details summary{cursor:pointer;color:var(--mut);font-weight:600;padding:6px 0}
 .en-years small{font-size:11px;color:#6b7280}
 .en-years b{font-size:15px}
 .en-years b.zero{color:#c62828}.en-years b.low{color:#b26a00}.en-years b.ok{color:#2e7d32}
+.en-score{display:flex;align-items:center;gap:10px;margin:2px 0 8px}.en-score b{font-size:26px;min-width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#f3f4f6}.en-score b.ok{color:#2e7d32;background:#e8f5e9}.en-score b.low{color:#b26a00;background:#fff4e0}.en-score b.zero{color:#c62828;background:#fdecea}.en-score span{color:#6b7280;font-size:13px}

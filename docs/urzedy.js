@@ -143,7 +143,7 @@
     return `<section class="urz-wl"><div class="urz-wl-top"><span class="urz-wl-av">${ph}</span>
       <div><small>${esc(role)}</small><b>${esc(w.n)}</b><em>${esc(party)}</em>${staz(w)}</div></div>
       <dl class="urz-kontakt urz-wl-dl">${row("Komitet", w.kom)}${w.pop ? row("Poparcie", w.pop) : ""}${w.proc != null ? row("Wynik w 2024", `${String(w.proc).replace(".", ",")}%${w.tura === 2 ? " w II turze" : " w I turze"}`) : ""}${w.wiek ? row("Wiek w 2024", w.wiek + " lat") : ""}</dl>
-      <div class="urz-wl-acts"><button type="button" data-wl-pl>${ic("poland")}Pokaż komitet w Polsce</button><button type="button" data-wl-hist>${ic("clock")}Zobacz historię</button></div>
+      <div class="urz-wl-acts"><button type="button" data-wl-pl>${ic("poland")}Pokaż komitet w Polsce</button><button type="button" data-wl-hist>${ic("clock")}Historia wyborów w gminie</button></div>
       <div class="urz-wl-links"><a href="${g(`${w.n} ${w.urzad || where}`)}" target="_blank" rel="noopener noreferrer">${ic("magnifying-glass")}Szukaj w Google</a><a href="${g(`${w.n} ${w.f}`)}&tbm=isch" target="_blank" rel="noopener noreferrer">${ic("image")}Zdjęcia w Google</a></div>
       <p class="urz-src">Wybrany w wyborach samorządowych 2024 (PKW). Staż liczony z wyborów powszechnych od 2002 r. (PKW, danewyborcze.kbw.gov.pl); objęcie urzędu w wyborach przedterminowych nie jest liczone. Późniejsze zmiany nie są uwzględnione.${w.logo ? " Znaczki partii: Wikimedia Commons." : ""}</p></section>`;
   }
