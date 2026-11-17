@@ -436,6 +436,32 @@ def tile_gunb(z, x, y):
     if not re.match(r"^\d{4}-\d\d-\d\d$", od): od = "2021-01-01"
     return _mvt(GUNB_TILE_SQL, {"z": z, "x": x, "y": y, "od": od}, 3600)
 
+# ---------- Energetyka: sieci, stacje i źródła (jedna warstwa wektorowa, kilka podwarstw) ----------
+_EN_PTS = """coalesce((SELECT ST_AsMVT(q, '{name}', 4096, 'g') FROM (SELECT {cols} ST_AsMVTGeom(ST_Transform(t.geom,3857), b.e, 4096, 16, true) g
+  FROM {table} t, b, b2 WHERE t.geom && b2.e2 {where}) q WHERE g IS NOT NULL), ''::bytea)"""
+ENERGIA_TILE_SQL = "WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 AS (SELECT ST_Transform(e,2180) e2 FROM b) SELECT " + " || ".join([
+    """coalesce((SELECT ST_AsMVT(q, 'wn', 4096, 'g') FROM (SELECT l.kv, l.name AS n,
+         ST_AsMVTGeom(ST_Transform(ST_Simplify(l.geom, %(tol)s),3857), b.e, 4096, 16, true) g
+       FROM (SELECT geom, name, (SELECT max(v::int) FROM unnest(string_to_array(voltage, ';')) v WHERE v ~ '^[0-9]+$') / 1000 AS kv
+             FROM elektro.siec_wysoka_najwyzsza_2023) l, b, b2 WHERE l.geom && b2.e2 AND l.kv >= 110) q WHERE g IS NOT NULL), ''::bytea)""",
+    """coalesce((SELECT ST_AsMVT(q, 'sn', 4096, 'g') FROM (SELECT ST_AsMVTGeom(ST_Transform(l.geom,3857), b.e, 4096, 16, true) g
+       FROM elektro.siec_srednia l, b, b2 WHERE %(z)s >= 12 AND l.geom && b2.e2) q WHERE g IS NOT NULL), ''::bytea)""",
+    _EN_PTS.format(name="gpz", cols="replace(coalesce(t.name,''),'Stacja elektroenergetyczna','') AS n,", table="elektro.gpz_2023", where=""),
+    _EN_PTS.format(name="turbiny", cols="", table="bazamocy.turbiny_wiatrowe", where=""),
+    _EN_PTS.format(name="turbiny_plan", cols="t.nazwa_przedsiewziecia AS n, t.maks_moc_farmy_wiatrowej AS mw, t.liczba_elektrowni_w_farmie::int AS t, nullif(t.organ,'brak danych') AS org, round(t.wysokosc_calkowita_elektrowni) AS h,",
+                   table="bazamocy.planowane_turbiny_gdos", where=""),
+    _EN_PTS.format(name="pv", cols="", table="bazamocy.elektrownie_sloneczne", where=""),
+    _EN_PTS.format(name="woda", cols="", table="bazamocy.elektrownie_wodne", where=""),
+    _EN_PTS.format(name="biogaz", cols="t.nazwa AS n, replace(t.moc_instalacji, ',', '.') AS mw,", table="bazamocy.biogazownie", where=""),
+    _EN_PTS.format(name="cieplownie", cols="t.rodzaj AS r,", table="bazamocy.elektrownie_cieplownie", where=""),
+])
+
+@app.route("/tiles/energia/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
+def tile_energia(z, x, y):
+    if request.method == "OPTIONS": return Response(status=204)
+    if z < 5 or z > 22: return Response(b"", mimetype="application/x-protobuf")
+    return _mvt(ENERGIA_TILE_SQL, {"z": z, "x": x, "y": y, "tol": 40075016 / (4096 * 2 ** z) * 1.5}, 86400)
+
 def _pig_identify(url, lon, lat, extra):
     import urllib.request, urllib.parse
     sr = extra.pop("sr", 4326)

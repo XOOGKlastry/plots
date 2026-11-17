@@ -107,7 +107,7 @@
     if (category === "Przegląd") { fillCompendium(selected, wikiOpen, keepTop); if (indQuery) { $("#indSearch").value = indQuery; runIndicatorSearch(indQuery); } }
     $("#gminaDetails").scrollTop = keepTop;const active=$("#dataCategories [aria-current=true]");if(active&&app.isMobile())$("#dataCategories").scrollTo({left:Math.max(0,active.offsetLeft-20),behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});
   }
-  const EXTRA=["Ludność","Migracje","Dojazdy","Rodziny","Finanse i firmy","Warunki życia"];
+  const EXTRA=["Ludność","Migracje","Dojazdy","Rodziny","Finanse i firmy","Warunki życia","Energia i ciepło"];
   function changeCategory(value){if(!categories.includes(value)||value===category)return;category=value;window.Track?.("dane_gminy",{gmina:selected?.n,teryt:selected?.k,kategoria:value});renderDetails();const content=$('#gminaDetails');content.classList.remove('category-arrive');void content.offsetWidth;content.classList.add('category-arrive');}
   /* End of a category: a card with the next one. Scrolling on past the bottom moves there, like turning a page. */
   function nextCard(){const n=categories[categories.indexOf(category)+1];return n?`<button type="button" class="next-cat" data-next-cat="${esc(n)}"><span class="nc-bar"></span><small>Przewiń dalej lub dotknij</small><b>${Icons.svg(categoryIcons[n]||"arrow-right")}${esc(n)}</b>${Icons.svg("arrow-right")}</button>`:"";}
@@ -184,7 +184,7 @@
       const put=(id,html)=>{const el=$("#"+id);if(el){el.innerHTML=html;P.bindPop(el);}};
       if(category==="Przegląd"){put("gminaPopChart",P.popChart(d.profil));put("gminaHeritage",P.heritage(d.dz));put("gminaNature",P.nature(d.dz));}
       else if(["Ludność","Migracje","Dojazdy","Rodziny"].includes(category)){put("gminaProfileTop",category==="Ludność"?P.popChart(d.profil)+P.pyramid(d.profil,d.ages,d.ref):"");const L=d.profil?.lud,lud=L?L[1][2021-L[0]]:null;window.GminaExtra?.fill(g,$("#gminaProfileTop"),category,lud);}
-      else if(category==="Warunki życia"){put("gminaProfileTop","");window.GminaExtra?.fill(g,$("#gminaProfileTop"),category);}
+      else if(category==="Warunki życia"||category==="Energia i ciepło"){put("gminaProfileTop","");window.GminaExtra?.fill(g,$("#gminaProfileTop"),category);}
       else if(category==="Finanse i firmy")put("gminaProfileTop",P.budget(d.profil));
       else if(category==="Wybory"){window.Urzedy?.get(g.k).then(u=>{const r=$("#gminaRulers");if(r&&selected===g)r.innerHTML=window.Urzedy.rulers(u);});const el=$("#gminaElections");if(el){const draw=()=>{el.innerHTML=P.elections(d.wyb,electionPick)||'<p class="muted">Brak wyników wyborów dla tej gminy.</p>';};draw();el.onclick=e=>{const b=e.target.closest("[data-election]");if(b){electionPick=b.dataset.election;draw();}};}}
     }).catch(()=>{});

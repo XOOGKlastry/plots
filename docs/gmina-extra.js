@@ -451,6 +451,50 @@
       `Mieszkańcy z adresem zameldowania na pobyt stały. <a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">${esc(d.zrodlo)}</a>.`);
   }
 
+  /* Energetyka w gminie: nazwy klastrów i spółdzielni, planowane farmy wiatrowe, biogazownie, małe instalacje OZE z rejestru URE,
+     stacje GPZ i linie wysokich napięć. Przyciski „Pokaż na mapie” włączają warstwy z grupy Energetyka. */
+  async function energy(g) {
+    const d = (await json(`data/energia/${g.k.slice(0, 2)}.json`))?.gminy?.[g.k];
+    if (!d) return section("lightning", "Energetyka w gminie", `<div class="ext-card"><p class="muted">Brak zarejestrowanych źródeł energii, klastrów i linii wysokiego napięcia w tej gminie.</p></div>`);
+    const btn = (layer, label = "Pokaż na mapie") => `<button type="button" class="terr-map" data-gmina-map data-en-layer="${layer}">${Icons.svg("map-trifold")}<span>${label}</span></button>`;
+    const sub = (title, layer) => `<p class="ext-sub en-sub"><b>${esc(title)}</b>${layer ? btn(layer) : ""}</p>`;
+    const chips = [];
+    const chip = (v, txt) => chips.push(`<span class="terr-chip"><b>${fmt(v)}</b> ${esc(txt)}</span>`);
+    const pl = (n, a, b, c) => n === 1 ? a : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? b : c;
+    if (d.turb) chip(d.turb, pl(d.turb, "działająca turbina wiatrowa", "działające turbiny wiatrowe", "działających turbin wiatrowych"));
+    const plan = (d.farmy || []).reduce((a, f) => a + (f.t || 0), 0);
+    if (plan) chip(plan, pl(plan, "planowana turbina", "planowane turbiny", "planowanych turbin"));
+    if (d.bio) chip(d.bio.length, pl(d.bio.length, "biogazownia", "biogazownie", "biogazowni"));
+    if (d.mioze) chip(d.mioze.n, pl(d.mioze.n, "mała instalacja OZE (URE)", "małe instalacje OZE (URE)", "małych instalacji OZE (URE)"));
+    if (d.gpz_n) chip(d.gpz_n, pl(d.gpz_n, "stacja GPZ", "stacje GPZ", "stacji GPZ"));
+    const parts = [];
+    if (d.klastry || d.spoldz) {
+      parts.push(sub("Wspólnoty energetyczne") + `<ul class="terr-list">${(d.klastry || []).map(n => `<li>${esc(n)}<small>klaster energii w rejestrze Prezesa URE</small></li>`).join("")}${(d.spoldz || []).map(n => `<li>${esc(n)}<small>spółdzielnia energetyczna w wykazie KOWR</small></li>`).join("")}</ul>`);
+    }
+    if (d.farmy) {
+      parts.push(sub("Planowane farmy wiatrowe", "wiatr") + `<ul class="terr-list">${d.farmy.map(f => `<li>${esc(f.n || "Farma wiatrowa")}<small>${[f.t ? `${fmt(f.t)} ${pl(f.t, "turbina", "turbiny", "turbin")} w gminie` : "", f.mw ? `moc farmy do ${fmt(f.mw, f.mw % 1 ? 1 : 0)} MW` : "", f.h ? `wysokość do ${fmt(f.h)} m` : "", f.org || ""].filter(Boolean).join(" · ")}</small></li>`).join("")}</ul>`);
+    }
+    if (d.bio) parts.push(sub("Biogazownie rolnicze", "inne") + `<ul class="terr-list">${d.bio.map(([n, mw]) => `<li>${esc(n)}<small>${mw ? `${fmt(mw, 3)} MW` : ""}</small></li>`).join("")}</ul>`);
+    if (d.mioze) {
+      const M = d.mioze, T = [["pv_mw", "fotowoltaika", "#f9a825"], ["wiatr_mw", "wiatr", "#1565c0"], ["woda_mw", "woda", "#0097a7"], ["biogaz_mw", "biogaz", "#43a047"], ["biomasa_mw", "biomasa", "#8d6e63"], ["inne_mw", "inne", "#9e9e9e"]].filter(([k]) => M[k]);
+      parts.push(sub("Małe instalacje OZE firm i rolników") + `<p>${fmt(M.n)} ${pl(M.n, "instalacja", "instalacje", "instalacji")} o łącznej mocy <b>${fmt(M.mw, 2)} MW</b>.</p>` +
+        `<div class="terr-legend">${T.map(([k, n, c]) => `<span><i style="background:${c}"></i>${esc(n)} ${fmt(M[k], 2)} MW</span>`).join("")}</div>` +
+        `<small class="muted">Rejestr wytwórców energii w małej instalacji (MIOZE) Prezesa URE, do 1 MW. Bez mikroinstalacji domowych.</small>`);
+    }
+    if (d.cie) parts.push(sub("Ciepłownictwo", "inne") + `<p>${Object.entries(d.cie).map(([r, n]) => `<span class="terr-chip"><b>${n}</b> ${esc(n === 1 ? r : r === "ciepłownia" ? pl(n, r, "ciepłownie", "ciepłowni") : r === "elektrociepłownia" ? pl(n, r, "elektrociepłownie", "elektrociepłowni") : r)}</span>`).join(" ")}</p>`);
+    if (d.gpz_n || d.kv110 || d.kv220 || d.kv400) {
+      const km = [["kv400", "400 kV"], ["kv220", "220 kV"], ["kv110", "110 kV"]].filter(([k]) => d[k]).map(([k, n]) => `<span class="terr-chip"><b>${fmt(d[k])} km</b> linii ${n}</span>`).join(" ");
+      parts.push(sub("Sieć wysokich napięć", "wn") + (km ? `<p>${km}</p>` : "") + (d.gpz?.length ? `<ul class="terr-list en-gpz">${d.gpz.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "") +
+        `<small class="muted">OpenStreetMap, stan 2023. Długość linii liczona po trasach, linie wielotorowe mogą być liczone kilka razy.</small>`);
+    }
+    if (d.pog) {
+      const p = d.pog, ha = d.pog_oze_ha, st = { uchwalony: "uchwalony", projekt: "w opracowaniu", brak: "brak w Geoportalu" }[p.stan] || p.stan;
+      parts.push(sub("Plan ogólny gminy") + `<p>Stan: <b>${esc(st)}</b>${p.od ? ` (${esc(p.od)})` : ""}.${ha && (ha[0] || ha[1]) ? ` Strefy dopuszczające instalacje OZE: <b>${fmt(ha[0] || ha[1])} ha</b>${ha[0] ? "" : " w projekcie"}.` : ""}</p>`);
+    }
+    return section("lightning", "Energetyka w gminie", `<div class="ext-card">${chips.length ? `<p>${chips.join(" ")}</p>` : ""}${parts.join("")}</div>`,
+      `Źródła: Prezes URE (rejestr klastrów energii, rejestr MIOZE, koncesje), KOWR (spółdzielnie energetyczne, biogazownie rolnicze), GDOŚ i RDOŚ (decyzje środowiskowe, zestawienie bazamocy.pl), Geoportal GUGiK (plany ogólne), OpenStreetMap (sieć wysokich napięć). Stan ${esc((await json(`data/energia/${g.k.slice(0, 2)}.json`))?.stan || "")}.`);
+  }
+
   async function fill(g, el, category, lud) {
     if (!el || !g) return;
     const woj = g.k.slice(0, 2);
@@ -462,6 +506,7 @@
     else if (category === "Dojazdy") html = await commute(g, lud);
     else if (category === "Rodziny") html = nspSections(g, N, PL, /Gospodarstwa domowe|Stan cywilny/);
     else if (category === "Warunki życia") html = housing(g, N, PL);
+    else if (category === "Energia i ciepło") html = await energy(g);
     if (!el.isConnected) return;
     el.insertAdjacentHTML("beforeend", html);
     bindLines(el); bindForecast(el, g); bindTimeline(el); bindMig(el); bindCommute(el);

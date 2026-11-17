@@ -159,3 +159,8 @@ details summary{cursor:pointer;color:var(--mut);font-weight:600;padding:6px 0}
   #sugg{max-height:calc(100dvh - 160px)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* Energetyka w gminie (gmina-extra.js) i karta obiektu energetycznego (energy.js) */
+.ext-sub.en-sub{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px}
+.ext-sub.en-sub .terr-map{flex:none}
+.en-gpz li{padding:2px 0}
+.en-card p{margin:6px 0}
