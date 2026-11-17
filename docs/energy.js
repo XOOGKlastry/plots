@@ -9,7 +9,8 @@
   const SOURCES = {
     wn: "OpenStreetMap (linie elektroenergetyczne, stan 2023)", sn: "BDOT10k, GUGiK (linie średniego napięcia)", gpz: "OpenStreetMap (stacje elektroenergetyczne)",
     turbiny: "Prezes URE, rejestr koncesji", turbiny_plan: "GDOŚ i RDOŚ, decyzje środowiskowe dla farm wiatrowych (zestawienie bazamocy.pl)",
-    pv: "bazamocy.pl, GDOŚ", woda: "bazamocy.pl, GDOŚ", biogaz: "KOWR, rejestr wytwórców biogazu rolniczego", cieplownie: "bazamocy.pl"
+    pv: "bazamocy.pl, GDOŚ", woda: "bazamocy.pl, GDOŚ", biogaz: "KOWR, rejestr wytwórców biogazu rolniczego", cieplownie: "bazamocy.pl",
+    ladowanie: "Ewidencja Infrastruktury Paliw Alternatywnych EIPA (UDT)", magazyny: "OpenStreetMap (magazyny energii), stan 17.11.2026"
   };
   const dot = (id, layer, color, r, extra = {}) => ({ id, type: "circle", source: SRC, "source-layer": layer, ...extra,
     paint: { "circle-color": color, "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, r * .45, 10, r * .8, 15, r * 1.2], "circle-stroke-color": "#fff", "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 5, .6, 12, 1.6] } });
@@ -35,9 +36,16 @@
       layers: () => [dot("en-pv", "pv", "#f9a825", 7)], legend: () => legendRow([["#f9a825", "farma PV"]]) + note("Źródło: bazamocy.pl, GDOŚ.") },
     { id: "inne", label: "Biogazownie, elektrownie wodne i ciepłownie", desc: "Pozostałe źródła energii i ciepła", kw: "biogazownie biogaz elektrownie wodne hydro ciepłownie elektrociepłownie kowr",
       layers: () => [dot("en-woda", "woda", "#0097a7", 7), dot("en-bio", "biogaz", "#43a047", 8), dot("en-cie", "cieplownie", "#6d4c41", 8)],
-      legend: () => legendRow([["#43a047", "biogazownia"], ["#0097a7", "elektrownia wodna"], ["#6d4c41", "ciepłownia, elektrociepłownia"]]) + note("Biogazownie: KOWR. Elektrownie wodne i ciepłownie: bazamocy.pl, GDOŚ.") }
+      legend: () => legendRow([["#43a047", "biogazownia"], ["#0097a7", "elektrownia wodna"], ["#6d4c41", "ciepłownia, elektrociepłownia"]]) + note("Biogazownie: KOWR. Elektrownie wodne i ciepłownie: bazamocy.pl, GDOŚ.") },
+    { id: "magazyny", label: "Magazyny energii", desc: "Bateryjne i szczytowo-pompowe", kw: "magazyny energii bess baterie akumulatory elektrownie szczytowo-pompowe szczytowo pompowe",
+      layers: () => [(({ "source-layer": _, ...s }) => ({ ...s, source: "energia-mag" }))(dot("en-mag", "magazyny", "#d81b60", 9)), { id: "en-mag-lbl", type: "symbol", source: "energia-mag", minzoom: 9,
+          layout: { "text-field": ["coalesce", ["get", "n"], ""], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.1], "text-anchor": "top", "text-max-width": 12 },
+          paint: { "text-color": "#880e4f", "text-halo-color": "#fff", "text-halo-width": 1.5 } }],
+      legend: () => legendRow([["#d81b60", "magazyn energii"]]) + note("Źródło: OpenStreetMap. Rejestry URE nie podają położenia magazynów, więc lista może być niepełna.") },
+    { id: "ladowanie", label: "Stacje ładowania samochodów", desc: "Ogólnodostępne stacje z ewidencji EIPA", kw: "stacje ładowania ładowarki samochody elektryczne elektromobilność eipa udt",
+      layers: () => [dot("en-lad", "ladowanie", "#7b1fa2", 6, { minzoom: 7 })], legend: () => legendRow([["#7b1fa2", "stacja ładowania"]]) + note("Źródło: Ewidencja Infrastruktury Paliw Alternatywnych EIPA (UDT)."), minz: 7 }
   ];
-  const LOOK = { wn: ["lightning", "#c62828"], sn: ["plug", "#f57c00"], wiatr: ["wind", "#1565c0"], pv: ["solar-panel", "#f9a825"], inne: ["factory", "#43a047"] };
+  const LOOK = { wn: ["lightning", "#c62828"], sn: ["plug", "#f57c00"], wiatr: ["wind", "#1565c0"], pv: ["solar-panel", "#f9a825"], inne: ["factory", "#43a047"], magazyny: ["battery-charging", "#d81b60"], ladowanie: ["charging-station", "#7b1fa2"] };
   window.LayerLook = Object.assign(window.LayerLook || {}, Object.fromEntries(Object.entries(LOOK).map(([k, v]) => ["en-" + k, v])));
   function legendRow(items) {
     return `<div class="terr-legend">${items.map(([c, l, kind]) => `<span><i style="${kind === "line" ? `background:${c};height:3px;border-radius:2px` : kind === "ring" ? `background:#fff;border:2px solid ${KV[220]};border-radius:50%` : `background:${c};border-radius:50%`}"></i>${esc(l)}</span>`).join("")}</div>`;
@@ -51,7 +59,8 @@
 
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   function ensureSource() {
-    if (!map.getSource(SRC)) { map.addSource(SRC, { type: "vector", tiles: [BASE + "/tiles/energia/{z}/{x}/{y}.pbf"], minzoom: 5, maxzoom: 14, attribution: "URE, GDOŚ, KOWR, GUGiK, © OpenStreetMap" }); app.registerOverlaySource?.(SRC); }
+    if (!map.getSource(SRC)) { map.addSource(SRC, { type: "vector", tiles: [BASE + "/tiles/energia/{z}/{x}/{y}.pbf"], minzoom: 5, maxzoom: 14, attribution: "URE, GDOŚ, KOWR, UDT, GUGiK, © OpenStreetMap" }); app.registerOverlaySource?.(SRC); }
+    if (!map.getSource("energia-mag")) map.addSource("energia-mag", { type: "geojson", data: "data/magazyny-energii.geojson", attribution: "© OpenStreetMap" });
   }
   const added = new Set();
   function apply(L, on) {
@@ -74,7 +83,7 @@
   if (map.loaded()) init(); else map.once("load", init);
 
   /* Karta obiektu: tylko punkty (linie nie przechwytują stuknięć, żeby nie zasłaniać działek). */
-  const POINTS = ["en-turb", "en-turb-plan", "en-pv", "en-woda", "en-bio", "en-cie", "en-gpz"];
+  const POINTS = ["en-mag", "en-turb", "en-turb-plan", "en-pv", "en-woda", "en-bio", "en-cie", "en-gpz", "en-lad"];
   const fmt = (v, d = 1) => (+v).toLocaleString("pl-PL", { maximumFractionDigits: d });
   function card(f) {
     const p = f.properties || {}, l = f.sourceLayer;
@@ -86,9 +95,11 @@
     else if (l === "woda") { title = "Elektrownia wodna"; }
     else if (l === "biogaz") { title = "Biogazownia rolnicza"; body = row("Wytwórca", p.n) + row("Moc elektryczna", p.mw ? `${fmt(p.mw, 3)} MW` : ""); }
     else if (l === "cieplownie") { title = p.r ? p.r.charAt(0).toUpperCase() + p.r.slice(1) : "Ciepłownia"; }
+    else if (l === "ladowanie") { title = "Stacja ładowania samochodów"; body = `<p>Ogólnodostępna stacja ładowania. Moc, złącza i ceny sprawdzisz w <a href="https://eipa.udt.gov.pl/" target="_blank" rel="noopener noreferrer">EIPA</a>.</p>`; }
+    else if (f.source === "energia-mag") { title = p.typ === "szczytowo-pompowy" ? "Elektrownia szczytowo-pompowa" : "Magazyn energii"; body = row("Nazwa", p.n) + row("Operator", p.op) + row("Moc", p.mw ? `${fmt(p.mw)} MW` : "") + row("Pojemność", p.mwh ? `${fmt(p.mwh)} MWh` : ""); }
     else if (l === "gpz") { title = "Stacja elektroenergetyczna (GPZ)"; body = row("Nazwa", (p.n || "").trim().replace(/^[„"]|[”"]$/g, "")); }
     const [lon, lat] = f.geometry.coordinates;
-    app.showInfo(`<div class="phead"><h2>${esc(title)}</h2></div><div class="en-card">${body}<p><small class="muted">Źródło: ${esc(SOURCES[l] || "")}</small></p>
+    app.showInfo(`<div class="phead"><h2>${esc(title)}</h2></div><div class="en-card">${body}<p><small class="muted">Źródło: ${esc(SOURCES[f.source === "energia-mag" ? "magazyny" : l] || "")}</small></p>
       <p><a href="https://www.google.com/maps/search/?api=1&query=${lat.toFixed(6)},${lon.toFixed(6)}" target="_blank" rel="noopener noreferrer">Zobacz w Google Maps</a></p></div>`);
   }
   function handleClick(e) {

@@ -467,6 +467,8 @@
     if (d.bio) chip(d.bio.length, pl(d.bio.length, "biogazownia", "biogazownie", "biogazowni"));
     if (d.mioze) chip(d.mioze.n, pl(d.mioze.n, "mała instalacja OZE (URE)", "małe instalacje OZE (URE)", "małych instalacji OZE (URE)"));
     if (d.gpz_n) chip(d.gpz_n, pl(d.gpz_n, "stacja GPZ", "stacje GPZ", "stacji GPZ"));
+    if (d.mag) chip(d.mag.length, pl(d.mag.length, "magazyn energii", "magazyny energii", "magazynów energii"));
+    if (d.lad) chip(d.lad, pl(d.lad, "stacja ładowania", "stacje ładowania", "stacji ładowania"));
     const parts = [];
     if (d.klastry || d.spoldz) {
       parts.push(sub("Wspólnoty energetyczne") + `<ul class="terr-list">${(d.klastry || []).map(n => `<li>${esc(n)}<small>klaster energii w rejestrze Prezesa URE</small></li>`).join("")}${(d.spoldz || []).map(n => `<li>${esc(n)}<small>spółdzielnia energetyczna w wykazie KOWR</small></li>`).join("")}</ul>`);
@@ -481,6 +483,8 @@
         `<div class="terr-legend">${T.map(([k, n, c]) => `<span><i style="background:${c}"></i>${esc(n)} ${fmt(M[k], 2)} MW</span>`).join("")}</div>` +
         `<small class="muted">Rejestr wytwórców energii w małej instalacji (MIOZE) Prezesa URE, do 1 MW. Bez mikroinstalacji domowych.</small>`);
     }
+    if (d.mag) parts.push(sub("Magazyny energii", "magazyny") + `<ul class="terr-list">${d.mag.map(m => `<li>${esc(m.n || (m.typ === "szczytowo-pompowy" ? "Elektrownia szczytowo-pompowa" : "Magazyn energii"))}<small>${[m.typ === "szczytowo-pompowy" ? "elektrownia szczytowo-pompowa" : "magazyn bateryjny", m.op || "", m.mw ? `${fmt(m.mw, m.mw % 1 ? 1 : 0)} MW` : "", m.mwh ? `${fmt(m.mwh, m.mwh % 1 ? 1 : 0)} MWh` : ""].filter(Boolean).join(" · ")}</small></li>`).join("")}</ul><small class="muted">OpenStreetMap. Rejestry URE nie podają położenia magazynów, lista może być niepełna.</small>`);
+    if (d.lad) parts.push(sub("Elektromobilność", "ladowanie") + `<p><b>${fmt(d.lad)}</b> ${pl(d.lad, "ogólnodostępna stacja", "ogólnodostępne stacje", "ogólnodostępnych stacji")} ładowania samochodów elektrycznych.</p><small class="muted">Ewidencja Infrastruktury Paliw Alternatywnych EIPA (UDT).</small>`);
     if (d.cie) parts.push(sub("Ciepłownictwo", "inne") + `<p>${Object.entries(d.cie).map(([r, n]) => `<span class="terr-chip"><b>${n}</b> ${esc(n === 1 ? r : r === "ciepłownia" ? pl(n, r, "ciepłownie", "ciepłowni") : r === "elektrociepłownia" ? pl(n, r, "elektrociepłownie", "elektrociepłowni") : r)}</span>`).join(" ")}</p>`);
     if (d.gpz_n || d.kv110 || d.kv220 || d.kv400) {
       const km = [["kv400", "400 kV"], ["kv220", "220 kV"], ["kv110", "110 kV"]].filter(([k]) => d[k]).map(([k, n]) => `<span class="terr-chip"><b>${fmt(d[k])} km</b> linii ${n}</span>`).join(" ");
@@ -492,7 +496,7 @@
       parts.push(sub("Plan ogólny gminy") + `<p>Stan: <b>${esc(st)}</b>${p.od ? ` (${esc(p.od)})` : ""}.${ha && (ha[0] || ha[1]) ? ` Strefy dopuszczające instalacje OZE: <b>${fmt(ha[0] || ha[1])} ha</b>${ha[0] ? "" : " w projekcie"}.` : ""}</p>`);
     }
     return section("lightning", "Energetyka w gminie", `<div class="ext-card">${chips.length ? `<p>${chips.join(" ")}</p>` : ""}${parts.join("")}</div>`,
-      `Źródła: Prezes URE (rejestr klastrów energii, rejestr MIOZE, koncesje), KOWR (spółdzielnie energetyczne, biogazownie rolnicze), GDOŚ i RDOŚ (decyzje środowiskowe, zestawienie bazamocy.pl), Geoportal GUGiK (plany ogólne), OpenStreetMap (sieć wysokich napięć). Stan ${esc((await json(`data/energia/${g.k.slice(0, 2)}.json`))?.stan || "")}.`);
+      `Źródła: Prezes URE (rejestr klastrów energii, rejestr MIOZE, koncesje), KOWR (spółdzielnie energetyczne, biogazownie rolnicze), UDT (EIPA), GDOŚ i RDOŚ (decyzje środowiskowe, zestawienie bazamocy.pl), Geoportal GUGiK (plany ogólne), OpenStreetMap (sieć wysokich napięć, magazyny energii). Stan ${esc((await json(`data/energia/${g.k.slice(0, 2)}.json`))?.stan || "")}.`);
   }
 
   async function fill(g, el, category, lud) {

@@ -454,6 +454,7 @@ ENERGIA_TILE_SQL = "WITH b AS (SELECT ST_TileEnvelope(%(z)s,%(x)s,%(y)s) e), b2 
     _EN_PTS.format(name="woda", cols="", table="bazamocy.elektrownie_wodne", where=""),
     _EN_PTS.format(name="biogaz", cols="t.nazwa AS n, replace(t.moc_instalacji, ',', '.') AS mw,", table="bazamocy.biogazownie", where=""),
     _EN_PTS.format(name="cieplownie", cols="t.rodzaj AS r,", table="bazamocy.elektrownie_cieplownie", where=""),
+    _EN_PTS.format(name="ladowanie", cols="", table="bazamocy.stacje_ladowania", where=""),
 ])
 
 @app.route("/tiles/energia/<int:z>/<int:x>/<int:y>.pbf", methods=["GET", "OPTIONS"])
