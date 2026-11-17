@@ -48,6 +48,23 @@
         `<p class="muted small">Przebieg planowanej drogi jest orientacyjny. O tym, którędy pójdzie droga, rozstrzyga decyzja o środowiskowych uwarunkowaniach, a potem decyzja ZRID.</p>` };
   }
 
+  /* ---------- rail investments ---------- */
+  const RAIL_COL = { b: "#1971c2", p: "#4dabf7" };
+  const RCLS = { rail: "linia kolejowa", tram: "linia tramwajowa", metro: "metro", kdp: "kolej dużych prędkości" };
+  function railCard(p, d, side) {
+    if (p.c === "st") return { title: p.n || (p.st === "station" ? "Nowa stacja" : "Nowy przystanek"), src: `OpenStreetMap (stan ${d?.osm || ""})`,
+      body: `<p class="gs-st"><i style="background:${RAIL_COL[p.k]}"></i>${p.k === "b" ? "W budowie" : "Planowany"} ${p.st === "station" ? "stacja" : "przystanek"}</p><p class="muted small">Termin otwarcia i zakres prac podaje ${link("https://www.plk-inwestycje.pl/", "mapa inwestycji PKP PLK")}.</p>` };
+    const refs = (p.ref || "").split(/[;,]/).map(x => x.trim()).filter(Boolean);
+    const fold = t => (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l");
+    const STOP = /^(linia|linii|kolejowa|kolejowej|proponowana|planowana|wariant|budowa|odcinek|odcinku|polaczenie|polaczenia|nowej|modernizacji)$/;
+    const toks = fold(p.n).split(/[^a-z0-9]+/).filter(w => w.length >= 5 && !STOP.test(w));
+    const kp = side ? side.projekty.filter(x => (refs.length && x.l.some(l => refs.includes(l))) || (toks.length >= 2 && toks.filter(w => fold(x.n).includes(w)).length >= 2)) : [];
+    return { title: p.n || (refs.length ? `Linia kolejowa nr ${refs.join(", ")}` : (p.k === "b" ? "Linia w budowie" : "Planowana linia")), src: `OpenStreetMap (przebieg, stan ${d?.osm || ""}), PKP PLK (Program Kolej Plus)`,
+      body: `<p class="gs-st"><i style="background:${RAIL_COL[p.k]}"></i>${p.k === "b" ? "W budowie lub modernizacji" : "Planowana"} · ${esc(RCLS[p.c] || "")}</p>` + row("Numer linii", refs.join(", ")) + row("Planowane otwarcie (OpenStreetMap)", p.od) +
+        (kp.length ? `<p class="ext-sub"><b>Program Kolej Plus na tej linii</b></p><ul class="terr-list">${kp.map(x => `<li>${link(x.u, x.n)}</li>`).join("")}</ul>` : "") +
+        `<p class="muted small">Zakres i terminy prac PKP PLK: ${link("https://www.plk-inwestycje.pl/", "mapa inwestycji PKP PLK")}.</p>` };
+  }
+
   const LAYERS = [
     { id: "gios", box: "airLayers", label: "Stacje pomiarowe GIOŚ", desc: "Pomiary 2025 na tle norm, link do bieżących danych", kw: "stacje pomiarowe gioś monitoring powietrza pomiary indeks jakości powietrza smog",
       icon: ["broadcast", "#34a383"], url: "data/gios/stacje.json", toGeo: stationsGeo,
@@ -65,13 +82,32 @@
         { id: "x-drogi-lbl", type: "symbol", source: s, minzoom: 8, filter: ["has", "ref"], layout: { "symbol-placement": "line", "symbol-spacing": 320, "text-field": ["get", "ref"], "text-size": 11, "text-font": ["Noto Sans Bold"] }, paint: { "text-color": "#7a2a05", "text-halo-color": "#fff", "text-halo-width": 1.6 } }],
       legend: () => legendRow([[ROAD_COL.b, "w budowie lub przebudowie", "line"], [ROAD_COL.p, "planowana", "dash"]]) + note("Grubość linii: autostrady i drogi ekspresowe, drogi krajowe, wojewódzkie. Przebieg: OpenStreetMap. Stan inwestycji i strony odcinków: GDDKiA, Mapa Stanu Budowy Dróg. Przebieg planowanych dróg jest orientacyjny, wiążące są decyzje środowiskowe i ZRID."),
       card: (p, d, f, side) => roadCard(p, d, side) },
+    { id: "kolej", box: "transportLayers", label: "Inwestycje kolejowe", desc: "Linie w budowie i planowane, nowe przystanki, Kolej Plus", kw: "inwestycje kolejowe kolej plk modernizacja linii nowe przystanki kolej plus tramwaj metro planowana linia kolejowa",
+      icon: ["train", "#1971c2"], url: "data/kolej/inwestycje.geojson", side: "data/kolej/kolejplus.json",
+      layers: s => [
+        { id: "x-kolej-p", type: "line", source: s, filter: ["all", ["==", ["get", "k"], "p"], ["in", ["get", "c"], ["literal", ["rail", "tram", "metro"]]]], layout: { "line-cap": "round" },
+          paint: { "line-color": RAIL_COL.p, "line-dasharray": [1.2, 1.6], "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "c"], "rail", 1.2, .5], 12, ["match", ["get", "c"], "rail", 3.5, 2]] } },
+        { id: "x-kolej-b", type: "line", source: s, filter: ["all", ["==", ["get", "k"], "b"], ["in", ["get", "c"], ["literal", ["rail", "tram", "metro"]]]], layout: { "line-cap": "round" },
+          paint: { "line-color": RAIL_COL.b, "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "c"], "rail", 1.6, .6], 12, ["match", ["get", "c"], "rail", 4.5, 2.5]] } },
+        { id: "x-kolej-st", type: "circle", source: s, minzoom: 7, filter: ["==", ["get", "c"], "st"], paint: { "circle-color": "#fff", "circle-stroke-color": ["match", ["get", "k"], "b", RAIL_COL.b, RAIL_COL.p], "circle-stroke-width": 2.5, "circle-radius": ["interpolate", ["linear"], ["zoom"], 7, 3, 13, 6] } },
+        { id: "x-kolej-lbl", type: "symbol", source: s, minzoom: 11, filter: ["==", ["get", "c"], "st"], layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.1], "text-anchor": "top" }, paint: { "text-color": "#0b4a8b", "text-halo-color": "#fff", "text-halo-width": 1.5 } }],
+      legend: () => legendRow([[RAIL_COL.b, "w budowie lub modernizacji", "line"], [RAIL_COL.p, "planowana", "dash"], ["#fff", "nowy przystanek lub stacja"]]) + note("Cieńsze linie: tramwaj i metro. Przebieg: OpenStreetMap. Projekty Programu Kolej Plus: PKP PLK.") + `<p class="small">${link("https://www.plk-inwestycje.pl/", "Mapa inwestycji PKP PLK")} · ${link("https://www.plk-inwestycje.pl/projekty/program-kolej-plus/", "Program Kolej Plus")}</p>`,
+      card: (p, d, f, side) => railCard(p, d, side) },
+    { id: "kdp", box: "transportLayers", label: "Kolej dużych prędkości", desc: "Planowane linie KDP, w tym linia Y", kw: "kolej dużych prędkości kdp linia y cpk port polska szybka kolej korytarz planowana kolej przez działkę",
+      icon: ["train", "#c2255c"], url: "data/kolej/inwestycje.geojson",
+      layers: s => [
+        { id: "x-kdp-glow", type: "line", source: s, filter: ["==", ["get", "c"], "kdp"], layout: { "line-cap": "round" }, paint: { "line-color": "#c2255c", "line-opacity": .18, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 6, 12, 22] }, noClick: true },
+        { id: "x-kdp", type: "line", source: s, filter: ["==", ["get", "c"], "kdp"], layout: { "line-cap": "round" }, paint: { "line-color": "#c2255c", "line-dasharray": [2, 1.2], "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.8, 12, 4] } }],
+      legend: () => legendRow([["#c2255c", "planowana linia KDP (przebieg orientacyjny)", "dash"]]) + note("Przebieg z OpenStreetMap, odwzorowany przez wolontariuszy na podstawie publikowanych wariantów. Wiążące są decyzje środowiskowe i lokalizacyjne Port Polska (CPK). Mapy Port Polska nie wolno powielać, dlatego podajemy tylko odnośnik.") + `<p class="small">${link("https://portpolska.pl/pl/program-kolejowy", "Mapa inwestycji kolejowych Port Polska z działkami")}</p>`,
+      card: p => ({ title: p.n || "Planowana linia kolei dużych prędkości", src: "OpenStreetMap (przebieg orientacyjny)",
+        body: `<p class="gs-st"><i style="background:#c2255c"></i>${p.k === "b" ? "W budowie" : "Planowana"}</p><p>Linia kolei dużych prędkości. Przebieg w OpenStreetMap jest orientacyjny i może dotyczyć jednego z wariantów.</p><p>Czy działka leży w pasie inwestycji, sprawdzisz na ${link("https://portpolska.pl/pl/program-kolejowy", "mapie inwestycji kolejowych Port Polska")} (decyzje środowiskowe, plany rezerwacji terenu, decyzje lokalizacyjne).</p>` }) },
   ];
   const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
 
   /* ---------- engine ---------- */
   const cache = {};
-  const load = L => cache[L.id] || (cache[L.id] = fetch(L.url).then(r => { if (!r.ok) throw Error(r.status); return r.json(); }).catch(e => { delete cache[L.id]; throw e; }));
+  const load = L => cache[L.url] || (cache[L.url] = fetch(L.url).then(r => { if (!r.ok) throw Error(r.status); return r.json(); }).catch(e => { delete cache[L.url]; throw e; }));
   const raw = {}, sideData = {};
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   const added = new Set();
