@@ -195,7 +195,7 @@
     const yrs = current.usedYears, yearText = !yrs.length ? "" : yrs.length === 1 ? String(yrs[0]) : `${yrs[0]}–${yrs[yrs.length - 1]}`;
     const missing = gminy.length - current.values.size;
     $("#statsCurrent").innerHTML = `<small style="--cat:${window.IndicatorIcons.of(def).color}">${icon(window.IndicatorIcons.of(def).icon)}${esc(def.category)} · ${esc(window.IndicatorIcons.of(def).group)}</small><strong>${esc(def.label)}</strong><span>${esc(unit())}${yearText ? " · " + yearText : ""}</span>${icon("caret-down", "stats-caret")}`;
-    $("#statsYear").innerHTML = `<option value="">Najnowszy</option>` + current.years.slice(0, 6).map(y => `<option value="${y}" ${state.year === y ? "selected" : ""}>${y}</option>`).join("");
+    $("#statsYear").innerHTML = `<option value="">Najnowszy</option>` + current.years.map(y => `<option value="${y}" ${state.year === y ? "selected" : ""}>${y}</option>`).join("");
     $("#statsMode").querySelectorAll("button").forEach(b => {
       b.setAttribute("aria-pressed", b.dataset.mode === state.mode);
       if (b.dataset.mode === "change") { b.disabled = !current.okChange; b.title = current.okChange ? "" : "Dla tego wskaźnika nie ma danych z poprzedniego roku"; }
@@ -253,6 +253,8 @@
   }
   let tracked = null;
   function update() {
+    const hk = state.key, G = window.GusClient;
+    if (G?.needsHistory?.(hk)) G.history(hk).then(ok => { if (ok && active && state.key === hk) { changeCache.clear(); if (time.key === hk) time.key = null; update(); } });
     compute(); render(); paint();
     const d = defs.find(x => x.key === state.key), t = `${state.key}|${hl || ""}`;
     if (d && t !== tracked) { tracked = t; window.Track?.("mapa_polski", { wskaznik: d.label, klucz: d.key, grupa: d.group, komitet: hl || undefined }); }

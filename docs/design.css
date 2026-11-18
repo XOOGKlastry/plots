@@ -1010,3 +1010,18 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .md-year{margin:6px 0 2px}.md-year label{font-size:14px}.md-year input[type=range]{width:100%;accent-color:#2b8a3e;margin:6px 0 0;height:28px}.md-ticks{display:flex;justify-content:space-between;font-size:11px;color:#8e8e93}
 .gs-ok{color:#1f8a6d}.gs-warn{color:#b4610c}.gs-bad{color:#b52a1c}
 .gs-near .zas-chips span{font-size:12px}
+
+/* Indicator over the years (ind-history.js) */
+.indicator-card footer{flex-wrap:wrap}.indicator-card footer>span:first-child{flex:1 1 100%}
+.indicator-card footer .stat-map-link{white-space:nowrap;min-height:32px}.indicator-card footer .ih-btn{margin-left:0}.indicator-card footer .ih-btn+.stat-map-link{margin-left:auto}
+.indicator-card:has(.ind-hist){grid-column:1/-1}
+.ind-hist{margin-top:8px;padding-top:8px;border-top:1px solid var(--line,#e5e7eb)}
+.ih-svg{width:100%;height:auto;display:block;overflow:visible}
+.ih-svg text{font-size:9px;fill:#6b7280}.ih-svg .ih-val{font-size:10px;font-weight:700;fill:var(--acc,#1d4ed8)}
+.ih-axis{stroke:#d1d5db;stroke-width:1}
+.ih-own{fill:none;stroke:var(--acc,#1d4ed8);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.ih-med{fill:none;stroke:#9ca3af;stroke-width:1.6;stroke-dasharray:4 3}
+.ih-dot{fill:#fff;stroke:var(--acc,#1d4ed8);stroke-width:1.6}
+.ih-note{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 0;font-size:11px;color:#4b5563}
+.ih-note span{display:inline-flex;align-items:center;gap:5px}
+.ih-note i{display:inline-block;width:14px;height:0;border-top:2.2px solid var(--acc,#1d4ed8)}.ih-note i.ih-k-med{border-top:1.6px dashed #9ca3af}

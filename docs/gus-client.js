@@ -36,13 +36,23 @@
     }).catch(e=>{pendingLocal=null;throw e;});
     return pendingLocal;
   }
-  let energyData=null,pendingEnergy=null;
+  let energyData=null,pendingEnergy=null;const byKey=new Map(),histLoads=new Map();
+  /* The national files keep the latest 3 years; full series (from 2002 for GUS) sit in data/hist/<set>/<key>.json and load on demand. */
+  function needsHistory(key){const e=byKey.get(key);return !!(e&&e.v.hist&&e.v.histYears&&e.v.years.length<e.v.histYears[2]);}
+  function history(key){
+    const e=byKey.get(key);if(!e)return Promise.resolve(false);if(!needsHistory(key))return Promise.resolve(true);
+    if(!histLoads.has(key))histLoads.set(key,fetch(`data/hist/${e.v.hist}/${encodeURIComponent(key)}.json`,{signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw Error("Brak historii "+key);return r.json();}).then(h=>{
+      if(h.units!==e.index.size||!Array.isArray(h.years))throw Error("Niezgodny plik historii "+key);e.v.years=h.years;e.v.values=h.values;return true;
+    }).catch(err=>{histLoads.delete(key);console.warn(err.message);return false;}));
+    return histLoads.get(key);
+  }
+  function series(key){const e=byKey.get(key);return e?{years:e.v.years,values:e.v.values,index:e.index,full:!needsHistory(key),histYears:e.v.histYears||null}:null;}
   function energy(){
     // Main GUS file plus other official sources in the same format (PKW elections, NID heritage, GDOŚ nature).
     const one=url=>fetch(url,{signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw Error("Nie udało się wczytać "+url);return r.json();}).then(doc=>{
       if(doc.version!==1||!Array.isArray(doc.units)||!Array.isArray(doc.variables))throw Error("Nieobsługiwany format "+url);return doc;});
     if(!pendingEnergy)pendingEnergy=Promise.all([one("data/gus-energia.json"),one("data/wskazniki-inne.json").catch(()=>null)]).then(([doc,other])=>{
-      const docs=[doc,other].filter(Boolean),byKey=new Map();
+      const docs=[doc,other].filter(Boolean);byKey.clear();
       for(const d of docs){const index=new Map(d.units.map((k,i)=>[k,i]));for(const v of d.variables)byKey.set(v.key,{v,index});}
       root.GminyModel.addDefinitions(docs.flatMap(d=>d.variables).map(v=>({...v,label:v.label})));
       root.GminyModel.setExternal((k,definition)=>{
@@ -80,5 +90,6 @@
     catch(error){g._gusStatus=(cached?"Pokazano zapisane dane. ":"")+error.message;}
     return g;
   }
-  root.GusClient={ready,seed,enrich,energy,energyInfo:()=>energyData,parseObservations,years:()=>local?.catalog.years||[2025,2024,2023]};
+  root.GusClient={ready,seed,enrich,energy,energyInfo:()=>energyData,parseObservations,years:()=>local?.catalog.years||[2025,2024,2023],
+    allYears:()=>{const top=local?.catalog.latestYear||2025,out=[];for(let y=top;y>=2002;y--)out.push(y);return out;},needsHistory,history,series};
 })(typeof window!=="undefined"?window:globalThis);
