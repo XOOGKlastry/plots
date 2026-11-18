@@ -18,7 +18,7 @@
  },
  "dct:modified": {
   "@type": "xsd:date",
-  "@value": "2026-11-17"
+  "@value": "2026-11-18"
  },
  "dct:language": {
   "@id": "http://publications.europa.eu/resource/authority/language/POL"
@@ -425,14 +425,14 @@
    },
    "dct:description": {
     "@language": "pl",
-    "@value": "Liczba wniosków w programie w 2025 r. oraz wnioski na 100 domów jednorodzinnych i na 1000 mieszkańców. Przejmujemy tylko liczby wniosków (informacja publiczna NFOŚiGW), bez opracowania graficznego PAS."
+    "@value": "Liczba wniosków w programie w latach 2018–2023 i w 2025 r. oraz wnioski na 100 domów jednorodzinnych i na 1000 mieszkańców. Przejmujemy tylko liczby wniosków (informacja publiczna NFOŚiGW), bez opracowania graficznego PAS."
    },
    "dcat:theme": "Energia",
-   "dct:temporal": "rok 2025",
+   "dct:temporal": "lata 2018–2023 i rok 2025",
    "dct:accrualPeriodicity": "raz w roku",
    "dct:modified": {
     "@type": "xsd:date",
-    "@value": "2026-11-17"
+    "@value": "2026-11-18"
    },
    "dct:source": [
     {
@@ -440,8 +440,164 @@
      "dct:title": "Polski Alarm Smogowy, ranking gmin 2025 (dane NFOŚiGW z dostępu do informacji publicznej)"
     },
     {
+     "@id": "https://polskialarmsmogowy.pl/2024/04/czyste-powietrze-jest-tam-gdzie-sa-aktywne-gminy-ranking-pas/",
+     "dct:title": "Polski Alarm Smogowy, ranking gmin 2018–2023 (dane NFOŚiGW)"
+    },
+    {
      "@id": "https://czystepowietrze.gov.pl/",
      "dct:title": "NFOŚiGW, ranking gmin IV 2022 – XII 2023 (liczba domów jednorodzinnych)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#klimat-imgw",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "klimat-imgw",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Klimat gmin z danych IMGW"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Średnia temperatura, suma opadów, stopniodni grzania, dni upalne, mroźne i z pokrywą śnieżną w latach 2004–2025, z 3 najbliższych stacji synoptycznych. Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy. Dane IMGW-PIB zostały przetworzone (średnia ważona odległością, bez poprawki na wysokość)."
+   },
+   "dcat:theme": "Środowisko",
+   "dct:temporal": "lata 2004–2025",
+   "dct:accrualPeriodicity": "raz w roku",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-18"
+   },
+   "dct:source": [
+    {
+     "@id": "https://danepubliczne.imgw.pl/",
+     "dct:title": "IMGW-PIB, dane publiczne: dobowe dane synoptyczne"
+    },
+    {
+     "@id": "https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database",
+     "dct:title": "NOAA NCEI, Integrated Surface Database (współrzędne stacji)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    },
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/hist/i/"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/hist/i/"
+     },
+     "dct:format": "PNG/BIN",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#kolejki-nfz",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "kolejki-nfz",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Kolejki do specjalistów"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Średni czas oczekiwania w placówkach powiatu na okulistę, ortopedę, neurologa, endokrynologa, tomografię i rezonans (przypadki stabilne). Średnia ważona liczbą przyjętych pacjentów; gmina dostaje wartość swojego powiatu."
+   },
+   "dcat:theme": "Zdrowie",
+   "dct:temporal": "dane placówek za październik 2026",
+   "dct:accrualPeriodicity": "co miesiąc w źródle",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-18"
+   },
+   "dct:source": [
+    {
+     "@id": "https://api.nfz.gov.pl/app-itl-api/",
+     "dct:title": "NFZ, Informator o terminach leczenia (API)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#polski-lad-pis",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "polski-lad-pis",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Polski Ład: Program Inwestycji Strategicznych"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Dofinansowanie gmin w edycjach 1–9 (2021–2023): kwota, kwota na mieszkańca i liczba inwestycji. Liczone tylko wnioski gmin i miast na prawach powiatu (bez powiatów, województw i związków)."
+   },
+   "dcat:theme": "Finanse",
+   "dct:temporal": "edycje 1–9 (2021–2023)",
+   "dct:accrualPeriodicity": "zakończony program",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-18"
+   },
+   "dct:source": [
+    {
+     "@id": "https://www.gov.pl/web/premier/program-inwestycji-strategicznych",
+     "dct:title": "KPRM, wyniki naborów Rządowego Funduszu Polski Ład (gov.pl)"
     }
    ],
    "dct:license": {
@@ -522,7 +678,7 @@
     "@value": "Ludność, energia, mieszkania i inne zmienne z Banku Danych Lokalnych."
    },
    "dcat:theme": "Gminy",
-   "dct:temporal": "do 2025 r.",
+   "dct:temporal": "serie od 2002 r. do 2025 r.",
    "dct:accrualPeriodicity": "raz w roku",
    "dct:modified": {
     "@type": "xsd:date",
@@ -584,7 +740,7 @@
    "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
    "dct:modified": {
     "@type": "xsd:date",
-    "@value": "2026-11-17"
+    "@value": "2026-11-18"
    },
    "dct:source": [
     {
@@ -642,7 +798,7 @@
    "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
    "dct:modified": {
     "@type": "xsd:date",
-    "@value": "2026-11-17"
+    "@value": "2026-11-18"
    },
    "dct:source": [
     {
@@ -687,7 +843,7 @@
    "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
    "dct:modified": {
     "@type": "xsd:date",
-    "@value": "2026-11-17"
+    "@value": "2026-11-18"
    },
    "dct:source": [
     {
