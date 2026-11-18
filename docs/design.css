@@ -1025,3 +1025,19 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .ih-note{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 0;font-size:11px;color:#4b5563}
 .ih-note span{display:inline-flex;align-items:center;gap:5px}
 .ih-note i{display:inline-block;width:14px;height:0;border-top:2.2px solid var(--acc,#1d4ed8)}.ih-note i.ih-k-med{border-top:1.6px dashed #9ca3af}
+.ih-oth{fill:none;stroke:#e8590c;stroke-width:2;stroke-linejoin:round}.ih-note i.ih-k-oth{border-top:2px solid #e8590c}
+.ih-tools{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 14px;margin-top:10px}
+.ih-cmp{display:flex;flex-direction:column;gap:3px;font-size:11px;color:#4b5563;flex:1 1 180px}
+.ih-cmp input{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line,#e5e7eb);border-radius:10px;background:#fff;min-height:40px}
+.ih-link{border:0;background:none;color:var(--acc,#1d4ed8);font-weight:600;font-size:12px;min-height:40px;cursor:pointer;padding:0 2px}
+.ih-found{display:flex;flex-direction:column;gap:4px;margin-top:6px}.ih-found:empty{display:none}
+.ih-found button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid var(--line,#e5e7eb);background:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;min-height:40px}
+.ih-found small{color:#6b7280;font-size:11px}
+/* Ten-year changes (gmina-zmiany.js) */
+.zm-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px}
+.zm-list li{display:grid;grid-template-columns:1fr auto auto;grid-template-areas:"l v b" "r r b";align-items:center;gap:2px 10px;padding:9px 10px 9px 12px;border:1px solid var(--line,#e5e7eb);border-left:4px solid #9ca3af;border-radius:12px;background:#fff}
+.zm-list li.zm-good{border-left-color:#2f9e44}.zm-list li.zm-bad{border-left-color:#e03131}
+.zm-l{grid-area:l;font-size:13px;font-weight:600}.zm-v{grid-area:v;font-size:14px;font-weight:700;white-space:nowrap}
+.zm-good .zm-v{color:#2b8a3e}.zm-bad .zm-v{color:#c92a2a}
+.zm-r{grid-area:r;font-size:11px;color:#6b7280}.zm-top .zm-r{color:#1f2937;font-weight:600}
+.zm-list .stat-map-link{grid-area:b;min-width:36px;min-height:36px;justify-content:center;margin:0}

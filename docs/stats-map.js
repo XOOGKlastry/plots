@@ -58,10 +58,12 @@
       (m.history || []).forEach(h => years.add(h.year));
       if (m.year) years.add(m.year);
       let v = m.value;
-      if (mode === "change") {
+      if (mode === "change" || mode === "change10") {
+        // r/r: plain difference; 10 years: percentage points for shares, otherwise relative change in %.
+        const lag = mode === "change10" ? 10 : 1;
         const base = state.year ? model.metric({ ...g, _selectedYear: state.year }, def) : m;
-        const prev = base.history?.find(h => h.year === base.year - 1 && Number.isFinite(h.value));
-        v = Number.isFinite(base.value) && prev ? base.value - prev.value : null;
+        const prev = base.history?.find(h => h.year === base.year - lag && Number.isFinite(h.value));
+        v = Number.isFinite(base.value) && prev ? (lag === 1 || def.unit === "%" ? base.value - prev.value : prev.value ? (base.value - prev.value) / Math.abs(prev.value) * 100 : null) : null;
       }
       if (Number.isFinite(v)) values.set(g.k, { value: v, year: m.year });
     }
@@ -81,10 +83,10 @@
 
   // Year-over-year only makes sense when enough gminy have a previous year and the change actually varies.
   const changeCache = new Map();
-  function changeOk(def) {
-    const id = def.key + ":" + (state.year || "");
+  function changeOk(def, mode = "change") {
+    const id = def.key + ":" + mode + ":" + (state.year || "");
     if (!changeCache.has(id)) {
-      const v = [...series(def, "change").values.values()].map(o => o.value);
+      const v = [...series(def, mode).values.values()].map(o => o.value);
       changeCache.set(id, v.length >= 50 && new Set(v.map(x => Math.round(x * 1e6))).size > 2);
     }
     return changeCache.get(id);
@@ -102,15 +104,16 @@
       return;
     }
     const okChange = changeOk(def);
-    if (!okChange && state.mode === "change") { state.mode = "value"; state.palette = null; }
+    const ok10 = changeOk(def, "change10");
+    if ((!okChange && state.mode === "change") || (!ok10 && state.mode === "change10")) { state.mode = "value"; state.palette = null; }
     const { values, years } = series(def);
     const raw = [...values.values()].map(o => o.value);
-    const signed = state.mode === "change" || /saldo|przyrost/.test(def.key);
+    const signed = state.mode !== "value" || /saldo|przyrost/.test(def.key);
     const palette = state.palette || (signed ? "kontrast" : S.categoryPalette[def.category] || "viridis");
     const manual = state.manual[def.key + ":" + state.mode];
     const scheme = S.classify(raw, { method: state.method === "manual" && !manual ? "quantile" : state.method, breaks: manual, classes: state.classes, zeroClass: state.zero, palette, reverse: state.reverse, diverging: signed && state.method !== "manual" });
     let usedYears = [...new Set([...values.values()].map(o => o.year).filter(Boolean))].sort((a, b) => a - b);
-    current = { def, values, years, usedYears, scheme, palette, raw, okChange };
+    current = { def, values, years, usedYears, scheme, palette, raw, okChange, ok10 };
     if (time.on) {
       if (time.key !== def.key) buildTime(def);
       const f = time.frames[time.idx], v = new Map();
@@ -169,7 +172,7 @@
     const rank = sorted.findIndex(v => v === o.value) + 1;
     return `<div class="stats-selected"><div><strong>${esc(g?.n || selectedId)}</strong><small>${esc(g?.typ || "")}${o.year ? " · " + o.year : ""}</small></div><div><b>${esc(S.format(o.value, current.def.digits))}</b> <small>${esc(unit())}</small><small>${rank.toLocaleString("pl-PL")}. miejsce z ${sorted.length.toLocaleString("pl-PL")}</small></div></div>`;
   }
-  function unit() { if (time.on && time.rel) return current.def.unit === "%" ? `p.p. od ${time.frames[0].y}` : `% od ${time.frames[0].y}`; return state.mode === "change" ? (current.def.unit === "%" ? "p.p. r/r" : (current.def.unit || "") + " r/r") : current.def.unit || ""; }
+  function unit() { if (time.on && time.rel) return current.def.unit === "%" ? `p.p. od ${time.frames[0].y}` : `% od ${time.frames[0].y}`; if (state.mode === "change10") return current.def.unit === "%" ? "p.p. w 10 lat" : "% w 10 lat"; return state.mode === "change" ? (current.def.unit === "%" ? "p.p. r/r" : (current.def.unit || "") + " r/r") : current.def.unit || ""; }
 
   function renderCat() {
     const { def } = current, cnt = CATS.map(() => 0);
@@ -199,6 +202,7 @@
     $("#statsMode").querySelectorAll("button").forEach(b => {
       b.setAttribute("aria-pressed", b.dataset.mode === state.mode);
       if (b.dataset.mode === "change") { b.disabled = !current.okChange; b.title = current.okChange ? "" : "Dla tego wskaźnika nie ma danych z poprzedniego roku"; }
+      if (b.dataset.mode === "change10") { b.disabled = !current.ok10; b.title = current.ok10 ? "Zmiana względem roku o 10 lat wcześniejszego" : "Dla tego wskaźnika nie ma danych sprzed 10 lat"; }
     });
     const tb = $("#statsTimeBtn"); if (tb) { const n = timeYears(def); tb.disabled = n < 3; tb.title = n < 3 ? "Ten wskaźnik ma za mało lat" : `Odtwórz ${n} ${n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "lata" : "lat"} na jednej skali kolorów`; tb.setAttribute("aria-pressed", time.on); }
     $("#statsMethod").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.method === state.method));
