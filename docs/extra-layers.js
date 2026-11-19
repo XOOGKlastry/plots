@@ -14,6 +14,16 @@
   const dist = (a, b) => { const k = Math.PI / 180, x = (b.lon - a.lon) * k * Math.cos((a.lat + b.lat) / 2 * k), y = (b.lat - a.lat) * k; return Math.hypot(x, y) * 6371000; };
   const fmtD = m => m < 950 ? `${Math.round(m / 10) * 10} m` : `${fmt(m / 1000, m < 10000 ? 1 : 0)} km`;
 
+  /* ---------- Susza (PPSS 2021, Wody Polskie): hexagon hazard classes dissolved per type, one file per type ---------- */
+  const SU_T = { r: ["rolnicza", "suszą rolniczą", "susza_rolnicza_klasa"], h: ["hydrologiczna", "suszą hydrologiczną", "susza_hydro_klasa"],
+    g: ["hydrogeologiczna", "suszą hydrogeologiczną", "susza_hgeo_klasa"], l: ["łącznie", "suszą (wszystkie rodzaje łącznie)", "susza_lacz_proc"], a: ["atmosferyczna", "suszą atmosferyczną", "susza_atmo_proc"] };
+  const SU_C = { 1: ["#9bc96b", "I słabe"], 2: ["#f2e14c", "II umiarkowane"], 3: ["#f59f1b", "III silne"], 4: ["#e0441f", "IV ekstremalne"] };
+  let suT = (() => { try { const v = app.store.get("susza.t", "r"); return SU_T[v] ? v : "r"; } catch (e) { return "r"; } })();
+  const suFile = t => fetch(`data/susza/ppss2021_${t}.geojson`).then(r => { if (!r.ok) throw Error(r.status); return r.json(); });
+  const suLegend = () => `<div class="stats-seg ext-seg su-seg" role="group" aria-label="Rodzaj suszy">${Object.entries(SU_T).map(([k, v]) => `<button type="button" data-su="${k}" aria-pressed="${k === suT}">${esc(v[0])}</button>`).join("")}</div>` +
+    legendRow(Object.entries(SU_C).filter(([c]) => suT !== "a" || c > 1).map(([, [c, l]]) => [c, l, "box"])) +
+    note("Klasy zagrożenia z Planu przeciwdziałania skutkom suszy z 2021 r. (Wody Polskie), siatka heksagonów około 3,5 km². Projekt aktualizacji planu z 2026 r. (konsultacje do 6.02.2027) podaje klasy dla całych gmin, są w Statystykach w grupie „Susza (plany Wód Polskich)”.");
+
   /* ---------- GIOŚ stations ---------- */
   const NORM = { pm25: [10, 20], pm10: [20, 40], pm10_36: [45, 50], no2: [20, 40], bap: [1, 1], arsen: [6, 6], o3_dni: [18, 25], so2: [20, 20] };
   const PNAME = { pm25: "PM2,5", pm10: "PM10", pm10_36: "PM10, 36. doba", no2: "NO₂", bap: "benzo(a)piren", arsen: "arsen", o3_dni: "ozon, dni > 120", so2: "SO₂" };
@@ -255,6 +265,23 @@
       legend: () => legendRow([["#c2255c", "planowana linia KDP (przebieg orientacyjny)", "dash"]]) + note("Przebieg z OpenStreetMap, odwzorowany przez wolontariuszy na podstawie publikowanych wariantów. Wiążące są decyzje środowiskowe i lokalizacyjne Port Polska (CPK). Mapy Port Polska nie wolno powielać, dlatego podajemy tylko odnośnik.") + `<p class="small">${link("https://portpolska.pl/pl/program-kolejowy", "Mapa inwestycji kolejowych Port Polska z działkami")}</p>`,
       card: p => ({ title: p.n || "Planowana linia kolei dużych prędkości", src: "OpenStreetMap (przebieg orientacyjny)",
         body: `<p class="gs-st"><i style="background:#c2255c"></i>${p.k === "b" ? "W budowie" : "Planowana"}</p><p>Linia kolei dużych prędkości. Przebieg w OpenStreetMap jest orientacyjny i może dotyczyć jednego z wariantów.</p><p>Czy działka leży w pasie inwestycji, sprawdzisz na ${link("https://portpolska.pl/pl/program-kolejowy", "mapie inwestycji kolejowych Port Polska")} (decyzje środowiskowe, plany rezerwacji terenu, decyzje lokalizacyjne).</p>` }) },
+    { id: "susza", box: "terrainLayers", label: "Zagrożenie suszą", desc: "Rolnicza, hydrologiczna, hydrogeologiczna, atmosferyczna (PPSS 2021)", kw: "susza zagrożenie suszą rolnicza hydrologiczna hydrogeologiczna atmosferyczna ppss appss wody polskie retencja niedobór wody",
+      icon: ["drop", "#e0441f"], url: "susza-ppss2021", fetch: () => suFile(suT), fillClick: true,
+      layers: s => [
+        { id: "x-susza-f", type: "fill", source: s, paint: { "fill-color": ["match", ["get", "c"], ...Object.entries(SU_C).flatMap(([k, v]) => [+k, v[0]]), "#ccc"], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 5, .55, 12, .35] } },
+        { id: "x-susza-l", type: "line", source: s, minzoom: 9, paint: { "line-color": "#7a4a12", "line-opacity": .25, "line-width": .6 }, noClick: true }],
+      legend: suLegend,
+      legendInit: box => box.querySelectorAll("[data-su]").forEach(b => b.onclick = async () => {
+        const t = b.dataset.su; if (t === suT) return;
+        suT = t; try { app.store.set("susza.t", t); } catch (e) {}
+        box.innerHTML = suLegend(); window.ExtraLayers.LAYERS.find(L => L.id === "susza").legendInit(box);
+        try { map.getSource("x-susza")?.setData(await suFile(t)); } catch (e) { app.toast("Nie udało się wczytać warstwy"); }
+      }),
+      card: p => { const t = SU_T[suT], c = SU_C[p.c] || ["#ccc", "brak klasy"];
+        return { title: "Zagrożenie " + t[1], src: "Wody Polskie, Plan przeciwdziałania skutkom suszy 2021 (warstwy GIS zagrożenia suszą)",
+          body: `<p class="gs-st"><i style="background:${c[0]}"></i>Klasa ${esc(c[1])}</p>` +
+            `<p>Klasa zagrożenia w siatce heksagonów z planu z 2021 r. Pokazuje, jak często i jak silnie susza występowała w tym miejscu w latach przyjętych do analizy, nie ocenia pojedynczej działki.</p>` +
+            `<p class="muted small">W projekcie aktualizacji planu (2026) klasy są podane dla całych gmin i bywają wyższe, zwłaszcza dla suszy hydrologicznej i hydrogeologicznej. <a href="?stat=${t[2]}">Pokaż klasy gmin na mapie</a> · ${link("https://www.gov.pl/web/infrastruktura/konsultacje-spoleczne-projektu-aktualizacji-planu-przeciwdzialania-skutkom-suszy-appss", "projekt aPPSS")}</p>` }; } },
   ];
   const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
