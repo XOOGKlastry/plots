@@ -469,6 +469,55 @@
    ]
   },
   {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#susza-ppss",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "susza-ppss",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Zagrożenie suszą w gminach"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Klasy zagrożenia suszą rolniczą, hydrologiczną i hydrogeologiczną z projektu aktualizacji planu przeciwdziałania skutkom suszy (2026) na tle planu z 2021 r., liczba działań przypisanych gminie oraz udział powierzchni silnie i ekstremalnie zagrożonej suszą (rolniczą, hydrologiczną, hydrogeologiczną, atmosferyczną i łącznie). Projekt aPPSS jest w konsultacjach do 6.02.2027 r., klasy mogą się zmienić. Wartości z 2021 r. to średnia klasa heksagonów w gminie ważona powierzchnią, więc nie są wprost porównywalne z klasą z 2026 r."
+   },
+   "dcat:theme": "Środowisko",
+   "dct:temporal": "PPSS 2021 i projekt aPPSS 2026",
+   "dct:accrualPeriodicity": "przy aktualizacji planu (co 6 lat)",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-19"
+   },
+   "dct:source": [
+    {
+     "@id": "https://www.gov.pl/web/infrastruktura/konsultacje-spoleczne-projektu-aktualizacji-planu-przeciwdzialania-skutkom-suszy-appss",
+     "dct:title": "Ministerstwo Infrastruktury, konsultacje projektu aPPSS (Załącznik 1: zestawienie działań dla gmin)"
+    },
+    {
+     "@id": "https://stopsuszy.pl/dokument-ppss/",
+     "dct:title": "Wody Polskie, Plan przeciwdziałania skutkom suszy 2021 (warstwy GIS)"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641",
+    "dct:title": "Ponowne wykorzystywanie informacji sektora publicznego (ustawa z 11 sierpnia 2021 r. o otwartych danych), z podaniem źródła"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20210001641"
+     }
+    }
+   ]
+  },
+  {
    "@id": "https://xoogklastry.github.io/plots/katalog.html#nsp-2011-2021",
    "@type": "dcat:Dataset",
    "dct:identifier": "nsp-2011-2021",
