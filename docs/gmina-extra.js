@@ -410,7 +410,7 @@
         ${stackBar(["1 osoba", "2 osoby", "3 osoby", "4 osoby", "5 i więcej"].map((n, i) => ({ n, v: h[i + 1], pl: P("gosp", i + 1) })), h[0])}`;
       if (r?.[0]) body += `<p class="ext-sub"><b>Rodziny</b></p>${stackBar([["małżeństwa bez dzieci", 2], ["małżeństwa z dziećmi", 3], ["związki niesformalizowane", 4], ["matki z dziećmi", 5], ["ojcowie z dziećmi", 6]].map(([n, i]) => ({ n, v: r[i], pl: P("rodz", i) })), r[0])}
         ${N.dzieci ? `<p class="ext-sub">Przeciętnie <b>${fmt(N.dzieci[6], 2)}</b> dziecka w rodzinie z dziećmi; ${fmt(pctOf(N.dzieci[4] + N.dzieci[5], N.dzieci[0] - N.dzieci[1]), 1)}% rodzin z dziećmi ma troje lub więcej${PL?.dzieci ? ` (Polska ${fmt(pctOf(PL.dzieci[4] + PL.dzieci[5], PL.dzieci[0] - PL.dzieci[1]), 1)}%)` : ""}.</p>` : ""}`;
-      out.push(section("house-line", "Gospodarstwa domowe i rodziny (Spis 2021)", body + `</div>`, "GUS, NSP 2021."));
+      out.push(section("house-line", "Gospodarstwa domowe i rodziny (Spis 2021)", body + `</div>`, "GUS, NSP 2021 (Bank Danych Lokalnych). W spisie 2021 GUS ustalał gospodarstwa domowe inaczej niż w 2011 r.: w Polsce wyszło 12,5 mln gospodarstw po średnio 2,99 osoby, wobec 13,6 mln po 2,82 osoby w 2011 r. Dlatego przeciętne gospodarstwo jest w 2021 r. większe, zwłaszcza na wsi, a lat 2011 i 2021 nie należy porównywać wprost."));
     }
     if (N.akt?.[0]) {
       const a = N.akt;

@@ -20,7 +20,7 @@
     if(!config||!source("near-poi"))return;
     const run=++revision,bounds=map.getBounds(),network=net();
     const info=document.getElementById("networkSource");info.textContent=`${network.source} · ${network.source_kind} · ${network.source_date}`;
-    source("near-poi").setData(collection([]));
+    source("near-poi").setData(collection([]));source("near-poi-lines")?.setData(collection([]));
     if(!state.poi||!document.body.classList.contains("distance-mode")){status("");return;}
     if(map.getZoom()<11){status("Przybliż mapę, aby wczytać punkty usług.");return;}
     const keys=tiles(bounds);if(!keys.length){status("Przybliż mapę — widok obejmuje zbyt duży obszar.");return;}
@@ -32,7 +32,7 @@
         else{const buffer=await binary(`poi/${network.id}/all.bin`);points=model.parsePoi(buffer).filter(p=>inView(p,bounds)).map(p=>({type:"Feature",geometry:{type:"Point",coordinates:[p.lon,p.lat]},properties:{network:network.id,index:p.index,tile:"",type:p.type}}));}
       }
       if(run!==revision)return;
-      source("near-poi").setData(collection(points));
+      source("near-poi").setData(collection(points));source("near-poi-lines")?.setData(collection(perimeter(points)));
       status(`${points.length.toLocaleString("pl-PL")} obiektów w widoku`);
     }catch(error){if(run===revision)status(error.message+". Spróbuj przybliżyć mapę lub wybrać inną sieć.");}
   }
@@ -57,10 +57,10 @@
   async function updateAll(){
     const src=map.getSource("poi-all");if(!src||!config)return;
     const run=++all.rev;
-    if(!all.on||document.body.classList.contains("distance-mode")){src.setData(collection([]));allStatus(all.on?"W module odległości widać punkty wybranej tam kategorii.":"");return;}
+    if(!all.on||document.body.classList.contains("distance-mode")){src.setData(collection([]));map.getSource("poi-all-lines")?.setData(collection([]));allStatus(all.on?"W module odległości widać punkty wybranej tam kategorii.":"");return;}
     const sel=config.networks.filter(n=>all.sel.includes(n.id));
-    if(!sel.length){src.setData(collection([]));allStatus("Wybierz co najmniej jedną kategorię.");return;}
-    if(map.getZoom()<ALLZ){src.setData(collection([]));allStatus("Przybliż mapę, aby zobaczyć punkty.");return;}
+    if(!sel.length){src.setData(collection([]));map.getSource("poi-all-lines")?.setData(collection([]));allStatus("Wybierz co najmniej jedną kategorię.");return;}
+    if(map.getZoom()<ALLZ){src.setData(collection([]));map.getSource("poi-all-lines")?.setData(collection([]));allStatus("Przybliż mapę, aby zobaczyć punkty.");return;}
     const bounds=map.getBounds(),keys=tiles(bounds);if(!keys.length){allStatus("Przybliż mapę.");return;}
     allStatus("Wczytuję punkty…");
     const loads=sel.map(async n=>{try{
@@ -70,9 +70,22 @@
     const got=(await Promise.all(loads)).flat();
     if(run!==all.rev)return;
     const feats=got.slice(0,ALLMAX).map(({p,tile,n})=>({type:"Feature",geometry:{type:"Point",coordinates:[p.lon,p.lat]},properties:{network:n.id,index:p.index,tile,type:p.type}}));
-    src.setData(collection(feats));
+    src.setData(collection(feats));map.getSource("poi-all-lines")?.setData(collection(perimeter(feats)));
     allStatus(`${got.length.toLocaleString("pl-PL")} punktów w widoku${got.length>ALLMAX?`, pokazano ${ALLMAX.toLocaleString("pl-PL")}; przybliż mapę`:""}. Stuknij punkt, aby zobaczyć szczegóły.`);
   }
+  /* Parks, cemeteries and sports grounds come as access points every ~100 m along the outline, stored in order:
+     neighbouring points of one object (same network, tile and type, closer than 160 m) are joined into a dashed outline. */
+  const AREA={park:"#2f9e44",cmentarz:"#5c636a",sport:"#1c7ed6"};
+  function perimeter(feats){
+    const out=[];let line=null,prev=null;
+    const flush=()=>{if(line&&line.length>1){const a=line[0],b=line[line.length-1];if(line.length>3&&metres({lon:a[0],lat:a[1]},{lon:b[0],lat:b[1]})<160)line.push(a);out.push({type:"Feature",geometry:{type:"LineString",coordinates:line},properties:{network:prev.network}});}line=null;};
+    for(const f of feats){const q=f.properties;if(!AREA[q.network]){flush();prev=null;continue;}
+      const c=f.geometry.coordinates;
+      if(prev&&prev.network===q.network&&prev.tile===q.tile&&prev.type===q.type&&q.index===prev.index+1&&metres({lon:prev.c[0],lat:prev.c[1]},{lon:c[0],lat:c[1]})<160)line.push(c);else{flush();line=[c];}
+      prev={...q,c};}
+    flush();return out;
+  }
+  const lineLayer=(id,src,minzoom)=>({id,type:"line",source:src,minzoom,layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["match",["get","network"],...Object.entries(AREA).flat(),"#888"],"line-width":["interpolate",["linear"],["zoom"],13,1.4,17,2.6],"line-opacity":.7,"line-dasharray":[2,1.6]}});
   function scheduleAll(){clearTimeout(all.timer);all.timer=setTimeout(updateAll,200);}
   // iOS-style panel: search field, grouped inset lists with network badges and switches, search results sorted by distance.
   const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ł/g,"l");
@@ -93,6 +106,7 @@
     while(nameIndex.size>4)nameIndex.delete(nameIndex.keys().next().value);
     return nameIndex.get(key);
   }
+  const CAT_LOOK={paczki:["package","#6b4ce6"],zdrowie:["first-aid-kit","#e03131"],edukacja:["graduation-cap","#f08c00"],bezpieczenstwo:["shield-check","#1864ab"],kultura:["ticket","#ae3ec9"],sklepy:["storefront","#2b8a3e"],transport:["bus","#1c7ed6"]};
   const fmtDist=m=>m<950?`${Math.round(m/10)*10} m`:`${(m/1000).toLocaleString("pl-PL",{maximumFractionDigits:1})} km`;
   const badge=id=>`<img class="ios-badge" src="${esc(window.PoiIcons?.url?.(id)||"")}" alt="" loading="lazy">`;
   function allPanel(){
@@ -104,10 +118,10 @@
       <div id="poiRes" class="ios-res" hidden></div>
       <div id="poiCats" ${all.on?"":"hidden"}>
         <div class="ios-seg"><button type="button" data-poi-every>Wszystkie</button><button type="button" data-poi-clear>Wyczyść</button></div>
-        ${cats.map(({c,nets})=>`<details class="ios-group"><summary><span>${esc(c.label)}</span><small data-cat-count="${esc(c.id)}"></small>${window.Icons.svg("caret-right","ios-chev")}</summary><div class="ios-card">${nets.map(row).join("")}<div class="ios-foot"><button type="button" data-cat-all="${esc(c.id)}">Włącz całą grupę</button><button type="button" data-cat-none="${esc(c.id)}">Wyłącz grupę</button></div></div></details>`).join("")}
+        ${cats.map(({c,nets})=>`<details class="ios-group"><summary><span class="ios-cat-ic" style="--c:${CAT_LOOK[c.id]?.[1]||"#8e8e93"}">${window.Icons.svg(CAT_LOOK[c.id]?.[0]||"map-pin")}</span><span class="ios-cat-tx"><span class="ios-cat-n">${esc(c.label)}</span><span class="ios-cat-b" data-cat-badges="${esc(c.id)}">${nets.map(n=>`<img src="${esc(window.PoiIcons?.url?.(n.id)||"")}" alt="" data-b="${esc(n.id)}" loading="lazy">`).join("")}</span></span><small data-cat-count="${esc(c.id)}"></small>${window.Icons.svg("caret-right","ios-chev")}</summary><div class="ios-card">${nets.map(row).join("")}<div class="ios-foot"><button type="button" data-cat-all="${esc(c.id)}">Włącz całą grupę</button><button type="button" data-cat-none="${esc(c.id)}">Wyłącz grupę</button></div></div></details>`).join("")}
       </div><p id="poiStatus" class="source-note muted" role="status"></p>`;
     container.after(el);
-    const counts=()=>cats.forEach(({c,nets})=>{const k=nets.filter(n=>all.sel.includes(n.id)).length;const s=el.querySelector(`[data-cat-count="${c.id}"]`);if(s)s.textContent=k?`${k} z ${nets.length}`:"Wyłączone";});
+    const counts=()=>{cats.forEach(({c,nets})=>{const k=nets.filter(n=>all.sel.includes(n.id)).length;const s=el.querySelector(`[data-cat-count="${c.id}"]`);if(s)s.textContent=k?`${k}/${nets.length}`:"wył.";});el.querySelectorAll("[data-cat-badges]").forEach(box=>{const imgs=[...box.querySelectorAll("img")];imgs.forEach(i=>i.classList.toggle("off",!all.sel.includes(i.dataset.b)));imgs.sort((a,b)=>a.classList.contains("off")-b.classList.contains("off")).forEach(i=>box.insertBefore(i,box.querySelector("em")));});};
     const sync=()=>{el.querySelectorAll("[data-net]").forEach(i=>i.checked=all.sel.includes(i.dataset.net));counts();app.store.set("poiAll.sel",all.sel);scheduleAll();};
     const master=el.querySelector("#poiAll");
     const turnOn=()=>{if(!all.on){master.checked=true;master.dispatchEvent(new Event("change",{bubbles:true}));}};
@@ -200,8 +214,9 @@
       // The catalogue is ready without the map; layers wait for the map's first load (slow tiles must not leave the distance module empty).
       if(!Array.isArray(all.sel)){const want=["szkola","przedszkole","poz","apteka","przystanek","przystanek_kolejowy","zabka","biedronka","lidl","dino","inpost","poczta","bankomat","kosciol","plac_zabaw","biblioteka","urzad"];all.sel=config.networks.map(n=>n.id).filter(id=>want.includes(id));if(!all.sel.length)all.sel=config.networks.slice(0,10).map(n=>n.id);}
       allPanel();
-      const layers=()=>{for(const id of ["near-poi","poi-all"]){app.registerOverlaySource(id);map.addSource(id,{type:"geojson",data:collection([])});}
-      window.PoiIcons?.attach(map);map.addLayer({id:"near-poi-points",type:"symbol",source:"near-poi",minzoom:11,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],11,0.55,14,0.8,17,1.05],"icon-allow-overlap":["step",["zoom"],false,15,true],"icon-padding":1}});map.addLayer({id:"poi-all-points",type:"symbol",source:"poi-all",minzoom:ALLZ,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],13,0.6,15,0.8,17,1.05],"icon-allow-overlap":["step",["zoom"],false,16,true],"icon-padding":1}});
+      const layers=()=>{for(const id of ["near-poi","poi-all","near-poi-lines","poi-all-lines"]){app.registerOverlaySource(id);map.addSource(id,{type:"geojson",data:collection([])});}
+      map.addLayer(lineLayer("near-poi-outline","near-poi-lines",11));map.addLayer(lineLayer("poi-all-outline","poi-all-lines",ALLZ));
+      window.PoiIcons?.attach(map);map.addLayer({id:"near-poi-points",type:"symbol",source:"near-poi",minzoom:11,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],11,0.62,14,0.88,17,1.15,19,1.35],"icon-allow-overlap":["step",["zoom"],false,15,true],"icon-padding":1}});map.addLayer({id:"poi-all-points",type:"symbol",source:"poi-all",minzoom:ALLZ,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],13,0.72,15,0.92,17,1.15,19,1.35],"icon-allow-overlap":["step",["zoom"],false,16,true],"icon-padding":1}});
         map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(update,150);scheduleAll();});update();updateAll();if(state.prices)loadPrices();};
       let added=false;const tryLayers=()=>{if(added||!map.isStyleLoaded())return;added=true;map.off("styledata",tryLayers);map.off("idle",tryLayers);layers();};if(map.isStyleLoaded())tryLayers();else{map.on("styledata",tryLayers);map.on("idle",tryLayers);}
       document.getElementById("networkSelect").onchange=e=>{state.network=e.target.value;remember();update();};

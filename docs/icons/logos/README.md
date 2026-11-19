@@ -12,3 +12,5 @@ Gdy dało się znaleźć oficjalne **SVG**, jest w katalogu razem z **PNG** (dł
 Katalog nie obejmuje kategorii ogólnych z aplikacji (szkoła, apteka, przystanek, „dowolny automat” itd.) – to nie są pojedyncze marki. Pełna lista pominiętych sieci jest w raporcie przekazania.
 
 Nie rysowano logo samodzielnie i nie poprawiano ich wyglądu.
+
+Plakietki na mapie: logo jest tylko wycięte z tła i przeskalowane na białym kółku albo, przy szerokich napisach, na białej podłużnej plakietce (skrypt mapgen/nowe/poi_logos/powieksz.py). Kształt i kolory znaku się nie zmieniają.
