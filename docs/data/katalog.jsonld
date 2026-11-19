@@ -18,7 +18,7 @@
  },
  "dct:modified": {
   "@type": "xsd:date",
-  "@value": "2026-11-18"
+  "@value": "2026-11-19"
  },
  "dct:language": {
   "@id": "http://publications.europa.eu/resource/authority/language/POL"
@@ -469,6 +469,55 @@
    ]
   },
   {
+   "@id": "https://xoogklastry.github.io/plots/katalog.html#nsp-2011-2021",
+   "@type": "dcat:Dataset",
+   "dct:identifier": "nsp-2011-2021",
+   "dct:title": {
+    "@language": "pl",
+    "@value": "Spisy powszechne 2011 i 2021 w powiatach"
+   },
+   "dct:description": {
+    "@language": "pl",
+    "@value": "Udział osób z wyższym wykształceniem, wskaźnik zatrudnienia, aktywność zawodowa i stopa bezrobocia według spisów 2011 i 2021. NSP 2011 w BDL jest dostępny tylko dla powiatów, więc gmina dostaje wartość swojego powiatu. Wartości 2021 to suma gmin powiatu. Wałbrzych (powiat od 2013 r.) połączony z powiatem wałbrzyskim."
+   },
+   "dcat:theme": "Ludność",
+   "dct:temporal": "spisy 2011 i 2021",
+   "dct:accrualPeriodicity": "co 10 lat",
+   "dct:modified": {
+    "@type": "xsd:date",
+    "@value": "2026-11-19"
+   },
+   "dct:source": [
+    {
+     "@id": "https://bdl.stat.gov.pl/bdl/start",
+     "dct:title": "GUS, Bank Danych Lokalnych: NSP 2011 (powiaty)"
+    },
+    {
+     "@id": "https://spis.gov.pl/",
+     "dct:title": "GUS, Narodowy Spis Powszechny 2021"
+    }
+   ],
+   "dct:license": {
+    "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl",
+    "dct:title": "CC BY 4.0"
+   },
+   "dcat:distribution": [
+    {
+     "@type": "dcat:Distribution",
+     "dcat:accessURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dcat:downloadURL": {
+      "@id": "https://xoogklastry.github.io/plots/data/wskazniki-inne.json"
+     },
+     "dct:format": "JSON",
+     "dct:license": {
+      "@id": "https://creativecommons.org/licenses/by/4.0/deed.pl"
+     }
+    }
+   ]
+  },
+  {
    "@id": "https://xoogklastry.github.io/plots/katalog.html#klimat-imgw",
    "@type": "dcat:Dataset",
    "dct:identifier": "klimat-imgw",
@@ -740,7 +789,7 @@
    "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
    "dct:modified": {
     "@type": "xsd:date",
-    "@value": "2026-11-18"
+    "@value": "2026-11-19"
    },
    "dct:source": [
     {
@@ -798,7 +847,7 @@
    "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
    "dct:modified": {
     "@type": "xsd:date",
-    "@value": "2026-11-18"
+    "@value": "2026-11-19"
    },
    "dct:source": [
     {
@@ -843,7 +892,7 @@
    "dct:accrualPeriodicity": "przy każdej aktualizacji aplikacji",
    "dct:modified": {
     "@type": "xsd:date",
-    "@value": "2026-11-18"
+    "@value": "2026-11-19"
    },
    "dct:source": [
     {

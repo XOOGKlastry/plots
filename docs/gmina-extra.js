@@ -27,11 +27,20 @@
     const ref = opts.ref || [], all = [...pts.map(p => p[1]), ...ref.filter(Number.isFinite)], lo = Math.min(...all, opts.zero ? 0 : Infinity), hi = Math.max(...all, opts.zero ? 0 : -Infinity), pad = (hi - lo) * .1 || 1;
     const X = i => i / (vals.length - 1) * 100, Y = v => 100 - (v - lo + pad) / (hi - lo + 2 * pad) * 100;
     const path = arr => arr.map((v, i) => Number.isFinite(v) ? `${i && Number.isFinite(arr[i - 1]) ? "L" : "M"}${X(i).toFixed(2)},${Y(v).toFixed(2)}` : "").join("");
-    return `<div class="ext-line" data-line='${esc(JSON.stringify({ v: vals, x0, r: ref, u: opts.unit || "" }))}'><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+    const low = (() => { const m = Math.min(...pts.map(p => p[1])); return Y(m) > 70 && Math.max(...pts.map(p => p[1])) !== m; })();
+    return `<div class="ext-line${low ? " mm-low" : ""}" data-line='${esc(JSON.stringify({ v: vals, x0, r: ref, u: opts.unit || "" }))}'><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       ${opts.zero && lo < 0 ? `<line x1="0" x2="100" y1="${Y(0)}" y2="${Y(0)}" stroke="#c7c7cc" stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 3"/>` : ""}
       ${ref.length ? `<path d="${path(ref)}" fill="none" stroke="#8e8e93" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>` : ""}
       <path d="${path(vals)}" fill="none" stroke="${opts.color || "#0a84ff"}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
-      <span class="ext-dot" hidden></span><span class="ext-tip" hidden></span><div class="ext-years"><span>${x0}</span><span>${x0 + vals.length - 1}</span></div></div>`;
+      ${mm(pts, X, Y, opts.unit || "", x0)}<span class="ext-dot" hidden></span><span class="ext-tip" hidden></span><div class="ext-years"><span>${x0}</span><span>${x0 + vals.length - 1}</span></div></div>`;
+  }
+  /* Labels of the series minimum and maximum (with year), on top of the line, with a white halo. */
+  function mm(pts, X, Y, u, x0) {
+    const hi = pts.reduce((a, p) => p[1] > a[1] ? p : a), lo = pts.reduce((a, p) => p[1] < a[1] ? p : a);
+    if (hi[1] === lo[1]) return "";
+    const d = v => Math.abs(v) < 20 && v % 1 ? 1 : 0;
+    const one = (p, up, t) => { const x = X(p[0]); return `<span class="ext-mm ${up ? "up" : "dn"}" style="left:${x.toFixed(1)}%;top:${Y(p[1]).toFixed(1)}%;--tx:${x < 22 ? "0" : x > 78 ? "-100%" : "-50%"}">${t} ${fmt(p[1], d(p[1]))}${esc(u)} (${x0 + p[0]})</span>`; };
+    return one(hi, true, "max") + one(lo, false, "min");
   }
   function bindLines(root) {
     root.querySelectorAll(".ext-line[data-line]").forEach(el => {

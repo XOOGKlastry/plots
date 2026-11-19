@@ -384,6 +384,7 @@ body.stats-mini .stats-panel{overflow:hidden;touch-action:none;padding-bottom:12
 .ext-line{position:relative;height:120px;margin:10px 0 18px;border-bottom:1px solid #e5e5ea;touch-action:pan-y;cursor:crosshair}.ext-line svg{width:100%;height:100%;display:block}
 .ext-dot{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#0a84ff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none}
 .ext-tip{position:absolute;top:-8px;font-size:11.5px;font-weight:600;background:#1c1c1e;color:#fff;padding:3px 8px;border-radius:8px;white-space:nowrap;pointer-events:none}
+.ext-mm{position:absolute;font-size:10.5px;font-weight:700;color:#0a6fd6;white-space:nowrap;pointer-events:none;transform:translate(var(--tx),-100%) translateY(-5px);text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 3px #fff;-webkit-text-stroke:0}.ext-mm.dn{transform:translate(var(--tx),5px)}.ext-line.mm-low{margin-bottom:32px}.ext-line.mm-low .ext-years{bottom:-31px}
 .ext-years{position:absolute;left:0;right:0;bottom:-17px;display:flex;justify-content:space-between;font-size:10.5px;color:#8e8e93}
 .ext-legend{display:flex;align-items:center;gap:6px;font-size:11.5px!important;color:#6e6e73;flex-wrap:wrap}.ext-sw{display:inline-block;width:16px;height:0;border-top:2.2px solid #0a84ff}.ext-sw.dash{border-top:1.5px dashed #8e8e93;margin-left:8px}
 .ext-seg{display:flex;margin:10px 0}.ext-seg button{flex:1;font-size:12px;padding:6px 2px}
@@ -1017,7 +1018,9 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .indicator-card:has(.ind-hist){grid-column:1/-1}
 .ind-hist{margin-top:8px;padding-top:8px;border-top:1px solid var(--line,#e5e7eb)}
 .ih-svg{width:100%;height:auto;display:block;overflow:visible}
-.ih-svg text{font-size:9px;fill:#6b7280}.ih-svg .ih-val{font-size:10px;font-weight:700;fill:var(--acc,#1d4ed8)}
+.ih-svg text{font-size:9px;fill:#6b7280}.ih-svg .ih-lab{paint-order:stroke;stroke:#fff;stroke-width:3.2px;stroke-linejoin:round}
+.ih-svg .ih-val,.ih-svg .ih-max,.ih-svg .ih-min{font-size:10px;font-weight:700;fill:var(--acc,#1d4ed8)}.ih-svg .ih-gl{font-size:8.5px;fill:#8e8e93}
+.ih-grid{stroke:#eceef1;stroke-width:1}.ih-dot.ih-ext{fill:var(--acc,#1d4ed8)}
 .ih-axis{stroke:#d1d5db;stroke-width:1}
 .ih-own{fill:none;stroke:var(--acc,#1d4ed8);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
 .ih-med{fill:none;stroke:#9ca3af;stroke-width:1.6;stroke-dasharray:4 3}
