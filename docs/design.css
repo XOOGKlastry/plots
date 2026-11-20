@@ -1047,3 +1047,12 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 .zm-good .zm-v{color:#2b8a3e}.zm-bad .zm-v{color:#c92a2a}
 .zm-r{grid-area:r;font-size:11px;color:#6b7280}.zm-top .zm-r{color:#1f2937;font-weight:600}
 .zm-list .stat-map-link{grid-area:b;min-width:36px;min-height:36px;justify-content:center;margin:0}
+
+.st-series{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg,#f2f2f7);border-radius:12px;padding:4px;margin:6px 0 10px}.st-series button{border:0;border-radius:9px;padding:8px 6px;background:transparent;color:#6e6e73;font-size:12px;font-weight:600;line-height:1.2}.st-series button[aria-pressed=true]{background:#fff;color:#1d1d1f;box-shadow:0 1px 4px #00000018}
+.st-op{margin:12px 0 6px;padding:10px 12px 8px;background:#fff;border-radius:12px;box-shadow:0 0 0 1px #0000000f}.st-op-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600}.st-op-head output{font-variant-numeric:tabular-nums;color:#8d6e3f}
+.st-op input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;margin:6px 0 2px;background:transparent;cursor:pointer}
+.st-op input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:6px;background:linear-gradient(90deg,#8d6e3f,#8d6e3f00),repeating-conic-gradient(#d9d9de 0 25%,#fff 0 50%) 0 0/10px 10px}
+.st-op input[type=range]::-moz-range-track{height:10px;border-radius:6px;background:linear-gradient(90deg,#8d6e3f,#8d6e3f00),repeating-conic-gradient(#d9d9de 0 25%,#fff 0 50%) 0 0/10px 10px}
+.st-op input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-7px;border-radius:50%;background:#fff;border:2px solid #8d6e3f;box-shadow:0 1px 5px #0000002e}
+.st-op input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #8d6e3f;box-shadow:0 1px 5px #0000002e}
+.st-op-ends{display:flex;justify-content:space-between;gap:10px;font-size:10.5px;color:#8e8e93}.st-op-ends span:last-child{text-align:right}

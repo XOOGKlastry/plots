@@ -57,17 +57,25 @@
   const ochColor = ["match", ["get", "t"], ...Object.entries(OCH).flatMap(([k, v]) => [k, v[1]]), "#868e96"];
 
   /* ---------- Stare mapy: zeskanowane arkusze z georeferencją z narożników ramki, kafle XYZ w data/stare/<seria> (mapgen/stare_mapy/stare.py) ---------- */
+  const GPW = "https://mapy.geoportal.gov.pl/wss/service";
+  const wmsT = (u, extra = "") => `${u}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=Raster&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/jpeg${extra}`;
   const STARE = {
-    mtb: { n: "Messtischblatt", d: "pruska mapa 1:25 000, arkusz 5878 Orzesche, 1884", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Biblioteki Narodowej" },
-    wig: { n: "WIG", d: "mapa Wojskowego Instytutu Geograficznego 1:25 000, arkusz Orzesze, 1933", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Archiwum Map WIG" } };
-  const STARE_BB = [18.6667, 50.0833, 18.8333, 50.2];
+    mtb: { n: "Messtischblatt 1884", d: "Pruska mapa 1:25 000, arkusz 5878 Orzesche. Na razie tylko gmina Orzesze (próba), arkusz ustawiony według narożników ramki, możliwe przesunięcie do około 100 m", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Biblioteki Narodowej", bb: [18.6667, 50.0833, 18.8333, 50.2], minz: 11, maxz: 16 },
+    wig: { n: "WIG 1933", d: "Mapa Wojskowego Instytutu Geograficznego 1:25 000, arkusz Orzesze. Na razie tylko gmina Orzesze (próba)", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Archiwum Map WIG", bb: [18.6667, 50.0833, 18.8333, 50.2], minz: 11, maxz: 16 },
+    topo: { n: "Topograficzna GUGiK", d: "Rastrowa mapa topograficzna Polski w układzie 1992 (głównie lata 1990–2000), cały kraj", src: "GUGiK, usługa WMS danych topograficznych (geoportal.gov.pl)", minz: 8, maxz: 19 },
+    orto: { n: "Ortofoto archiwalne", d: "Archiwalne ortofotomapy GUGiK, cały kraj. Pokazywane jest najnowsze zdjęcie wykonane do końca wybranego roku. Widoczne od powiększenia na poziom osiedla", src: "GUGiK, usługa WMS ortofotomap archiwalnych (geoportal.gov.pl)", minz: 13, maxz: 19 } };
+  const STARE_BB = STARE.mtb.bb;
   let stT = (() => { try { const v = app.store.get("stare.t", "mtb"); return STARE[v] ? v : "mtb"; } catch (e) { return "mtb"; } })();
-  let stOp = 1;
-  const stUrl = t => new URL(`data/stare/${t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}");
-  const stLegend = () => `<div class="stats-seg ext-seg su-seg" role="group" aria-label="Seria map">${Object.entries(STARE).map(([k, v]) => `<button type="button" data-st="${k}" aria-pressed="${k === stT}">${esc(v.n)}</button>`).join("")}</div>` +
-    `<div class="stats-seg ext-seg su-seg" role="group" aria-label="Przezroczystość">${[[1, "pełna"], [.7, "70%"], [.45, "45%"]].map(([v, l]) => `<button type="button" data-sto="${v}" aria-pressed="${v === stOp}">${l}</button>`).join("")}</div>` +
-    note(`${STARE[stT].d}. Na razie tylko gmina Orzesze (próba). Arkusz ustawiony według narożników ramki, możliwe przesunięcie do około 100 m. Źródło: ${STARE[stT].src}.`) +
-    `<p class="small"><a href="#" data-st-go>Pokaż Orzesze na mapie</a></p>`;
+  let stOp = 1, stY = 2003;
+  const stUrl = t => t === "topo" ? wmsT(`${GPW}/img/guest/TOPO/MapServer/WMSServer`) : t === "orto" ? wmsT(`${GPW}/PZGIK/ORTO/WMS/StandardResolutionTime`, `&TIME=${stY}-12-31`)
+    : new URL(`data/stare/${t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}");
+  const stOpHtml = () => `<div class="st-op"><div class="st-op-head"><span>Przezroczystość</span><output data-sto-out>${Math.round((1 - stOp) * 100)}%</output></div>` +
+    `<input type="range" min="0" max="100" step="5" value="${Math.round((1 - stOp) * 100)}" data-sto aria-label="Przezroczystość starej mapy">` +
+    `<div class="st-op-ends"><span>mapa kryje wszystko</span><span>prześwituje dzisiejsza mapa</span></div></div>`;
+  const stLegend = () => `<div class="st-series" role="group" aria-label="Seria map">${Object.entries(STARE).map(([k, v]) => `<button type="button" data-st="${k}" aria-pressed="${k === stT}">${esc(v.n)}</button>`).join("")}</div>` +
+    (stT === "orto" ? `<div class="md-year"><label for="st-year">Stan na koniec roku: <b data-st-y>${stY}</b></label><input id="st-year" type="range" min="1996" max="2025" step="1" value="${stY}"><div class="md-ticks"><span>1996</span><span>2025</span></div></div>` : "") +
+    stOpHtml() + note(`${STARE[stT].d}. Źródło: ${STARE[stT].src}.`) +
+    (STARE[stT].bb ? `<p class="small"><a href="#" data-st-go>Pokaż Orzesze na mapie</a></p>` : "");
 
   /* ---------- GIOŚ stations ---------- */
   const NORM = { pm25: [10, 20], pm10: [20, 40], pm10_36: [45, 50], no2: [20, 40], bap: [1, 1], arsen: [6, 6], o3_dni: [18, 25], so2: [20, 20] };
@@ -369,15 +377,21 @@
         { id: "x-wp-och-l", type: "line", source: s, minzoom: 8, paint: { "line-color": ochColor, "line-width": 1 }, noClick: true }],
       legend: () => legendRow(Object.values(OCH).filter(v => !/pomnik|stanowisko/.test(v[0])).map(([l, c]) => [c, l, "box"])) + note("Obszary chronione, których stan zależy od wód (bez otulin; obszary poniżej 10 ha pominięte, poza rezerwatami, parkami narodowymi i pomnikami)."),
       card: p => ({ title: p.n || "Obszar chroniony", src: WP_SRC + ", rejestr obszarów chronionych", body: `<p class="gs-st"><i style="background:${(OCH[p.t] || ["", "#868e96"])[1]}"></i>${esc((OCH[p.t] || [p.t])[0])}</p>` }) },
-    { id: "stare-mapy", box: "terrainLayers", label: "Stare mapy", desc: "Messtischblatt 1884 i WIG 1933 (na razie gmina Orzesze)", kw: "stare mapy archiwalne historyczne messtischblatt wig mapa topograficzna przedwojenna niemiecka pruska orzesze igrek amzp",
-      icon: ["map-trifold", "#8d6e3f"], tiles: () => stUrl(stT), minz: 11, maxz: 16, bounds: STARE_BB, attr: "Archiwum Map Zachodniej Polski",
+    { id: "stare-mapy", box: "terrainLayers", label: "Stare mapy", desc: "Messtischblatt, WIG, topograficzna GUGiK, ortofoto archiwalne", kw: "stare mapy archiwalne historyczne messtischblatt wig mapa topograficzna przedwojenna niemiecka pruska orzesze igrek amzp ortofotomapa archiwalna zdjęcia lotnicze gugik",
+      icon: ["map-trifold", "#8d6e3f"], tiles: () => stUrl(stT), get minz() { return STARE[stT].minz; }, get maxz() { return STARE[stT].maxz; }, get bounds() { return STARE[stT].bb; }, get attr() { return STARE[stT].src; },
       layers: s => [{ id: "x-stare", type: "raster", source: s, paint: { "raster-opacity": stOp, "raster-fade-duration": 0 } }],
       legend: stLegend,
-      onToggle: on => { if (on && map.getZoom() < 11) map.fitBounds([[STARE_BB[0], STARE_BB[1]], [STARE_BB[2], STARE_BB[3]]], { padding: 30 }); },
+      onToggle: on => { const z = STARE[stT].minz; if (on && STARE[stT].bb && map.getZoom() < z) map.fitBounds([[STARE_BB[0], STARE_BB[1]], [STARE_BB[2], STARE_BB[3]]], { padding: 30 }); else if (on && map.getZoom() < z) map.easeTo({ zoom: z }); },
       legendInit: box => {
-        const again = () => { box.innerHTML = stLegend(); window.ExtraLayers.LAYERS.find(L => L.id === "stare-mapy").legendInit(box); };
-        box.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { stT = b.dataset.st; try { app.store.set("stare.t", stT); } catch (e) {} map.getSource("x-stare-mapy")?.setTiles([stUrl(stT)]); again(); });
-        box.querySelectorAll("[data-sto]").forEach(b => b.onclick = () => { stOp = +b.dataset.sto; if (map.getLayer("x-stare")) map.setPaintProperty("x-stare", "raster-opacity", stOp); again(); });
+        const L = window.ExtraLayers.LAYERS.find(x => x.id === "stare-mapy");
+        const again = () => { box.innerHTML = stLegend(); L.legendInit(box); };
+        const rebuild = () => { if (map.getLayer("x-stare")) map.removeLayer("x-stare"); if (map.getSource("x-stare-mapy")) map.removeSource("x-stare-mapy"); added.delete("stare-mapy"); apply(L, true); };
+        box.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { stT = b.dataset.st; try { app.store.set("stare.t", stT); } catch (e) {} rebuild(); });
+        const yr = box.querySelector("#st-year");
+        if (yr) { yr.oninput = () => { box.querySelector("[data-st-y]").textContent = yr.value; }; yr.onchange = () => { stY = +yr.value; map.getSource("x-stare-mapy")?.setTiles([stUrl(stT)]); }; }
+        const op = box.querySelector("[data-sto]");
+        if (op) op.oninput = () => { stOp = 1 - op.value / 100; box.querySelector("[data-sto-out]").textContent = op.value + "%"; op.style.setProperty("--v", op.value + "%"); if (map.getLayer("x-stare")) map.setPaintProperty("x-stare", "raster-opacity", stOp); };
+        if (op) op.style.setProperty("--v", op.value + "%");
         const go = box.querySelector("[data-st-go]"); if (go) go.onclick = e => { e.preventDefault(); map.fitBounds([[STARE_BB[0], STARE_BB[1]], [STARE_BB[2], STARE_BB[3]]], { padding: 30 }); };
       } },
   ];
