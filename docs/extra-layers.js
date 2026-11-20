@@ -67,20 +67,25 @@
     mtb: { n: "Messtischblatt", d: "Pruska mapa 1:25 000 z lat 1883–1884. Na razie arkusze Orzesche, Nicolai i Lendzin (Orzesze, Mikołów, Tychy, Lędziny). Arkusze ustawione według narożników ramki, możliwe przesunięcie do około 100 m", src: AMZP + ", skany Biblioteki Narodowej i Leibniz-Institut für Länderkunde", bb: [18.6667, 50.1, 19.1667, 50.2], minz: 11, maxz: 16, gdzie: "Orzesze, Mikołów, Tychy i Lędziny" },
     wig: { n: "WIG 1933", d: "Mapa Wojskowego Instytutu Geograficznego 1:25 000 z 1933 r. Na razie arkusze Orzesze, Tychy i Bieruń Stary", src: AMZP + ", skany Archiwum Map WIG", bb: [18.6667, 50.0833, 19.1667, 50.1667], minz: 11, maxz: 16, gdzie: "Orzesze, Tychy i Bieruń" },
     topo: { n: "Topograficzna", d: "Mapa topograficzna GUGiK, cały kraj. Starsze wydania (układ 1965 i 1942) GUGiK udostępnia tylko jako skany do pobrania", src: "GUGiK, usługi WMS mapy topograficznej i BDOT10k (geoportal.gov.pl)", minz: 8, maxz: 19 },
+    p: { n: "Inne wydania", d: "Wszystkie wydania map w skali do 1:100 000 dostępne w archiwum dla okolic Tychów: pruskie, austriackie, rosyjskie, polskie WIG, niemieckie, amerykańskie i radzieckie. Arkusze ustawione według narożników ramki, możliwe przesunięcie do około 100–200 m", src: AMZP + ", skany Biblioteki Narodowej, Library of Congress, Archiwum Map WIG i innych bibliotek", bb: [18.6, 50.0, 19.35, 50.25], minz: 10, maxz: 15, gdzie: "Tychy i okolice" },
     orto: { n: "Ortofoto archiwalne", d: "Archiwalne ortofotomapy GUGiK, cały kraj. Lata do wyboru to roczniki zdjęć, które istnieją w środku widoku mapy", src: "GUGiK, usługa WMS ortofotomap archiwalnych (geoportal.gov.pl)", minz: 13, maxz: 19 } };
+  const P_N = { mtb: "Messtischblatt 1:25 000", wig26: "WIG 1:25 000, wydanie wczesne", ams25: "Amerykańska AMS 1:25 000", ussr50: "Radziecka 1:50 000", ams50: "Amerykańska AMS 1:50 000", kuk75: "Austro-węgierska 1:75 000", ros84: "Rosyjska 1:84 000", wig100: "WIG 1:100 000", kdr100: "Karte des Deutschen Reiches 1:100 000", gr100: "Niemiecka 1:100 000 (Generalstab)", gsgs100: "Brytyjska GSGS 1:100 000", ams100: "Amerykańska AMS 1:100 000" };
+  let stPI = null; fetch(new URL("data/stare/p/index.json", location.href)).then(r => r.json()).then(j => { stPI = j; refreshLegend(); }).catch(() => { stPI = {}; });
+  const pSer = k => k.replace(/_\d+$/, ""), pYr = k => k.match(/\d+$/)[0];
   const TOPO_E = { 92: "lata 1990–2000", bdot: "dziś (BDOT10k)" };
   const vSplit = v => v.split(":");
-  const vName = v => { const [t, x] = vSplit(v); return t === "now" ? "Ortofoto aktualne" : t === "orto" ? `Ortofoto ${x}` : t === "topo" ? `Topograficzna ${TOPO_E[x]}` : STARE[t].n; };
-  const vOpt = v => { const [t] = vSplit(v); return t === "now" ? { minz: 0, maxz: 19 } : STARE[t]; };
+  const vName = v => { const [t, x] = vSplit(v); return t === "now" ? "Ortofoto aktualne" : t === "orto" ? `Ortofoto ${x}` : t === "topo" ? `Topograficzna ${TOPO_E[x]}` : t === "p" ? (x ? `${P_N[pSer(x)] || pSer(x)}, ${pYr(x)}` : STARE.p.n) : STARE[t].n; };
+  const vOpt = v => { const [t, x] = vSplit(v); if (t === "now") return { minz: 0, maxz: 19 };
+    const e = t === "p" && x && stPI && stPI[x]; return e ? { ...STARE.p, minz: e.z[0], maxz: e.z[1], bb: e.bbox } : STARE[t]; };
   const vUrl = v => { const [t, x] = vSplit(v);
     if (t === "now") return ORTO_NOW;
     if (t === "orto") return wmsT(ORTO_T, "Raster", `&TIME=${x}-01-01/${x}-12-31`);
     if (t === "topo") return x === "bdot" ? wmsT(BDOT_W, BDOT_L, "&TRANSPARENT=FALSE", "image/png") : wmsT(TOPO_W, "Raster");
-    return new URL(`data/stare/${t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}"); };
+    return new URL(`data/stare/${t === "p" ? "p/" + x : t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}"); };
   let stA = (() => { try { const v = app.store.get("stare.v", "mtb"); return STARE[vSplit(v)[0]] ? v : "mtb"; } catch (e) { return "mtb"; } })();
   let stOp = 1, stYears = null, stProbe = "", stProbing = false, cmp = null, cmpB = "now";
   const stT = () => vSplit(stA)[0];
-  const STARE_BB = () => STARE[stT()].bb || STARE.mtb.bb;
+  const STARE_BB = () => vOpt(stA).bb || STARE.mtb.bb;
   /* which yearly ortophoto flights exist at the map centre: one 8×8 px request per year, identical images = the same flight */
   const merc = (lng, lat) => [lng * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) * 6378137];
   let stDone = 0, stFail = false;
@@ -126,18 +131,20 @@
     `<input type="range" min="0" max="100" step="5" value="${Math.round((1 - stOp) * 100)}" data-sto aria-label="Przezroczystość starej mapy"></div>`;
   const yearsHtml = (cur, attr) => stProbing ? `<p class="st-hint st-load-h">Sprawdzam, z jakich lat są zdjęcia w tym miejscu (<span data-st-prog>${stDone} z ${new Date().getFullYear() - 1994}</span>). Serwer GUGiK bywa wolny.</p>` : map.getZoom() < 11 ? `<p class="st-hint">Przybliż mapę, żeby sprawdzić lata zdjęć w tym miejscu.</p>` :
     stYears && !stYears.length ? `<p class="st-hint">Brak zdjęć archiwalnych w tym miejscu.</p>` : stYears ? (stFail ? `<p class="st-hint">Serwer GUGiK nie odpowiedział na czas, więc nie wiadomo, z których lat są zdjęcia w tym miejscu. Pokazuję wszystkie lata, niektóre mogą być puste.</p>` : "") + `<div class="st-years" role="group" aria-label="Rok zdjęcia">${stYears.map(y => `<button type="button" ${attr}="${y}" aria-pressed="${y === +cur}">${y}</button>`).join("")}</div>` : "";
-  const cmpOpts = () => { const o = ["now", ...(stYears || []).map(y => "orto:" + y), "topo:92", "topo:bdot", "mtb", "wig"].filter(v => v !== stA); if (!o.includes(cmpB)) o.unshift(cmpB); return o; };
-  const stLegend = () => { const t = stT(), S = STARE[t];
+  const cmpOpts = () => { const o = ["now", ...(stYears || []).map(y => "orto:" + y), "topo:92", "topo:bdot", "mtb", "wig", ...Object.keys(stPI || {}).map(k => "p:" + k)].filter(v => v !== stA); if (!o.includes(cmpB)) o.unshift(cmpB); return o; };
+  const stLegend = () => { const t = stT(), S = vOpt(stA);
     return `<div class="st-series" role="group" aria-label="Seria map">${Object.entries(STARE).map(([k, v]) => `<button type="button" data-st="${k}" aria-pressed="${k === t}">${esc(v.n)}</button>`).join("")}</div>` +
     (t === "orto" ? `<p class="st-lbl">Rok zdjęcia</p>` + yearsHtml(vSplit(stA)[1], "data-sty") : "") +
     (t === "topo" ? `<div class="st-years" role="group" aria-label="Wydanie">${Object.entries(TOPO_E).map(([k, n]) => `<button type="button" data-ste="${k}" aria-pressed="${stA === "topo:" + k}">${esc(n)}</button>`).join("")}</div>` : "") +
+    (t === "p" ? (!stPI ? `<p class="st-hint">Wczytuję listę wydań…</p>` : Object.entries(Object.keys(stPI).reduce((m, k) => ((m[pSer(k)] = m[pSer(k)] || []).push(k), m), {})).sort((x, y) => Object.keys(P_N).indexOf(x[0]) - Object.keys(P_N).indexOf(y[0])).map(([sr, ks]) =>
+      `<p class="st-lbl">${esc(P_N[sr] || sr)}</p><div class="st-years" role="group" aria-label="${esc(P_N[sr] || sr)}">${ks.map(k => `<button type="button" data-stp="${k}" aria-pressed="${stA === "p:" + k}">${pYr(k)}</button>`).join("")}</div>`).join("")) : "") +
     `<p class="st-status" data-st-status></p>` + stOpHtml() +
     `<div class="st-cmp-box"><button type="button" class="st-cmp-btn" data-cmp aria-pressed="${!!cmp}">${cmp ? "Zakończ porównanie" : "Porównaj z inną mapą (suwak na mapie)"}</button>` +
     (cmp ? `<label class="st-lbl" for="st-cmpb">Po prawej stronie linii</label><select id="st-cmpb" data-cmpb>${cmpOpts().map(v => `<option value="${v}"${v === cmpB ? " selected" : ""}>${esc(vName(v))}</option>`).join("")}</select><p class="st-hint">Po lewej: ${esc(vName(stA))}. Przeciągnij pionową linię na mapie.</p>` : "") + `</div>` +
     note(`${S.d}. Źródło: ${S.src}.`) + (S.bb ? `<p class="small"><a href="#" data-st-go>Pokaż arkusze na mapie</a></p>` : ""); };
   function stStatus() {
     const el = document.querySelector("#x-leg-stare-mapy [data-st-status]"); if (!el) return;
-    const S = STARE[stT()], z = map.getZoom(), c = map.getCenter(); let cls = "ok", txt;
+    const S = vOpt(stA), z = map.getZoom(), c = map.getCenter(); let cls = "ok", txt;
     if (z < S.minz) { cls = "zoom"; txt = "Przybliż mapę, aby zobaczyć tę mapę."; }
     else if (S.bb && !(c.lng > S.bb[0] && c.lng < S.bb[2] && c.lat > S.bb[1] && c.lat < S.bb[3])) { cls = "zoom"; txt = `Ta seria jest na razie tylko dla: ${S.gdzie}.`; }
     else { let ok = true; try { ok = map.isSourceLoaded("x-stare-mapy"); } catch (e) {} txt = ok ? `Widać: ${vName(stA)}` : `Wczytuję: ${vName(stA)}…`; if (!ok) cls = "load"; }
@@ -490,17 +497,18 @@
       legend: () => legendRow(Object.values(OCH).filter(v => !/pomnik|stanowisko/.test(v[0])).map(([l, c]) => [c, l, "box"])) + note("Obszary chronione, których stan zależy od wód (bez otulin; obszary poniżej 10 ha pominięte, poza rezerwatami, parkami narodowymi i pomnikami)."),
       card: p => ({ title: p.n || "Obszar chroniony", src: WP_SRC + ", rejestr obszarów chronionych", body: `<p class="gs-st"><i style="background:${(OCH[p.t] || ["", "#868e96"])[1]}"></i>${esc((OCH[p.t] || [p.t])[0])}</p>` }) },
     { id: "stare-mapy", box: "terrainLayers", label: "Stare mapy", desc: "Messtischblatt, WIG, topograficzna, ortofoto archiwalne, porównanie suwakiem", kw: "stare mapy archiwalne historyczne messtischblatt wig mapa topograficzna przedwojenna niemiecka pruska orzesze mikołów tychy lędziny bieruń igrek amzp ortofotomapa archiwalna zdjęcia lotnicze gugik bdot10k porównanie",
-      icon: ["map-trifold", "#8d6e3f"], tiles: () => vUrl(stA), get minz() { return STARE[stT()].minz; }, get maxz() { return STARE[stT()].maxz; }, get bounds() { return STARE[stT()].bb; }, get attr() { return STARE[stT()].src; },
+      icon: ["map-trifold", "#8d6e3f"], tiles: () => vUrl(stA), get minz() { return vOpt(stA).minz; }, get maxz() { return vOpt(stA).maxz; }, get bounds() { return vOpt(stA).bb; }, get attr() { return vOpt(stA).src; },
       layers: s => [{ id: "x-stare", type: "raster", source: s, paint: { "raster-opacity": stOp, "raster-fade-duration": 0 } }],
       legend: stLegend,
       onToggle: on => { hookStatus(); if (!on) { cmpClose(); return; }
-        const S = STARE[stT()], c = map.getCenter();
+        const S = vOpt(stA), c = map.getCenter();
         if (S.bb && (map.getZoom() < S.minz || !(c.lng > S.bb[0] && c.lng < S.bb[2] && c.lat > S.bb[1] && c.lat < S.bb[3]))) map.fitBounds([[S.bb[0], S.bb[1]], [S.bb[2], S.bb[3]]], { padding: 30 });
         else if (map.getZoom() < S.minz) map.easeTo({ zoom: S.minz });
         if (stT() === "orto") setTimeout(probeYears, 900); setTimeout(stStatus, 50); },
       legendInit: box => {
         box.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { const k = b.dataset.st; if (k === stT()) return;
-          setA(k === "topo" ? "topo:92" : k === "orto" ? "orto:" + (stYears?.length ? stYears[0] : 2003) : k); });
+          setA(k === "topo" ? "topo:92" : k === "orto" ? "orto:" + (stYears?.length ? stYears[0] : 2003) : k === "p" ? "p:" + (Object.keys(stPI || {})[0] || "") : k); });
+        box.querySelectorAll("[data-stp]").forEach(b => b.onclick = () => setA("p:" + b.dataset.stp));
         box.querySelectorAll("[data-sty]").forEach(b => b.onclick = () => setA("orto:" + b.dataset.sty));
         box.querySelectorAll("[data-ste]").forEach(b => b.onclick = () => setA("topo:" + b.dataset.ste));
         const op = box.querySelector("[data-sto]");
