@@ -56,6 +56,19 @@
     UE: ["użytek ekologiczny", "#f08c00"], OchK: ["obszar chronionego krajobrazu", "#c0eb75"], ZPK: ["zespół przyrodniczo-krajobrazowy", "#a9e34b"], SD: ["stanowisko dokumentacyjne", "#ae3ec9"], PP: ["pomnik przyrody", "#9c36b5"] };
   const ochColor = ["match", ["get", "t"], ...Object.entries(OCH).flatMap(([k, v]) => [k, v[1]]), "#868e96"];
 
+  /* ---------- Stare mapy: zeskanowane arkusze z georeferencją z narożników ramki, kafle XYZ w data/stare/<seria> (mapgen/stare_mapy/stare.py) ---------- */
+  const STARE = {
+    mtb: { n: "Messtischblatt", d: "pruska mapa 1:25 000, arkusz 5878 Orzesche, 1884", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Biblioteki Narodowej" },
+    wig: { n: "WIG", d: "mapa Wojskowego Instytutu Geograficznego 1:25 000, arkusz Orzesze, 1933", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Archiwum Map WIG" } };
+  const STARE_BB = [18.6667, 50.0833, 18.8333, 50.2];
+  let stT = (() => { try { const v = app.store.get("stare.t", "mtb"); return STARE[v] ? v : "mtb"; } catch (e) { return "mtb"; } })();
+  let stOp = 1;
+  const stUrl = t => new URL(`data/stare/${t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}");
+  const stLegend = () => `<div class="stats-seg ext-seg su-seg" role="group" aria-label="Seria map">${Object.entries(STARE).map(([k, v]) => `<button type="button" data-st="${k}" aria-pressed="${k === stT}">${esc(v.n)}</button>`).join("")}</div>` +
+    `<div class="stats-seg ext-seg su-seg" role="group" aria-label="Przezroczystość">${[[1, "pełna"], [.7, "70%"], [.45, "45%"]].map(([v, l]) => `<button type="button" data-sto="${v}" aria-pressed="${v === stOp}">${l}</button>`).join("")}</div>` +
+    note(`${STARE[stT].d}. Na razie tylko gmina Orzesze (próba). Arkusz ustawiony według narożników ramki, możliwe przesunięcie do około 100 m. Źródło: ${STARE[stT].src}.`) +
+    `<p class="small"><a href="#" data-st-go>Pokaż Orzesze na mapie</a></p>`;
+
   /* ---------- GIOŚ stations ---------- */
   const NORM = { pm25: [10, 20], pm10: [20, 40], pm10_36: [45, 50], no2: [20, 40], bap: [1, 1], arsen: [6, 6], o3_dni: [18, 25], so2: [20, 20] };
   const PNAME = { pm25: "PM2,5", pm10: "PM10", pm10_36: "PM10, 36. doba", no2: "NO₂", bap: "benzo(a)piren", arsen: "arsen", o3_dni: "ozon, dni > 120", so2: "SO₂" };
@@ -356,6 +369,17 @@
         { id: "x-wp-och-l", type: "line", source: s, minzoom: 8, paint: { "line-color": ochColor, "line-width": 1 }, noClick: true }],
       legend: () => legendRow(Object.values(OCH).filter(v => !/pomnik|stanowisko/.test(v[0])).map(([l, c]) => [c, l, "box"])) + note("Obszary chronione, których stan zależy od wód (bez otulin; obszary poniżej 10 ha pominięte, poza rezerwatami, parkami narodowymi i pomnikami)."),
       card: p => ({ title: p.n || "Obszar chroniony", src: WP_SRC + ", rejestr obszarów chronionych", body: `<p class="gs-st"><i style="background:${(OCH[p.t] || ["", "#868e96"])[1]}"></i>${esc((OCH[p.t] || [p.t])[0])}</p>` }) },
+    { id: "stare-mapy", box: "terrainLayers", label: "Stare mapy", desc: "Messtischblatt 1884 i WIG 1933 (na razie gmina Orzesze)", kw: "stare mapy archiwalne historyczne messtischblatt wig mapa topograficzna przedwojenna niemiecka pruska orzesze igrek amzp",
+      icon: ["map-trifold", "#8d6e3f"], tiles: () => stUrl(stT), minz: 11, maxz: 16, bounds: STARE_BB, attr: "Archiwum Map Zachodniej Polski",
+      layers: s => [{ id: "x-stare", type: "raster", source: s, paint: { "raster-opacity": stOp, "raster-fade-duration": 0 } }],
+      legend: stLegend,
+      onToggle: on => { if (on && map.getZoom() < 11) map.fitBounds([[STARE_BB[0], STARE_BB[1]], [STARE_BB[2], STARE_BB[3]]], { padding: 30 }); },
+      legendInit: box => {
+        const again = () => { box.innerHTML = stLegend(); window.ExtraLayers.LAYERS.find(L => L.id === "stare-mapy").legendInit(box); };
+        box.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { stT = b.dataset.st; try { app.store.set("stare.t", stT); } catch (e) {} map.getSource("x-stare-mapy")?.setTiles([stUrl(stT)]); again(); });
+        box.querySelectorAll("[data-sto]").forEach(b => b.onclick = () => { stOp = +b.dataset.sto; if (map.getLayer("x-stare")) map.setPaintProperty("x-stare", "raster-opacity", stOp); again(); });
+        const go = box.querySelector("[data-st-go]"); if (go) go.onclick = e => { e.preventDefault(); map.fitBounds([[STARE_BB[0], STARE_BB[1]], [STARE_BB[2], STARE_BB[3]]], { padding: 30 }); };
+      } },
   ];
   const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
@@ -377,7 +401,7 @@
       if (L.side2) fetch(L.side2[1]).then(r => r.ok ? r.json() : null).then(x => { sideData[L.side2[0]] = x; }).catch(() => {});
       const src = "x-" + L.id;
       try {
-        if (!map.getSource(src)) { map.addSource(src, L.tiles ? { type: "raster", tiles: [L.tiles()], tileSize: 256, minzoom: L.minz || 0, maxzoom: 19, attribution: L.attr || "" } : { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
+        if (!map.getSource(src)) { map.addSource(src, L.tiles ? { type: "raster", tiles: [L.tiles()], tileSize: 256, minzoom: L.minz || 0, maxzoom: L.maxz || 19, ...(L.bounds ? { bounds: L.bounds } : {}), attribution: L.attr || "" } : { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
         for (const spec of L.layers(src)) if (!map.getLayer(spec.id)) map.addLayer(spec, spec.type === "fill" || spec.type === "line" || spec.type === "raster" ? firstSymbol() : undefined);
         added.add(L.id);
       } catch (e) { console.warn(e); return; }

@@ -1,0 +1,54 @@
+{
+ "serie": {
+  "mtb": {
+   "nazwa": "Messtischblatt 1:25 000",
+   "opis": "Pruskie zdjęcie topograficzne, wydania z lat 1880–1944",
+   "zrodlo": "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Biblioteki Narodowej",
+   "minzoom": 11,
+   "maxzoom": 16,
+   "bbox": [
+    18.666666666666668,
+    50.1,
+    18.833333333333332,
+    50.2
+   ],
+   "arkusze": [
+    {
+     "arkusz": "5878 Orzesche",
+     "rok": 1884,
+     "bbox": [
+      18.66667,
+      50.1,
+      18.83333,
+      50.2
+     ]
+    }
+   ]
+  },
+  "wig": {
+   "nazwa": "WIG 1:25 000",
+   "opis": "Mapa Wojskowego Instytutu Geograficznego, lata 1929–1939",
+   "zrodlo": "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Archiwum Map WIG",
+   "minzoom": 11,
+   "maxzoom": 16,
+   "bbox": [
+    18.666666666666668,
+    50.083333333333336,
+    18.833333333333332,
+    50.166666666666664
+   ],
+   "arkusze": [
+    {
+     "arkusz": "Pas 48 Słup 27 F Orzesze",
+     "rok": 1933,
+     "bbox": [
+      18.66667,
+      50.08333,
+      18.83333,
+      50.16667
+     ]
+    }
+   ]
+  }
+ }
+}
