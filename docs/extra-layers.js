@@ -24,6 +24,38 @@
     legendRow(Object.entries(SU_C).filter(([c]) => suT !== "a" || c > 1).map(([, [c, l]]) => [c, l, "box"])) +
     note("Klasy zagrożenia z Planu przeciwdziałania skutkom suszy z 2021 r. (Wody Polskie), siatka heksagonów około 3,5 km². Projekt aktualizacji planu z 2026 r. (konsultacje do 6.02.2027) podaje klasy dla całych gmin, są w Statystykach w grupie „Susza (plany Wód Polskich)”.");
 
+  /* ---------- Wody Polskie: Geobaza 2aPGW (plany gospodarowania wodami), zlewnie JCWP, wody podziemne, rzeki, administracja, obszary chronione ---------- */
+  const WP_SRC = "Wody Polskie, Geobaza 2aPGW (drugie aktualizacje planów gospodarowania wodami na obszarach dorzeczy, wersja 15.09.2023)";
+  const WP_T = { s: ["stan wód", "Ogólny stan wód"], e: ["ekologiczny", "Stan lub potencjał ekologiczny"], c: ["chemiczny", "Stan chemiczny"], r: ["ryzyko", "Ryzyko nieosiągnięcia celów środowiskowych"] };
+  const WP_C = { s: [[0, "#4dabf7", "dobry"], [1, "#e8590c", "zły"], [9, "#ced4da", "brak oceny"]],
+    e: [[1, "#1c7ed6", "bardzo dobry"], [2, "#40c057", "dobry"], [3, "#fcc419", "umiarkowany"], [4, "#fd7e14", "słaby"], [5, "#e03131", "zły"], [9, "#ced4da", "brak oceny"]],
+    c: [[0, "#4dabf7", "dobry"], [1, "#e03131", "poniżej dobrego"], [9, "#ced4da", "brak oceny"]],
+    r: [[0, "#69db7c", "niezagrożone"], [1, "#f76707", "zagrożone"]] };
+  let wpT = (() => { try { const v = app.store.get("wody.t", "s"); return WP_T[v] ? v : "s"; } catch (e) { return "s"; } })();
+  const wpColor = t => ["match", ["get", t], ...WP_C[t].flatMap(([v, c]) => [v, c]), "#ced4da"];
+  const wpLegend = () => `<div class="stats-seg ext-seg su-seg" role="group" aria-label="Co pokazać">${Object.entries(WP_T).map(([k, v]) => `<button type="button" data-wp="${k}" aria-pressed="${k === wpT}">${esc(v[0])}</button>`).join("")}</div>` +
+    legendRow(WP_C[wpT].map(([, c, l]) => [c, l, "box"])) + note("Zlewnie jednolitych części wód powierzchniowych (JCWP) z planów gospodarowania wodami. Kliknij zlewnię: stan, presje, cele i terminy.");
+  const wpRow = (l, v) => v ? `<p><span class="muted">${esc(l)}:</span> ${esc(v)}</p>` : "";
+  function jcwpBody(kod, d) {
+    const r = d?.jcwp?.[kod]; if (!r) return `<p class="muted">Kod ${esc(kod)}. Szczegóły jeszcze się wczytują, kliknij ponownie za chwilę.</p>`;
+    const F = d.pola, v = n => { const x = r[F.indexOf(n) + 1]; return x == null ? "" : d.slownik[x]; };
+    const zly = /zły/.test(v("ocena_st")), ryz = /^jcwp zagrożona/.test(v("oc_ryz"));
+    return `<p class="gs-st"><i style="background:${zly ? "#e8590c" : v("ocena_st") ? "#4dabf7" : "#ced4da"}"></i>${esc(v("ocena_st") || "stan nieoceniony")}</p>` +
+      wpRow("Kod", kod) + wpRow("Typ", v("typ_jcwp")) + wpRow("Status", v("status_os")) + wpRow("Stan ekologiczny", v("st_eko")) + wpRow("Stan chemiczny", v("st_chem")) +
+      `<p><span class="muted">Ryzyko:</span> <b style="color:${ryz ? "#d9480f" : "#2b8a3e"}">${esc(v("oc_ryz") || "brak danych")}</b></p>` +
+      wpRow("Odstępstwo", v("typ_odst")) + wpRow("Termin osiągnięcia celu", v("cs_termin")) +
+      wpRow("Presja: źródła eutrofizacji", v("pr_trofi")) + wpRow("Presja hydromorfologiczna", v("pr_hymo")) + wpRow("Presja ilościowa", v("pr_il")) +
+      wpRow("Region wodny", v("reg_wodny")) + wpRow("RZGW", v("rzgw")) +
+      `<p class="muted small">${link("https://apgw.gov.pl/", "Plany gospodarowania wodami (apgw.gov.pl)")}</p>`;
+  }
+  let pdT = "s";
+  const pdColor = () => ["match", ["get", pdT], 1, "#e8590c", "#74c0fc"];
+  const pdLegend = () => `<div class="stats-seg ext-seg su-seg" role="group" aria-label="Co pokazać"><button type="button" data-pd="s" aria-pressed="${pdT === "s"}">stan</button><button type="button" data-pd="r" aria-pressed="${pdT === "r"}">ryzyko</button></div>` +
+    legendRow(pdT === "s" ? [["#74c0fc", "dobry", "box"], ["#e8590c", "słaby", "box"]] : [["#74c0fc", "niezagrożone", "box"], ["#e8590c", "zagrożone", "box"]]) + note("Jednolite części wód podziemnych (JCWPd), 174 obszary w Polsce.");
+  const OCH = { PN: ["park narodowy", "#2b8a3e"], PK: ["park krajobrazowy", "#74b816"], Rez: ["rezerwat", "#087f5b"], "N2k SOO": ["Natura 2000, siedliska", "#1971c2"], "N2k OSO": ["Natura 2000, ptaki", "#4dabf7"],
+    UE: ["użytek ekologiczny", "#f08c00"], OchK: ["obszar chronionego krajobrazu", "#c0eb75"], ZPK: ["zespół przyrodniczo-krajobrazowy", "#a9e34b"], SD: ["stanowisko dokumentacyjne", "#ae3ec9"], PP: ["pomnik przyrody", "#9c36b5"] };
+  const ochColor = ["match", ["get", "t"], ...Object.entries(OCH).flatMap(([k, v]) => [k, v[1]]), "#868e96"];
+
   /* ---------- GIOŚ stations ---------- */
   const NORM = { pm25: [10, 20], pm10: [20, 40], pm10_36: [45, 50], no2: [20, 40], bap: [1, 1], arsen: [6, 6], o3_dni: [18, 25], so2: [20, 20] };
   const PNAME = { pm25: "PM2,5", pm10: "PM10", pm10_36: "PM10, 36. doba", no2: "NO₂", bap: "benzo(a)piren", arsen: "arsen", o3_dni: "ozon, dni > 120", so2: "SO₂" };
@@ -282,6 +314,48 @@
           body: `<p class="gs-st"><i style="background:${c[0]}"></i>Klasa ${esc(c[1])}</p>` +
             `<p>Klasa zagrożenia w siatce heksagonów z planu z 2021 r. Pokazuje, jak często i jak silnie susza występowała w tym miejscu w latach przyjętych do analizy, nie ocenia pojedynczej działki.</p>` +
             `<p class="muted small">W projekcie aktualizacji planu (2026) klasy są podane dla całych gmin i bywają wyższe, zwłaszcza dla suszy hydrologicznej i hydrogeologicznej. <a href="?stat=${t[2]}">Pokaż klasy gmin na mapie</a> · ${link("https://www.gov.pl/web/infrastruktura/konsultacje-spoleczne-projektu-aktualizacji-planu-przeciwdzialania-skutkom-suszy-appss", "projekt aPPSS")}</p>` }; } },
+    { id: "wp-zlewnie", box: "terrainLayers", label: "Stan wód w zlewniach", desc: "Zlewnie JCWP: stan, ryzyko, presje (Wody Polskie)", kw: "wody polskie zlewnie zlewnia jcwp stan wód ekologiczny chemiczny ryzyko presje plan gospodarowania wodami apgw dorzecze",
+      icon: ["drop", "#1c7ed6"], url: "data/wody/zlewnie.geojson", side: "data/wody/jcwp.json", fillClick: true,
+      layers: s => [
+        { id: "x-wp-zlewnie-f", type: "fill", source: s, paint: { "fill-color": wpColor(wpT), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 5, .55, 12, .3] } },
+        { id: "x-wp-zlewnie-l", type: "line", source: s, minzoom: 7, paint: { "line-color": "#1c4f80", "line-opacity": .45, "line-width": ["interpolate", ["linear"], ["zoom"], 7, .4, 12, 1.2] }, noClick: true }],
+      legend: wpLegend,
+      legendInit: box => box.querySelectorAll("[data-wp]").forEach(b => b.onclick = () => {
+        wpT = b.dataset.wp; try { app.store.set("wody.t", wpT); } catch (e) {}
+        box.innerHTML = wpLegend(); window.ExtraLayers.LAYERS.find(L => L.id === "wp-zlewnie").legendInit(box);
+        if (map.getLayer("x-wp-zlewnie-f")) map.setPaintProperty("x-wp-zlewnie-f", "fill-color", wpColor(wpT));
+      }),
+      card: (p, d, f, side) => ({ title: "Zlewnia: " + (p.n || p.k), src: WP_SRC, body: jcwpBody(p.k, side) + `<p class="muted small"><a href="?stat=wp_stan_zly">Gminy w zlewniach o złym stanie</a> · <a href="?stat=wp_presja_opadowa">presja wód opadowych</a></p>` }) },
+    { id: "wp-rzeki", box: "terrainLayers", label: "Rzeki (jednolite części wód)", desc: "3116 odcinków rzek z planów Wód Polskich", kw: "rzeki rzeka cieki jcwp wody polskie hydrografia",
+      icon: ["drop", "#1971c2"], url: "data/wody/rzeki.geojson", side: "data/wody/jcwp.json",
+      layers: s => [{ id: "x-wp-rzeki", type: "line", source: s, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#1971c2", "line-opacity": .85, "line-width": ["interpolate", ["linear"], ["zoom"], 5, .6, 10, 1.6, 14, 3] } }],
+      legend: () => legendRow([["#1971c2", "rzeka (JCWP)", "line"]]) + note("Linie jednolitych części wód rzecznych. Kliknij, aby zobaczyć stan i presje."),
+      card: (p, d, f, side) => ({ title: p.n || "Rzeka", src: WP_SRC, body: jcwpBody(p.k, side) }) },
+    { id: "wp-podziemne", box: "terrainLayers", label: "Wody podziemne (JCWPd)", desc: "Stan i ryzyko jednolitych części wód podziemnych", kw: "wody podziemne jcwpd stan chemiczny ilościowy ujęcia wody wody polskie",
+      icon: ["drop", "#0b7285"], url: "data/wody/jcwpd.geojson", fillClick: true,
+      layers: s => [{ id: "x-wp-pd-f", type: "fill", source: s, paint: { "fill-color": pdColor(), "fill-opacity": .35 } },
+        { id: "x-wp-pd-l", type: "line", source: s, paint: { "line-color": "#0b7285", "line-width": 1.2, "line-opacity": .7 }, noClick: true }],
+      legend: pdLegend,
+      legendInit: box => box.querySelectorAll("[data-pd]").forEach(b => b.onclick = () => {
+        pdT = b.dataset.pd; box.innerHTML = pdLegend(); window.ExtraLayers.LAYERS.find(L => L.id === "wp-podziemne").legendInit(box);
+        if (map.getLayer("x-wp-pd-f")) map.setPaintProperty("x-wp-pd-f", "fill-color", pdColor());
+      }),
+      card: p => ({ title: "Wody podziemne " + p.k, src: WP_SRC, body: `<p class="gs-st"><i style="background:${p.s ? "#e8590c" : "#74c0fc"}"></i>Stan ${p.s ? "słaby" : "dobry"}</p>` +
+        wpRow("Ryzyko", p.ryz) + wpRow("Presje", p.pres) + `<p class="muted small"><a href="?stat=wp_podziemne_slaby">Pokaż gminy na mapie</a></p>` }) },
+    { id: "wp-nadzory", box: "terrainLayers", label: "Administracja wodna", desc: "Nadzory wodne, zarządy zlewni i RZGW Wód Polskich", kw: "wody polskie nadzór wodny zarząd zlewni rzgw regionalny zarząd gospodarki wodnej pozwolenie wodnoprawne urząd kontakt",
+      icon: ["buildings", "#1864ab"], url: "data/wody/nadzory.geojson", fillClick: true,
+      layers: s => [{ id: "x-wp-nw-f", type: "fill", source: s, paint: { "fill-color": "#1864ab", "fill-opacity": .03 } },
+        { id: "x-wp-nw-l", type: "line", source: s, paint: { "line-color": "#1864ab", "line-width": ["interpolate", ["linear"], ["zoom"], 5, .5, 10, 1.6], "line-opacity": .7, "line-dasharray": [3, 2] }, noClick: true }],
+      legend: () => legendRow([["#1864ab", "granica nadzoru wodnego", "dash"]]) + note("Kliknij obszar: nadzór wodny, zarząd zlewni i RZGW właściwe dla miejsca (sprawy wodnoprawne, urządzenia wodne, melioracje)."),
+      card: p => ({ title: p.nw || "Nadzór wodny", src: "Wody Polskie, granice RZGW, zarządów zlewni i nadzorów wodnych (wersja 1.08, 20.12.2023)",
+        body: wpRow("Siedziba nadzoru", p.siedziba) + wpRow("Zarząd zlewni", p.zz) + wpRow("Regionalny zarząd", p.rzgw) +
+          `<p class="muted small">${link("https://www.gov.pl/web/wody-polskie/kontakt", "Kontakty Wód Polskich")}</p>` }) },
+    { id: "wp-chronione", box: "terrainLayers", label: "Obszary chronione zależne od wód", desc: "Rejestr obszarów chronionych z planów Wód Polskich", kw: "obszary chronione wodozależne natura 2000 rezerwat park użytek ekologiczny wody polskie",
+      icon: ["tree", "#2b8a3e"], url: "data/wody/chronione.geojson", fillClick: true,
+      layers: s => [{ id: "x-wp-och-f", type: "fill", source: s, paint: { "fill-color": ochColor, "fill-opacity": .35 } },
+        { id: "x-wp-och-l", type: "line", source: s, minzoom: 8, paint: { "line-color": ochColor, "line-width": 1 }, noClick: true }],
+      legend: () => legendRow(Object.values(OCH).filter(v => !/pomnik|stanowisko/.test(v[0])).map(([l, c]) => [c, l, "box"])) + note("Obszary chronione, których stan zależy od wód (bez otulin; obszary poniżej 10 ha pominięte, poza rezerwatami, parkami narodowymi i pomnikami)."),
+      card: p => ({ title: p.n || "Obszar chroniony", src: WP_SRC + ", rejestr obszarów chronionych", body: `<p class="gs-st"><i style="background:${(OCH[p.t] || ["", "#868e96"])[1]}"></i>${esc((OCH[p.t] || [p.t])[0])}</p>` }) },
   ];
   const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };

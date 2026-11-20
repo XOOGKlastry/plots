@@ -14,7 +14,7 @@
   }
   const ready = {};
   function badge(id) {
-    // logo files: round badge 90x90 or a wide pill 168x78 for wordmarks (drawn at the file size, pixel ratio 3)
+    // logo files: 90x90 badges, a circle or a rounded square (drawn at the file size, pixel ratio 3)
     if (ready[id]) { const im = ready[id], c = document.createElement("canvas"); c.width = im.width; c.height = im.height; const x = c.getContext("2d"); x.drawImage(im, 0, 0); return x.getImageData(0, 0, c.width, c.height); }
     const s = STYLES[id] || ["#087cfc", "#fff", "t:•"], [bg, fg, glyph] = s, n = SIZE * PR, c = document.createElement("canvas");
     c.width = c.height = n; const x = c.getContext("2d"), r = n / 2;
@@ -44,7 +44,7 @@
       for (let i = 0; i < 8; i++) { x.save(); x.translate(r, r); x.rotate(i * Math.PI / 4); x.beginPath(); x.ellipse(0, -6 * PR, 2.6 * PR, 4.6 * PR, 0, 0, Math.PI * 2); x.fill(); x.restore(); }
       x.fillStyle = fg; x.beginPath(); x.arc(r, r, 3.6 * PR, 0, Math.PI * 2); x.fill();
     } else if (PATHS[glyph]) {
-      const k = (15 * PR) / 256; x.save(); x.translate(r - 128 * k, r - 128 * k); x.scale(k, k); x.fill(new Path2D(PATHS[glyph])); x.restore();
+      const k = (17 * PR) / 256; x.save(); x.translate(r - 128 * k, r - 128 * k); x.scale(k, k); x.fill(new Path2D(PATHS[glyph])); x.restore();
     }
     return x.getImageData(0, 0, n, n);
   }
