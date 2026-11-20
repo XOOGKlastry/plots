@@ -29,7 +29,7 @@
     const ids = (learnt[cb.id] || guess(cb.id)).filter(id => map.getLayer(id) && map.getLayoutProperty(id, "visibility") !== "none");
     if (!ids.length) return "";
     const z = map.getZoom(), live = ids.filter(id => { const l = map.getLayer(id); return z >= (l.minzoom ?? 0) && z < (l.maxzoom ?? 24); });
-    if (!live.length) return "";
+    if (!live.length) return "zoom";
     const srcs = [...new Set(live.map(id => map.getLayer(id).source))].filter(s => map.getSource(s));
     const now = Date.now();
     let loading = false, failed = false;
@@ -39,11 +39,11 @@
       if (ok) { delete slowSince[s]; continue; }
       slowSince[s] = slowSince[s] || now;
       // MapLibre does not always report a failed image tile, so a source still loading after 15 s counts as not answering.
-      if (now - slowSince[s] > 15000) failed = true; else if (now - slowSince[s] > 2500) loading = true;
+      if (now - slowSince[s] > 15000) failed = true; else loading = true;
     }
-    return failed ? "fail" : loading ? "load" : "";
+    return failed ? "fail" : loading ? "load" : "ok";
   }
-  const TXT = { load: "Wczytuję dane…", fail: "Serwer z danymi nie odpowiada, część mapy może być pusta" };
+  const TXT = { ok: "Włączona, widać ją na mapie", zoom: "Włączona. Przybliż mapę, aby ją zobaczyć", load: "Wczytuję dane…", fail: "Serwer z danymi nie odpowiada, część mapy może być pusta" };
   function render() {
     for (const cb of boxes()) {
       const host = cb.closest("label")?.querySelector("div"); if (!host) continue;

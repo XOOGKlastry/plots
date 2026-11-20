@@ -58,24 +58,136 @@
 
   /* ---------- Stare mapy: zeskanowane arkusze z georeferencją z narożników ramki, kafle XYZ w data/stare/<seria> (mapgen/stare_mapy/stare.py) ---------- */
   const GPW = "https://mapy.geoportal.gov.pl/wss/service";
-  const wmsT = (u, extra = "") => `${u}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=Raster&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/jpeg${extra}`;
+  const wmsT = (u, layers, extra = "", fmt = "image/jpeg") => `${u}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${layers}&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=${fmt}${extra}`;
+  const ORTO_T = `${GPW}/PZGIK/ORTO/WMS/StandardResolutionTime`, TOPO_W = `${GPW}/img/guest/TOPO/MapServer/WMSServer`, BDOT_W = `${GPW}/pub/guest/kompozycja_BDOT10k_WMS/MapServer/WMSServer`;
+  const BDOT_L = "RZab,TPrz,SOd2,SOd1,GNu2,GNu1,TKa2,TKa1,TPi2,TPi1,UTrw,TLes,RKr,RTr,ku7,ku6,ku5,ku4,ku3,ku2,ku1,Mo,Pl3,Pl2,Pl1,kanOkr,rzOk,row,kan,rz,RowEt,kanEt,rzEt,WPow,Szu,LBrzN,LBrz,WPowEt,GrPol,Rez,GrPK,GrPN,GrDz,GrGm,GrPo,GrWo,GrPns,PRur,ZbTA,BudCm,TerCm,BudSp,Szkl,Kap,SwNch,SwCh,BudZr,BudGo,BudPWy,BudP2,BudP1,BudUWy,BudU,BudMWy,BudMJ,BudMW,Bzn,BHydA,BHydL,wyk,wa6,wa5,wa4,wa3,wa2,wa1,IUTA,ObOrA,ObPL,Prom,PomL,MurH,PerA,PerL,Tryb,UTrL,LTra,LKNc,LKBu,LKWs,TSt,LKNelJ,LKNelD,LKNelW,LKZelJ,LKZelD,LKZelW,Scz,Al,AlEt,Sch2,Sch1,DrDGr,DrLGr,JDrLNUt,JDLNTw,JDrZTw,JDrG,DrEk,JDrEk,AuBud,JAu,NazDr,NrDr,Umo,PPdz,Prze,TunK,TunD,Klad,MosK,MosD,UTrP,ObKom,InUTP,ZbTP,NazUl,ObOrP,WyBT,LTel,LEle,ObPP,DrzPomP,e13,e12,e11,e10,e9,e8,e7,e6,e5,e4,e3,e2,e1,s19,s18,s17,s16,s15,s14,s13,s12,s11,s10,s9,s8,s7,s6,s5,s4,s3,s2,s1";
+  const ORTO_NOW = `${GPW}/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}`;
+  const AMZP = "Archiwum Map Zachodniej Polski (igrek.amzp.pl)";
   const STARE = {
-    mtb: { n: "Messtischblatt 1884", d: "Pruska mapa 1:25 000, arkusz 5878 Orzesche. Na razie tylko gmina Orzesze (próba), arkusz ustawiony według narożników ramki, możliwe przesunięcie do około 100 m", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Biblioteki Narodowej", bb: [18.6667, 50.0833, 18.8333, 50.2], minz: 11, maxz: 16 },
-    wig: { n: "WIG 1933", d: "Mapa Wojskowego Instytutu Geograficznego 1:25 000, arkusz Orzesze. Na razie tylko gmina Orzesze (próba)", src: "Archiwum Map Zachodniej Polski (igrek.amzp.pl), skan Archiwum Map WIG", bb: [18.6667, 50.0833, 18.8333, 50.2], minz: 11, maxz: 16 },
-    topo: { n: "Topograficzna GUGiK", d: "Rastrowa mapa topograficzna Polski w układzie 1992 (głównie lata 1990–2000), cały kraj", src: "GUGiK, usługa WMS danych topograficznych (geoportal.gov.pl)", minz: 8, maxz: 19 },
-    orto: { n: "Ortofoto archiwalne", d: "Archiwalne ortofotomapy GUGiK, cały kraj. Pokazywane jest najnowsze zdjęcie wykonane do końca wybranego roku. Widoczne od powiększenia na poziom osiedla", src: "GUGiK, usługa WMS ortofotomap archiwalnych (geoportal.gov.pl)", minz: 13, maxz: 19 } };
-  const STARE_BB = STARE.mtb.bb;
-  let stT = (() => { try { const v = app.store.get("stare.t", "mtb"); return STARE[v] ? v : "mtb"; } catch (e) { return "mtb"; } })();
-  let stOp = 1, stY = 2003;
-  const stUrl = t => t === "topo" ? wmsT(`${GPW}/img/guest/TOPO/MapServer/WMSServer`) : t === "orto" ? wmsT(`${GPW}/PZGIK/ORTO/WMS/StandardResolutionTime`, `&TIME=${stY}-12-31`)
-    : new URL(`data/stare/${t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}");
-  const stOpHtml = () => `<div class="st-op"><div class="st-op-head"><span>Przezroczystość</span><output data-sto-out>${Math.round((1 - stOp) * 100)}%</output></div>` +
-    `<input type="range" min="0" max="100" step="5" value="${Math.round((1 - stOp) * 100)}" data-sto aria-label="Przezroczystość starej mapy">` +
-    `<div class="st-op-ends"><span>mapa kryje wszystko</span><span>prześwituje dzisiejsza mapa</span></div></div>`;
-  const stLegend = () => `<div class="st-series" role="group" aria-label="Seria map">${Object.entries(STARE).map(([k, v]) => `<button type="button" data-st="${k}" aria-pressed="${k === stT}">${esc(v.n)}</button>`).join("")}</div>` +
-    (stT === "orto" ? `<div class="md-year"><label for="st-year">Stan na koniec roku: <b data-st-y>${stY}</b></label><input id="st-year" type="range" min="1996" max="2025" step="1" value="${stY}"><div class="md-ticks"><span>1996</span><span>2025</span></div></div>` : "") +
-    stOpHtml() + note(`${STARE[stT].d}. Źródło: ${STARE[stT].src}.`) +
-    (STARE[stT].bb ? `<p class="small"><a href="#" data-st-go>Pokaż Orzesze na mapie</a></p>` : "");
+    mtb: { n: "Messtischblatt", d: "Pruska mapa 1:25 000 z lat 1883–1884. Na razie arkusze Orzesche, Nicolai i Lendzin (Orzesze, Mikołów, Tychy, Lędziny). Arkusze ustawione według narożników ramki, możliwe przesunięcie do około 100 m", src: AMZP + ", skany Biblioteki Narodowej i Leibniz-Institut für Länderkunde", bb: [18.6667, 50.1, 19.1667, 50.2], minz: 11, maxz: 16, gdzie: "Orzesze, Mikołów, Tychy i Lędziny" },
+    wig: { n: "WIG 1933", d: "Mapa Wojskowego Instytutu Geograficznego 1:25 000 z 1933 r. Na razie arkusze Orzesze, Tychy i Bieruń Stary", src: AMZP + ", skany Archiwum Map WIG", bb: [18.6667, 50.0833, 19.1667, 50.1667], minz: 11, maxz: 16, gdzie: "Orzesze, Tychy i Bieruń" },
+    topo: { n: "Topograficzna", d: "Mapa topograficzna GUGiK, cały kraj. Starsze wydania (układ 1965 i 1942) GUGiK udostępnia tylko jako skany do pobrania", src: "GUGiK, usługi WMS mapy topograficznej i BDOT10k (geoportal.gov.pl)", minz: 8, maxz: 19 },
+    orto: { n: "Ortofoto archiwalne", d: "Archiwalne ortofotomapy GUGiK, cały kraj. Lata do wyboru to roczniki zdjęć, które istnieją w środku widoku mapy", src: "GUGiK, usługa WMS ortofotomap archiwalnych (geoportal.gov.pl)", minz: 13, maxz: 19 } };
+  const TOPO_E = { 92: "lata 1990–2000", bdot: "dziś (BDOT10k)" };
+  const vSplit = v => v.split(":");
+  const vName = v => { const [t, x] = vSplit(v); return t === "now" ? "Ortofoto aktualne" : t === "orto" ? `Ortofoto ${x}` : t === "topo" ? `Topograficzna ${TOPO_E[x]}` : STARE[t].n; };
+  const vOpt = v => { const [t] = vSplit(v); return t === "now" ? { minz: 0, maxz: 19 } : STARE[t]; };
+  const vUrl = v => { const [t, x] = vSplit(v);
+    if (t === "now") return ORTO_NOW;
+    if (t === "orto") return wmsT(ORTO_T, "Raster", `&TIME=${x}-01-01/${x}-12-31`);
+    if (t === "topo") return x === "bdot" ? wmsT(BDOT_W, BDOT_L, "&TRANSPARENT=FALSE", "image/png") : wmsT(TOPO_W, "Raster");
+    return new URL(`data/stare/${t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}"); };
+  let stA = (() => { try { const v = app.store.get("stare.v", "mtb"); return STARE[vSplit(v)[0]] ? v : "mtb"; } catch (e) { return "mtb"; } })();
+  let stOp = 1, stYears = null, stProbe = "", stProbing = false, cmp = null, cmpB = "now";
+  const stT = () => vSplit(stA)[0];
+  const STARE_BB = () => STARE[stT()].bb || STARE.mtb.bb;
+  /* which yearly ortophoto flights exist at the map centre: one 8×8 px request per year, identical images = the same flight */
+  const merc = (lng, lat) => [lng * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) * 6378137];
+  let stDone = 0, stFail = false;
+  async function probeYears() {
+    if (map.getZoom() < 11) return;
+    const c = map.getCenter(), key = c.lng.toFixed(2) + "," + c.lat.toFixed(2);
+    if (key === stProbe || stProbing) return;
+    stProbe = key;
+    try { const hit = JSON.parse(localStorage.getItem("plots.ortoYears") || "{}")[key]; if (hit) { stYears = hit; stFail = false; afterYears(); return; } } catch (e) {}
+    stProbing = true; stDone = 0; stFail = false; refreshLegend();
+    const [x, y] = merc(c.lng, c.lat), bb = [x - 100, y - 100, x + 100, y + 100].map(Math.round).join(",");
+    const Y1 = new Date().getFullYear(), ys = []; for (let i = 1995; i <= Y1; i++) ys.push(i);
+    const cv = document.createElement("canvas"); cv.width = cv.height = 32; const cx = cv.getContext("2d", { willReadFrequently: true });
+    const res = []; let next = 0, lost = 0;
+    const one = async yr => {
+      const ac = new AbortController(), t = setTimeout(() => ac.abort(), 20000);
+      try {
+        const r = await fetch(`${ORTO_T}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=Raster&STYLES=&SRS=EPSG:3857&BBOX=${bb}&WIDTH=32&HEIGHT=32&FORMAT=image/png&TRANSPARENT=TRUE&TIME=${yr}-01-01/${yr}-12-31`, { signal: ac.signal });
+        if (!r.ok) throw Error(r.status);
+        const bm = await createImageBitmap(await r.blob());
+        cx.clearRect(0, 0, 32, 32); cx.drawImage(bm, 0, 0, 32, 32); const d = cx.getImageData(0, 0, 32, 32).data;
+        let any = false, h = 0; for (let i = 0; i < d.length; i++) { if (i % 4 === 3 && d[i]) any = true; h = (h * 31 + d[i]) | 0; }
+        res[yr - 1995] = { yr, any, h };
+      } catch (e) { lost++; res[yr - 1995] = { yr, lost: true }; } finally { clearTimeout(t); }
+      stDone++; const h = document.querySelector("#x-leg-stare-mapy [data-st-prog]"); if (h) h.textContent = `${stDone} z ${ys.length}`;
+    };
+    // four at a time, so the map tiles from the same server are not starved
+    await Promise.all([0, 1, 2, 3].map(async () => { while (next < ys.length) await one(ys[next++]); }));
+    if (key !== stProbe) { stProbing = false; return; }
+    const out = []; let last = null;
+    for (const r of res) { if (!r || r.lost || !r.any) { last = null; continue; } if (r.h !== last) out.push(r.yr); last = r.h; }
+    stProbing = false;
+    if (lost > ys.length / 3) { stFail = true; stYears = []; for (let i = 1996; i <= Y1; i++) stYears.push(i); }
+    else { stYears = out; if (!lost) try { const m = JSON.parse(localStorage.getItem("plots.ortoYears") || "{}"); m[key] = out; localStorage.setItem("plots.ortoYears", JSON.stringify(m)); } catch (e) {} }
+    afterYears();
+  }
+  function afterYears() {
+    const cur = +vSplit(stA)[1];
+    if (stT() === "orto" && stYears.length && !stYears.includes(cur)) setA("orto:" + stYears.reduce((m, y) => Math.abs(y - cur) < Math.abs(m - cur) ? y : m, stYears[0]));
+    else refreshLegend();
+  }
+  const stOpHtml = () => `<div class="st-op"><div class="st-op-head"><span>Przezroczystość starej mapy</span><output data-sto-out>${Math.round((1 - stOp) * 100)}%</output></div>` +
+    `<input type="range" min="0" max="100" step="5" value="${Math.round((1 - stOp) * 100)}" data-sto aria-label="Przezroczystość starej mapy"></div>`;
+  const yearsHtml = (cur, attr) => stProbing ? `<p class="st-hint st-load-h">Sprawdzam, z jakich lat są zdjęcia w tym miejscu (<span data-st-prog>${stDone} z ${new Date().getFullYear() - 1994}</span>). Serwer GUGiK bywa wolny.</p>` : map.getZoom() < 11 ? `<p class="st-hint">Przybliż mapę, żeby sprawdzić lata zdjęć w tym miejscu.</p>` :
+    stYears && !stYears.length ? `<p class="st-hint">Brak zdjęć archiwalnych w tym miejscu.</p>` : stYears ? (stFail ? `<p class="st-hint">Serwer GUGiK nie odpowiedział na czas, więc nie wiadomo, z których lat są zdjęcia w tym miejscu. Pokazuję wszystkie lata, niektóre mogą być puste.</p>` : "") + `<div class="st-years" role="group" aria-label="Rok zdjęcia">${stYears.map(y => `<button type="button" ${attr}="${y}" aria-pressed="${y === +cur}">${y}</button>`).join("")}</div>` : "";
+  const cmpOpts = () => { const o = ["now", ...(stYears || []).map(y => "orto:" + y), "topo:92", "topo:bdot", "mtb", "wig"].filter(v => v !== stA); if (!o.includes(cmpB)) o.unshift(cmpB); return o; };
+  const stLegend = () => { const t = stT(), S = STARE[t];
+    return `<div class="st-series" role="group" aria-label="Seria map">${Object.entries(STARE).map(([k, v]) => `<button type="button" data-st="${k}" aria-pressed="${k === t}">${esc(v.n)}</button>`).join("")}</div>` +
+    (t === "orto" ? `<p class="st-lbl">Rok zdjęcia</p>` + yearsHtml(vSplit(stA)[1], "data-sty") : "") +
+    (t === "topo" ? `<div class="st-years" role="group" aria-label="Wydanie">${Object.entries(TOPO_E).map(([k, n]) => `<button type="button" data-ste="${k}" aria-pressed="${stA === "topo:" + k}">${esc(n)}</button>`).join("")}</div>` : "") +
+    `<p class="st-status" data-st-status></p>` + stOpHtml() +
+    `<div class="st-cmp-box"><button type="button" class="st-cmp-btn" data-cmp aria-pressed="${!!cmp}">${cmp ? "Zakończ porównanie" : "Porównaj z inną mapą (suwak na mapie)"}</button>` +
+    (cmp ? `<label class="st-lbl" for="st-cmpb">Po prawej stronie linii</label><select id="st-cmpb" data-cmpb>${cmpOpts().map(v => `<option value="${v}"${v === cmpB ? " selected" : ""}>${esc(vName(v))}</option>`).join("")}</select><p class="st-hint">Po lewej: ${esc(vName(stA))}. Przeciągnij pionową linię na mapie.</p>` : "") + `</div>` +
+    note(`${S.d}. Źródło: ${S.src}.`) + (S.bb ? `<p class="small"><a href="#" data-st-go>Pokaż arkusze na mapie</a></p>` : ""); };
+  function stStatus() {
+    const el = document.querySelector("#x-leg-stare-mapy [data-st-status]"); if (!el) return;
+    const S = STARE[stT()], z = map.getZoom(), c = map.getCenter(); let cls = "ok", txt;
+    if (z < S.minz) { cls = "zoom"; txt = "Przybliż mapę, aby zobaczyć tę mapę."; }
+    else if (S.bb && !(c.lng > S.bb[0] && c.lng < S.bb[2] && c.lat > S.bb[1] && c.lat < S.bb[3])) { cls = "zoom"; txt = `Ta seria jest na razie tylko dla: ${S.gdzie}.`; }
+    else { let ok = true; try { ok = map.isSourceLoaded("x-stare-mapy"); } catch (e) {} txt = ok ? `Widać: ${vName(stA)}` : `Wczytuję: ${vName(stA)}…`; if (!ok) cls = "load"; }
+    if (el.dataset.c !== cls + txt) { el.dataset.c = cls + txt; el.className = "st-status st-" + cls; el.textContent = txt; }
+  }
+  let stHooked = false;
+  const hookStatus = () => { if (stHooked) return; stHooked = true; let raf = 0; const kick = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; stStatus(); }); };
+    map.on("sourcedata", kick); map.on("idle", kick); map.on("moveend", kick);
+    let tm = 0; map.on("moveend", () => { clearTimeout(tm); tm = setTimeout(() => { if (document.getElementById("x-stare-mapy")?.checked && (stT() === "orto" || cmp)) probeYears(); }, 500); }); };
+  function refreshLegend() { const box = document.getElementById("x-leg-stare-mapy"); if (!box || box.hidden) return; box.innerHTML = stLegend(); STL().legendInit(box); }
+  const STL = () => window.ExtraLayers.LAYERS.find(x => x.id === "stare-mapy");
+  function setA(v) {
+    stA = v; try { app.store.set("stare.v", v); } catch (e) {}
+    if (map.getLayer("x-stare")) map.removeLayer("x-stare"); if (map.getSource("x-stare-mapy")) map.removeSource("x-stare-mapy");
+    added.delete("stare-mapy"); apply(STL(), true);
+    if (cmp && cmpB === stA) { cmpB = stA === "now" ? "topo:bdot" : "now"; cmpSetB(); }
+    if (cmp) cmpLabels();
+  }
+  /* swipe comparison: a second, non-interactive map on top of the main one, clipped to the right of the line; the main map keeps the left view */
+  function cmpOpen() {
+    if (cmp) return;
+    const host = map.getContainer(), wrap = document.createElement("div"); wrap.className = "st-cmp";
+    wrap.innerHTML = `<div class="st-cmp-map"></div><div class="st-cmp-line"><button type="button" class="st-cmp-h" aria-label="Przeciągnij, aby porównać mapy"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 6 3 12l6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="st-cmp-tag st-cmp-l"></span><span class="st-cmp-tag st-cmp-r"></span></div>`;
+    host.insertBefore(wrap, host.querySelector(".maplibregl-control-container"));
+    const m2 = new maplibregl.Map({ container: wrap.querySelector(".st-cmp-map"), style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#f2f2f2" } }] },
+      interactive: false, attributionControl: false, fadeDuration: 0, center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() });
+    const sync = () => m2.jumpTo({ center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() });
+    map.on("move", sync);
+    cmp = { wrap, m2, sync, x: .5 };
+    if (vSplit(stA)[0] === "orto" && stYears?.length) cmpB = "orto:" + stYears[stYears.length - 1]; else if (cmpB === stA) cmpB = "now";
+    if (cmpB === stA) cmpB = "topo:bdot";
+    m2.on("load", cmpSetB);
+    const h = wrap.querySelector(".st-cmp-h");
+    h.addEventListener("pointerdown", e => { e.preventDefault(); h.setPointerCapture(e.pointerId); const mv = ev => { const r = host.getBoundingClientRect(); cmp.x = Math.min(.95, Math.max(.05, (ev.clientX - r.left) / r.width)); cmpPos(); };
+      const up = () => { h.removeEventListener("pointermove", mv); h.removeEventListener("pointerup", up); h.removeEventListener("pointercancel", up); };
+      h.addEventListener("pointermove", mv); h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up); });
+    h.addEventListener("keydown", e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { cmp.x = Math.min(.95, Math.max(.05, cmp.x + (e.key === "ArrowLeft" ? -.05 : .05))); cmpPos(); } });
+    cmpPos(); cmpLabels(); probeYears();
+  }
+  function cmpPos() { if (!cmp) return; const p = (cmp.x * 100).toFixed(2) + "%"; cmp.wrap.querySelector(".st-cmp-map").style.clipPath = `inset(0 0 0 ${p})`; cmp.wrap.querySelector(".st-cmp-line").style.left = p; }
+  function cmpLabels() { if (!cmp) return; const sh = v => vName(v).replace(/ (.*)/, ""); cmp.wrap.querySelector(".st-cmp-l").textContent = "◀ " + sh(stA); cmp.wrap.querySelector(".st-cmp-r").textContent = sh(cmpB) + " ▶"; }
+  function cmpSetB() {
+    if (!cmp) return; const m2 = cmp.m2; if (!m2.isStyleLoaded()) return;
+    if (m2.getLayer("b")) m2.removeLayer("b"); if (m2.getSource("b")) m2.removeSource("b");
+    const o = vOpt(cmpB);
+    m2.addSource("b", { type: "raster", tiles: [vUrl(cmpB)], tileSize: 256, minzoom: o.minz || 0, maxzoom: o.maxz || 19, ...(o.bb ? { bounds: o.bb } : {}) });
+    m2.addLayer({ id: "b", type: "raster", source: "b", paint: { "raster-fade-duration": 0 } });
+    cmpLabels();
+  }
+  function cmpClose() { if (!cmp) return; map.off("move", cmp.sync); try { cmp.m2.remove(); } catch (e) {} cmp.wrap.remove(); cmp = null; }
 
   /* ---------- GIOŚ stations ---------- */
   const NORM = { pm25: [10, 20], pm10: [20, 40], pm10_36: [45, 50], no2: [20, 40], bap: [1, 1], arsen: [6, 6], o3_dni: [18, 25], so2: [20, 20] };
@@ -377,23 +489,33 @@
         { id: "x-wp-och-l", type: "line", source: s, minzoom: 8, paint: { "line-color": ochColor, "line-width": 1 }, noClick: true }],
       legend: () => legendRow(Object.values(OCH).filter(v => !/pomnik|stanowisko/.test(v[0])).map(([l, c]) => [c, l, "box"])) + note("Obszary chronione, których stan zależy od wód (bez otulin; obszary poniżej 10 ha pominięte, poza rezerwatami, parkami narodowymi i pomnikami)."),
       card: p => ({ title: p.n || "Obszar chroniony", src: WP_SRC + ", rejestr obszarów chronionych", body: `<p class="gs-st"><i style="background:${(OCH[p.t] || ["", "#868e96"])[1]}"></i>${esc((OCH[p.t] || [p.t])[0])}</p>` }) },
-    { id: "stare-mapy", box: "terrainLayers", label: "Stare mapy", desc: "Messtischblatt, WIG, topograficzna GUGiK, ortofoto archiwalne", kw: "stare mapy archiwalne historyczne messtischblatt wig mapa topograficzna przedwojenna niemiecka pruska orzesze igrek amzp ortofotomapa archiwalna zdjęcia lotnicze gugik",
-      icon: ["map-trifold", "#8d6e3f"], tiles: () => stUrl(stT), get minz() { return STARE[stT].minz; }, get maxz() { return STARE[stT].maxz; }, get bounds() { return STARE[stT].bb; }, get attr() { return STARE[stT].src; },
+    { id: "stare-mapy", box: "terrainLayers", label: "Stare mapy", desc: "Messtischblatt, WIG, topograficzna, ortofoto archiwalne, porównanie suwakiem", kw: "stare mapy archiwalne historyczne messtischblatt wig mapa topograficzna przedwojenna niemiecka pruska orzesze mikołów tychy lędziny bieruń igrek amzp ortofotomapa archiwalna zdjęcia lotnicze gugik bdot10k porównanie",
+      icon: ["map-trifold", "#8d6e3f"], tiles: () => vUrl(stA), get minz() { return STARE[stT()].minz; }, get maxz() { return STARE[stT()].maxz; }, get bounds() { return STARE[stT()].bb; }, get attr() { return STARE[stT()].src; },
       layers: s => [{ id: "x-stare", type: "raster", source: s, paint: { "raster-opacity": stOp, "raster-fade-duration": 0 } }],
       legend: stLegend,
-      onToggle: on => { const z = STARE[stT].minz; if (on && STARE[stT].bb && map.getZoom() < z) map.fitBounds([[STARE_BB[0], STARE_BB[1]], [STARE_BB[2], STARE_BB[3]]], { padding: 30 }); else if (on && map.getZoom() < z) map.easeTo({ zoom: z }); },
+      onToggle: on => { hookStatus(); if (!on) { cmpClose(); return; }
+        const S = STARE[stT()], c = map.getCenter();
+        if (S.bb && (map.getZoom() < S.minz || !(c.lng > S.bb[0] && c.lng < S.bb[2] && c.lat > S.bb[1] && c.lat < S.bb[3]))) map.fitBounds([[S.bb[0], S.bb[1]], [S.bb[2], S.bb[3]]], { padding: 30 });
+        else if (map.getZoom() < S.minz) map.easeTo({ zoom: S.minz });
+        if (stT() === "orto") setTimeout(probeYears, 900); setTimeout(stStatus, 50); },
       legendInit: box => {
-        const L = window.ExtraLayers.LAYERS.find(x => x.id === "stare-mapy");
-        const again = () => { box.innerHTML = stLegend(); L.legendInit(box); };
-        const rebuild = () => { if (map.getLayer("x-stare")) map.removeLayer("x-stare"); if (map.getSource("x-stare-mapy")) map.removeSource("x-stare-mapy"); added.delete("stare-mapy"); apply(L, true); };
-        box.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { stT = b.dataset.st; try { app.store.set("stare.t", stT); } catch (e) {} rebuild(); });
-        const yr = box.querySelector("#st-year");
-        if (yr) { yr.oninput = () => { box.querySelector("[data-st-y]").textContent = yr.value; }; yr.onchange = () => { stY = +yr.value; map.getSource("x-stare-mapy")?.setTiles([stUrl(stT)]); }; }
+        box.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { const k = b.dataset.st; if (k === stT()) return;
+          setA(k === "topo" ? "topo:92" : k === "orto" ? "orto:" + (stYears?.length ? stYears[0] : 2003) : k); });
+        box.querySelectorAll("[data-sty]").forEach(b => b.onclick = () => setA("orto:" + b.dataset.sty));
+        box.querySelectorAll("[data-ste]").forEach(b => b.onclick = () => setA("topo:" + b.dataset.ste));
         const op = box.querySelector("[data-sto]");
-        if (op) op.oninput = () => { stOp = 1 - op.value / 100; box.querySelector("[data-sto-out]").textContent = op.value + "%"; op.style.setProperty("--v", op.value + "%"); if (map.getLayer("x-stare")) map.setPaintProperty("x-stare", "raster-opacity", stOp); };
-        if (op) op.style.setProperty("--v", op.value + "%");
-        const go = box.querySelector("[data-st-go]"); if (go) go.onclick = e => { e.preventDefault(); map.fitBounds([[STARE_BB[0], STARE_BB[1]], [STARE_BB[2], STARE_BB[3]]], { padding: 30 }); };
+        if (op) { const paint = () => op.style.setProperty("--v", op.value + "%"); paint();
+          op.oninput = () => { stOp = 1 - op.value / 100; box.querySelector("[data-sto-out]").textContent = op.value + "%"; paint(); if (map.getLayer("x-stare")) map.setPaintProperty("x-stare", "raster-opacity", stOp); }; }
+        const cb = box.querySelector("[data-cmp]"); if (cb) cb.onclick = () => { if (cmp) cmpClose(); else cmpOpen(); refreshLegend(); };
+        const sel = box.querySelector("[data-cmpb]"); if (sel) sel.onchange = () => { cmpB = sel.value; cmpSetB(); };
+        const go = box.querySelector("[data-st-go]"); if (go) go.onclick = e => { e.preventDefault(); const bb = STARE_BB(); map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 30 }); };
+        stStatus();
       } },
+    { id: "gleby", box: "terrainLayers", label: "Mapa glebowo-rolnicza", desc: "Kompleksy przydatności rolniczej gleb", kw: "gleby gleba mapa glebowo rolnicza kompleksy przydatności rolniczej bonitacja grunty orne pszenny żytni użytki zielone oze fotowoltaika",
+      icon: ["leaf", "#8a5a2b"], tiles: () => wmsT(`${GPW}/pub/guest/MapaGlebowoRolnicza/MapServer/WMSServer`, "0", "&TRANSPARENT=TRUE", "image/png"), minz: 11, attr: "GUGiK, mapa glebowo-rolnicza",
+      layers: s => [{ id: "x-gleby", type: "raster", source: s, paint: { "raster-opacity": .7, "raster-fade-duration": 0 } }],
+      legend: () => legendRow([["#732600","1 pszenny bardzo dobry","box"],["#d3715b","2 pszenny dobry","box"],["#fac1a2","3 pszenny wadliwy","box"],["#fe6b00","4 żytni bardzo dobry","box"],["#febe00","5 żytni dobry","box"],["#fefa00","6 żytni słaby","box"],["#fef680","7 żytni bardzo słaby","box"],["#004c73","8 zbożowo-pastewny mocny","box"],["#1482ff","9 zbożowo-pastewny słaby","box"],["#a80084","10–14 górskie","box"],["#4c7300","1z użytki zielone bardzo dobre i dobre","box"],["#88c31f","2z użytki zielone średnie","box"],["#c7ee98","3z użytki zielone słabe","box"]]) + note("Kompleksy przydatności rolniczej gleb. Białe kropki to tereny leśne lub poza gruntami rolnymi, kreskowanie to zabudowa. Widoczna po przybliżeniu mapy. Źródło: GUGiK, mapa glebowo-rolnicza (usługa WMS, geoportal.gov.pl).") +
+        `<p class="small"><a href="${GPW}/pub/guest/MapaGlebowoRolnicza/MapServer/WMSServer?request=GetLegendGraphic&version=1.3.0&format=image/png&layer=0" target="_blank" rel="noopener">Pełna legenda GUGiK (typy i gatunki gleb)</a></p>` },
   ];
   const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
