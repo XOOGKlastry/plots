@@ -51,12 +51,15 @@
   ],
   "bbox": [
    18.83172,
-   50.09964,
-   18.99836,
+   49.99964,
+   19.165,
    50.19961
   ],
   "pliki": [
-   "5879_NIKOLAI_(M851_POLAND_25K)_1st_ed_6.1953.jpg"
+   "5879_NIKOLAI_(M851_POLAND_25K)_1st_ed_6.1953.jpg",
+   "5880_LENDZIN_(M851_POLAND_25K)_1st_ed_6.1953.jpg",
+   "5979_KOBIER_(M851_POLAND_25K)_1st_ed_6.1953.jpg",
+   "5980_ALTBERUN_(M851_POLAND_25K)_1st_ed_6.1953.jpg"
   ]
  },
  "ams50_1956": {
@@ -87,6 +90,7 @@
   ],
   "pliki": [
    "M751_POLAND_50K_2918_III_MIKOLOW_ed_1_3.1965_LoC_G6520_s50_.U5.jpg",
+   "M751_POLAND_50K_2918_II_MYSLOWICE_ed_1_2.1965_LoC_G6520_s50_.U5.jpg",
    "AMS_M751_POLAND_50K_2920_II_PAJECZNO_ed_1_1965.jpg"
   ]
  },
@@ -331,6 +335,24 @@
    "KdwR_D37_Dzialoszyn_1918_400dpi.jpg"
   ]
  },
+ "mtb_1883": {
+  "z": [
+   11,
+   15
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.16667,
+   50.2
+  ],
+  "pliki": [
+   "5979_(3422)_Kobier_1883_IfL.jpg",
+   "5980_(3423)_Berun_1883_IfL.jpg",
+   "5879_(3391)_Nicolai_1883_IfL.jpg",
+   "5880_(3392)_Lendzin_1883_IfL.jpg"
+  ]
+ },
  "mtb_1914": {
   "z": [
    11,
@@ -338,27 +360,47 @@
   ],
   "bbox": [
    18.83333,
-   50.1,
+   50.0,
    19.0,
    50.2
   ],
   "pliki": [
-   "5879_(3391)_Nikolai_1914_UW.jpg"
+   "5879_(3391)_Nikolai_1914_UW.jpg",
+   "5979_Kobier_1912_BCUWr7231-32043-45235.jpg"
   ]
  },
- "mtb_1942": {
+ "mtb_1936": {
+  "z": [
+   11,
+   15
+  ],
+  "bbox": [
+   19.0,
+   50.0,
+   19.16667,
+   50.2
+  ],
+  "pliki": [
+   "5880_Lendzin_mz_1936.jpg",
+   "5980_Altberun_mz_1936.jpg"
+  ]
+ },
+ "mtb_1940": {
   "z": [
    11,
    15
   ],
   "bbox": [
    18.83333,
-   50.1,
-   19.0,
+   50.0,
+   19.16667,
    50.2
   ],
   "pliki": [
-   "5879_Nikolai_ca_1942_uniberk_C056985359.jpg"
+   "5879_Nikolai_ca_1942_uniberk_C056985359.jpg",
+   "5880_Lendzin_1941_uniberk_C056985368.jpg",
+   "5979_Kobier_1940_nnv3XzV_BN_Sygn.ZZK_S-4_399_A.jpg",
+   "5980_Altberun_1940_uniberk_C056985641.jpg"
   ]
  },
  "mtb_1943": {
@@ -368,12 +410,57 @@
   ],
   "bbox": [
    18.83333,
-   50.1,
+   50.0,
    19.0,
    50.2
   ],
   "pliki": [
-   "5879_Nikolai_1943.jpg"
+   "5879_Nikolai_1943.jpg",
+   "5979_Kobier_1944_uniberk_C056985632.jpg"
+  ]
+ },
+ "rmtb_1940": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.33333,
+   49.9,
+   19.33333,
+   50.4
+  ],
+  "pliki": [
+   "5676_Bischofstal_1940.jpg",
+   "5677_Peiskretscham_1940_uniberk_C056984647.jpg",
+   "5678_Hindenburg_1940_uniberk_C056984656.jpg",
+   "5679_Beuthen_in_Oberschelsien_1940_uniberk_C056984674.jpg",
+   "5680_Laurahuette_Vorl._Ausg._1940.jpg",
+   "5681_Dabrowa_Gornicza_1942.jpg",
+   "5776_Jakobswalde_1941_BCUWr7231-32090-45054.jpg",
+   "5777_Kieferstaedtel_1940_uniberk_C056985030.jpg",
+   "5778_Gleiwitz_1940.jpg",
+   "5779_Schwientochlowitz_1942.jpg",
+   "5780_Kattowitz_1941_uniberk_C056985058.jpg",
+   "5876_Gr._Rauden_1940_uniberk_C056985322.jpg",
+   "5877_Golleow_ca_1940_nnv3X8R_BN_Sygn.ZZK_S-4_380_A.jpg",
+   "5781_Birkental_1942_uniberk_C056985067.jpg",
+   "5878_Orzesche_1940_uniberk_C056985340.jpg",
+   "5881_Imielin_1940_uniberk_C056985377.jpg",
+   "5976_Loslau_ca_1940_uniberk_C056985614.jpg",
+   "5977_Rybnik_1941.jpg",
+   "5980_Altberun_1940.jpg",
+   "5978_Sohrau_1940_uniberk_C056985623.jpg",
+   "5981_Neuberun_1940_uniberk_C056985650.jpg",
+   "6077_Jastrzemb_1941_BWNG_UL.jpg",
+   "6078_Pawlowitz_1940.jpg",
+   "6076_Gr_Gorschutz_1941.jpg",
+   "6079_Pless_ca_1939_nnxv9pc_BN_Sygn.ZZK_S-4_421_A.jpg",
+   "6080_Grzawa_ca_1939_nnv3R93_BN_Sygn.ZZK_S-4_424_A.jpg",
+   "6081_Bielany_1944_UPKrak.jpg",
+   "5879_Nikolai_ca_1942_uniberk_C056985359.jpg",
+   "5880_Lendzin_1941_uniberk_C056985368.jpg",
+   "5979_Kobier_1940_nnv3XzV_BN_Sygn.ZZK_S-4_399_A.jpg"
   ]
  },
  "ros84_1914": {
@@ -389,7 +476,23 @@
   ],
   "pliki": [
    "XXXI-4_Archiwum_WIG_IX.1914_LoC_G7010_s84_.R8.jpg",
+   "XXXI-5_Archiwum_WIG_Egz_albumowy_IX.1914_LoC_G7010_s84_.R8.jpg",
    "XXVII-5_Archiwum_WIG_VII.1914_2_LoC_G7010_s84_.R8.jpg"
+  ]
+ },
+ "ros84_1915": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   19.07833,
+   50.0,
+   19.52833,
+   50.25
+  ],
+  "pliki": [
+   "XXXI-5_ca_1915_LoC_G7010_s84_.R8.jpg"
   ]
  },
  "rus25_1915": {
@@ -405,6 +508,52 @@
   ],
   "pliki": [
    "XXVII-5-D_Gruppe_Warschau_1915_UWar.jpg"
+  ]
+ },
+ "rwig_1933": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.5,
+   49.91667,
+   19.33333,
+   50.5
+  ],
+  "pliki": [
+   "P47-S27-C_STRZYBNICA_1933.jpg",
+   "P47-S27-F_MIKULCZYCE_(MIKULTSCHUETZ)_1933.jpg",
+   "P47-S28-A_TARNOWSKIE_GORY_1933_copy.jpg",
+   "P47-S28-B_MIERZECICE_1933.jpg",
+   "P47-S27-I_GLIWICE_WSCHOD_(GLEIWITZ_OST)_1933.jpg",
+   "P47-S28-C_SIEWIERZ_1933.jpg",
+   "P47-S28-D_BYTOM_(BEUTHEN)_1933_copy.jpg",
+   "P47-S28-E_GRODZIEC_1933_BWNG_UL.jpg",
+   "P47-S28-F_ZABKOWICE_1933.jpg",
+   "P47-S28-G_CHORZOW_1933_copy.jpg",
+   "P47-S28-H_KATOWICE_1933_copy.jpg",
+   "P47-S28-I_DABROWA_GORNICZA_1933_LoC_G6520_s25_.P6.jpg",
+   "P48-S27-B_WILCZA_1933.jpg",
+   "P48-S27-C_KNUROW_1933.jpg",
+   "P48-S27-E_RYBNIK_1932.jpg",
+   "P48-S27-H_CHWALOWICE_1939.jpg",
+   "P48-S27-I_ZORY_1939.jpg",
+   "P48-S28-A_MIKOLOW_1939_LoC_G6520_s25_.P6.jpg",
+   "P48-S28-B_MYSLOWICE_adnotacje_1933.jpg",
+   "P48-S28-C_JAWORZNO_1933.jpg",
+   "P48-S28-F_IMIELIN_ark_korekc_1933.jpg",
+   "P48-S28-G_KOBIOR_1939.jpg",
+   "P49-S27-C_PAWLOWICE_1938.jpg",
+   "P49-S28-A_PSZCZYNA_1939.jpg",
+   "P49-S28-B_BRZESZCZE_1939.jpg",
+   "P49-S28-C_OSIEK_1939.jpg",
+   "P49-S27-B_JASTRZEBIE_c.1940_BWNG_UL.jpg",
+   "P48-S28-I_OSWIECIM_niem_admin_1939.jpg",
+   "P48-S28-D_TYCHY_1933_copy.jpg",
+   "P48-S28-E_BIERUN_STARY_1933_2.jpg",
+   "P48-S28-H_BOJSZOWY_1930_copy.jpg",
+   "P48-S27-F_ORZESZE_1933.jpg"
   ]
  },
  "ussr100_1937": {
@@ -445,11 +594,13 @@
   "bbox": [
    18.75,
    50.0,
-   19.0,
-   50.16667
+   19.25,
+   50.33333
   ],
   "pliki": [
-   "M-34-62-G_(TY`XY`)_1944_400dpi_amwig.jpg"
+   "M-34-62-G_(TY`XY`)_1944_400dpi_amwig.jpg",
+   "M-34-63-A_(KATOVICE)_1944_400dpi_amwig.jpg",
+   "M-34-63-V_(OSVENCIM)_1944_400dpi_amwig.jpg"
   ]
  },
  "wig100_1934": {
@@ -489,12 +640,14 @@
   ],
   "bbox": [
    18.83333,
-   50.1,
-   19.0,
+   50.0,
+   19.16667,
    50.2
   ],
   "pliki": [
-   "REJON_ZAGLEBIE_POLSKIE_ARK_15_(3391)_MIKOLOW_1926.jpg"
+   "REJON_ZAGLEBIE_POLSKIE_ARK_15_(3391)_MIKOLOW_1926.jpg",
+   "REJON_ZAGLEBIE_POLSKIE_ARK_20_(3392)_LEDZINY_1926_LoC_G6520_s25_.P61.jpg",
+   "REJON_ZAGLEBIE_POLSKIE_ARK_16_(3422)_KOBIOR_1926_LoC_G6520_s25_.P61.jpg"
   ]
  },
  "wig_1933": {
@@ -503,13 +656,32 @@
    15
   ],
   "bbox": [
-   19.0,
-   51.08333,
+   18.83333,
+   50.0,
    19.16667,
    51.16667
   ],
   "pliki": [
-   "P44-S28-E_PAJECZNO_1933_APP_Sygn._M.top.25-1924-2.jpg"
+   "P44-S28-E_PAJECZNO_1933_APP_Sygn._M.top.25-1924-2.jpg",
+   "P48-S28-G_KOBIOR_ark_korekcyjny_1939.jpg",
+   "P48-S28-H_BOJSZOWY_1930_copy.jpg",
+   "P48-S28-D_TYCHY_1933_copy.jpg",
+   "P48-S28-E_BIERUN_STARY_1933.jpg"
+  ]
+ },
+ "wig_1935": {
+  "z": [
+   11,
+   15
+  ],
+  "bbox": [
+   19.0,
+   50.08333,
+   19.16667,
+   50.16667
+  ],
+  "pliki": [
+   "P48-S28-E_BIERUN_STARY_1933_2.jpg"
   ]
  },
  "wig_1940": {
