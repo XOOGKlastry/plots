@@ -3,11 +3,18 @@
 Start: start.bat
 Mapa: http://127.0.0.1:5001/
 """
+import atexit
+import logging
 import json, os, threading, contextlib, re
 from pathlib import Path
+from dotenv import load_dotenv
 import psycopg
 import concurrent.futures as _TP
 from flask import Flask, Response, request, abort
+from posthog import Posthog
+from posthog.integrations.flask import PosthogFlaskIntegration
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 DSN = os.environ.get("PLOTS_DSN", "postgresql://postgres@localhost/gisss")
 MINZ = int(os.environ.get("PLOTS_MINZ", "13"))
@@ -47,6 +54,64 @@ SELECT ST_AsMVT(q, 'dzialki', 4096, 'g') FROM (
 
 app = Flask(__name__)
 _DOCS = Path(__file__).resolve().parent.parent / "docs"
+
+posthog_client = None
+posthog_log_logger = logging.getLogger("plots.posthog")
+posthog_log_logger.propagate = False
+posthog_project_token = os.environ.get("POSTHOG_PROJECT_TOKEN")
+posthog_host = os.environ.get("POSTHOG_HOST")
+if posthog_project_token and posthog_host:
+    posthog_client = Posthog(
+        project_api_key=posthog_project_token,
+        host=posthog_host,
+        enable_exception_autocapture=True,
+    )
+    PosthogFlaskIntegration(app, client=posthog_client, capture_exceptions=True)
+    atexit.register(posthog_client.shutdown)
+    try:
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+        from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+
+        posthog_log_provider = LoggerProvider()
+        posthog_log_exporter = OTLPLogExporter(
+            endpoint=f"{posthog_host.rstrip('/')}/i/v1/logs",
+            headers={"Authorization": f"Bearer {posthog_project_token}"},
+        )
+        posthog_log_provider.add_log_record_processor(
+            BatchLogRecordProcessor(posthog_log_exporter)
+        )
+        posthog_log_logger.addHandler(LoggingHandler(logger_provider=posthog_log_provider))
+        posthog_log_logger.setLevel(logging.INFO)
+        atexit.register(posthog_log_provider.shutdown)
+        posthog_log_logger.info("PostHog log capture configured", extra={"component": "log_export"})
+    except ImportError:
+        app.logger.warning("PostHog log capture is unavailable until OpenTelemetry packages are installed")
+    except Exception:
+        app.logger.warning("PostHog log capture could not be configured; the API will continue serving")
+elif os.environ.get("FLASK_ENV") != "production":
+    if not posthog_project_token:
+        app.logger.warning(
+            "POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, "
+            "this causes events to be silently missed. This error stops appearing once "
+            "POSTHOG_PROJECT_TOKEN is configured"
+        )
+    if not posthog_host:
+        app.logger.warning(
+            "POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes "
+            "events to be silently missed. This error stops appearing once POSTHOG_HOST is configured"
+        )
+
+
+def _capture_event(event: str) -> None:
+    """Queue a personless public-API event without affecting the response."""
+    if posthog_client is None:
+        return
+    try:
+        posthog_client.capture(event)
+    except Exception:
+        pass
+
 
 class Pool:
     @contextlib.contextmanager
@@ -111,6 +176,8 @@ def dzialka():
     k = ["id_dzialki","numer_dzialki","obreb","nazwa_obrebu","pole_ewid","grupa_rej","klasouzytki","data_zrodla"]
     d = dict(zip(k, r[:8])); d["bbox"] = [[r[8], r[9]], [r[10], r[11]]]
     d["powierzchnia_geom_m2"] = r[12]
+    _capture_event("parcel_lookup_completed")
+    posthog_log_logger.info("Parcel lookup completed", extra={"operation": "parcel_lookup"})
     return Response(json.dumps(enrich(d), default=str, ensure_ascii=False), mimetype="application/json; charset=utf-8")
 
 @app.get("/api/at")
@@ -131,6 +198,7 @@ def at_point():
     k = ["id_dzialki","numer_dzialki","obreb","nazwa_obrebu","pole_ewid","grupa_rej","klasouzytki","data_zrodla"]
     d = dict(zip(k, r[:8])); d["bbox"] = [[r[8], r[9]], [r[10], r[11]]]
     d["powierzchnia_geom_m2"] = r[12]
+    _capture_event("parcel_at_point_resolved")
     return Response(json.dumps(enrich(d), default=str, ensure_ascii=False), mimetype="application/json; charset=utf-8")
 
 
@@ -272,6 +340,8 @@ def api_adres():
     for r in rows:
         r["adres"] = " ".join(x for x in [r.get("ulica"), r.get("numer")] if x) + \
             ((", " + " ".join(x for x in [r.get("kod"), r.get("miejscowosc")] if x)) if (r.get("kod") or r.get("miejscowosc")) else "")
+    if rows:
+        _capture_event("address_search_completed")
     return Response(json.dumps({"wyniki": rows}, default=str, ensure_ascii=False),
                     mimetype="application/json; charset=utf-8")
 
@@ -296,6 +366,8 @@ def api_adres_punkt():
         cursor=c.execute(stmt,(lon,lat));row=cursor.fetchone()
         value=dict(zip([col.name for col in cursor.description],row)) if row else None
     address=", ".join(filter(None,[" ".join(str(value.get(k) or "") for k in ("ulica","numer")).strip(),str(value.get("miejscowosc") or "")])) if value else None
+    if value:
+        _capture_event("address_point_resolved")
     return Response(json.dumps({"address":address,"point":value},default=str,ensure_ascii=False),mimetype="application/json")
 
 @app.get("/api/adresy/meta")
@@ -392,6 +464,7 @@ def api_obwod():
         d = dict(zip(names, row[:-1]))
         g = c.execute("SELECT sum(lud), sum(m), sum(k), count(*) FROM spis.obwody_2021 WHERE teryt=%s AND lud > 0", (d["teryt"],)).fetchone()
     num = lambda v: float(v) if v is not None else None
+    _capture_event("census_profile_viewed")
     return {"obwod": {
         "id": d["id"], "teryt": d["teryt"], "gmina": d["gmina_nazwa"], "nr": d["obwod"], "lud": d["lud"], "m": d["m"], "k": d["k"],
         "km2": num(d["km2"]), "gestosc": num(d["gestosc"]), "p_poprod": num(d["p_senior"]), "p_przedprod": num(d["p_dzieci"]),
@@ -596,6 +669,8 @@ def api_teren():
     except Exception: out["egms"] = None
     out["osuwiska"] = [{"warstwa": x.get("layerName"), "aktywnosc": (x.get("attributes") or {}).get("Stopień aktywności")} for x in (o or {}).get("results", [])][:3]
     out["geotermia"] = [{k: v for k, v in (x.get("attributes") or {}).items() if k not in ("OBJECTID", "Shape", "SHAPE", "Shape.STArea()", "Shape.STLength()")} for x in (g or {}).get("results", [])][:1]
+    _capture_event("terrain_report_viewed")
+    posthog_log_logger.info("Terrain report completed", extra={"operation": "terrain_report"})
     return out
 
 # ---------- Internet stacjonarny: zasięg pod adresem (SIDUSIS, UKE). Usługa nie wysyła nagłówków CORS, stąd pośrednik. ----------
@@ -658,6 +733,8 @@ def api_internet():
     for r in res:
         if r and r["adres"] not in seen: seen.add(r["adres"]); out.append(r)
     out.sort(key=lambda x: x["m"])
+    _capture_event("internet_coverage_checked")
+    posthog_log_logger.info("Internet coverage check completed", extra={"operation": "internet_coverage"})
     return Response(json.dumps({"punkty": out}, ensure_ascii=False), mimetype="application/json", headers={"Cache-Control": "public, max-age=3600"})
 
 @app.route("/tiles/internet/<int:z>/<int:x>/<int:y>.png", methods=["GET", "OPTIONS"])
@@ -830,7 +907,7 @@ def extra_frontend_asset(asset_path: str) -> Response:
     return Response(path.read_bytes(), content_type=content_type, headers=headers)
 
 from admin_api import register_admin_api
-register_admin_api(app, POOL)
+register_admin_api(app, POOL, posthog_client)
 
 if __name__ == "__main__":
     print("PLOTS mapa+API  http://127.0.0.1:%s/  (PostGIS %s)" % (PORT, DSN.split("@")[-1]))
