@@ -109,6 +109,36 @@
    "44-28_E_Pajeczno_Bodenschaetzungskarte_A_1943_APP_Sygn._M.top.25-2227.jpg"
   ]
  },
+ "gm200_1914": {
+  "z": [
+   9,
+   13
+  ],
+  "bbox": [
+   18.83333,
+   49.5,
+   19.83333,
+   50.5
+  ],
+  "pliki": [
+   "GvM_200K_37-50_OSWIECIM_1914.jpg"
+  ]
+ },
+ "gm200_1939": {
+  "z": [
+   9,
+   13
+  ],
+  "bbox": [
+   18.83333,
+   49.5,
+   19.83333,
+   50.5
+  ],
+  "pliki": [
+   "KuK_200K_37-50_Generalkarte_von_Mitteleuropa_OSWIECIM_1939.jpg"
+  ]
+ },
  "gr100_1921": {
   "z": [
    10,
@@ -632,6 +662,36 @@
    "P48-S28-E_BIERUN_STARY_1933_2.jpg",
    "P48-S28-H_BOJSZOWY_1930_copy.jpg",
    "P48-S27-F_ORZESZE_1933.jpg"
+  ]
+ },
+ "tudr200_1902": {
+  "z": [
+   9,
+   13
+  ],
+  "bbox": [
+   18.33333,
+   50.0,
+   19.33333,
+   50.5
+  ],
+  "pliki": [
+   "TUDR_147_Gleiwitz_Ausg._C_1902_nhsTVrc_BN_Sygn._ZZK_S-31_870_A.jpg"
+  ]
+ },
+ "tudr200_1914": {
+  "z": [
+   9,
+   13
+  ],
+  "bbox": [
+   18.33333,
+   50.0,
+   19.33333,
+   50.5
+  ],
+  "pliki": [
+   "TUDR_147_Beuthen_1902-14_kol.jpg"
   ]
  },
  "ussr100_1937": {
