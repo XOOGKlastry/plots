@@ -70,6 +70,9 @@
     p: { n: "Inne wydania", d: "Wszystkie wydania map w skali do 1:100 000 dostępne w archiwum dla Tychów i Dubidzy (gmina Kleszczów), a dla Górnego Śląska od Gliwic i Tarnowskich Gór po Pszczynę 30 arkuszy Messtischblatt i 32 arkusze WIG: pruskie, austriackie, rosyjskie, polskie WIG, niemieckie, amerykańskie i radzieckie. Arkusze ustawione według narożników ramki, możliwe przesunięcie do około 100–200 m", src: AMZP + ", skany Biblioteki Narodowej, Library of Congress, Archiwum Map WIG i innych bibliotek", bb: [18.6, 50.0, 19.35, 50.25], minz: 10, maxz: 15, gdzie: "Tychy, Dubidze i Górny Śląsk" },
     orto: { n: "Ortofoto archiwalne", d: "Archiwalne ortofotomapy GUGiK, cały kraj. Lata do wyboru to roczniki zdjęć, które istnieją w środku widoku mapy", src: "GUGiK, usługa WMS ortofotomap archiwalnych (geoportal.gov.pl)", minz: 13, maxz: 19 } };
   const P_N = { rmtb: "Messtischblatt 1:25 000 (lata 1939–1944)", rwig: "WIG 1:25 000 (lata 1930–1940)", mtb: "Messtischblatt 1:25 000", wig: "WIG 1:25 000", wig26: "WIG 1:25 000, wydanie wczesne", ams25: "Amerykańska AMS 1:25 000", ussr50: "Radziecka 1:50 000", ams50: "Amerykańska AMS 1:50 000", kuk75: "Austro-węgierska 1:75 000", ros84: "Rosyjska 1:84 000", wig100: "WIG 1:100 000", bsk25: "Niemiecka mapa gleb (Bodenschätzung) 1:25 000", rus25: "Rosyjska 1:25 000 (1915)", kdr100: "Karte des Deutschen Reiches 1:100 000", kwr100: "Niemiecka mapa zachodniej Rosji 1:100 000", ussr100: "Radziecka 1:100 000", gr100: "Niemiecka 1:100 000 (Generalstab)", gsgs100: "Brytyjska GSGS 1:100 000", ams100: "Amerykańska AMS 1:100 000", rey200: "Mapa Reymanna 1:200 000 (dopasowanie przybliżone, ±0,5 km)", gm200: "Generalkarte von Mitteleuropa 1:200 000", tudr200: "Topographische Übersichtskarte des Deutschen Reiches 1:200 000", wig300: "WIG 1:300 000 (mapa operacyjna)", gsgs300: "Brytyjska GSGS 1:300 000", wiel: "Mapa Wielanda i Schubartha, księstwo raciborskie i Państwo Pszczyńskie (Homann, dopasowanie przybliżone, ±1 km)" };
+  /* stare mapy z Cloudflare R2: jeden plik PMTiles na wydanie (mapgen/xyz2pmtiles.py); bez adresu działają kafle z data/stare */
+  const STARE_R2 = (() => { try { const q = new URLSearchParams(location.search).get("stare"); const u = (q || (window.PLOTS_CONFIG || {}).STARE_URL || "").replace(/\/$/, "");
+    if (u && window.pmtiles && window.maplibregl) { maplibregl.addProtocol("pmtiles", new pmtiles.Protocol().tile); return u; } } catch (e) {} return ""; })();
   let stPI = null; fetch(new URL("data/stare/p/index.json", location.href)).then(r => r.json()).then(j => { stPI = j; refreshLegend(); }).catch(() => { stPI = {}; });
   const pSer = k => k.replace(/_\d+$/, ""), pYr = k => k.match(/\d+$/)[0];
   const TOPO_E = { 92: "lata 1990–2000", bdot: "dziś (BDOT10k)" };
@@ -81,7 +84,9 @@
     if (t === "now") return ORTO_NOW;
     if (t === "orto") return wmsT(ORTO_T, "Raster", `&TIME=${x}-01-01/${x}-12-31`);
     if (t === "topo") return x === "bdot" ? wmsT(BDOT_W, BDOT_L, "&TRANSPARENT=FALSE", "image/png") : wmsT(TOPO_W, "Raster");
-    return new URL(`data/stare/${t === "p" ? "p/" + x : t}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}"); };
+    const rel = t === "p" ? "p/" + x : t;
+    if (STARE_R2) return `pmtiles://${STARE_R2}/${rel}.pmtiles/{z}/{x}/{y}`;
+    return new URL(`data/stare/${rel}/{z}/{x}/{y}.webp`, location.href).href.replace(/%7B/g, "{").replace(/%7D/g, "}"); };
   let stA = (() => { try { const v = app.store.get("stare.v", "mtb"); return STARE[vSplit(v)[0]] ? v : "mtb"; } catch (e) { return "mtb"; } })();
   let stOp = 1, stYears = null, stProbe = "", stProbing = false, cmp = null, cmpB = "now";
   const stT = () => vSplit(stA)[0];
