@@ -197,12 +197,21 @@
     if (vSplit(stA)[0] === "orto" && stYears?.length) cmpB = "orto:" + stYears[stYears.length - 1]; else if (cmpB === stA) cmpB = "now";
     if (cmpB === stA) cmpB = "topo:bdot";
     m2.on("load", cmpSetB);
-    const h = wrap.querySelector(".st-cmp-h");
-    h.addEventListener("pointerdown", e => { e.preventDefault(); h.setPointerCapture(e.pointerId); const mv = ev => { const r = host.getBoundingClientRect(); cmp.x = Math.min(.95, Math.max(.05, (ev.clientX - r.left) / r.width)); cmpPos(); };
+    const h = wrap.querySelector(".st-cmp-line");
+    h.addEventListener("pointerdown", e => { e.preventDefault(); h.setPointerCapture(e.pointerId); const mv = ev => { const r = host.getBoundingClientRect(); cmp.x = Math.min(.85, Math.max(.15, (ev.clientX - r.left) / r.width)); cmpPos(); };
       const up = () => { h.removeEventListener("pointermove", mv); h.removeEventListener("pointerup", up); h.removeEventListener("pointercancel", up); };
       h.addEventListener("pointermove", mv); h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up); });
-    h.addEventListener("keydown", e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { cmp.x = Math.min(.95, Math.max(.05, cmp.x + (e.key === "ArrowLeft" ? -.05 : .05))); cmpPos(); } });
+    h.addEventListener("keydown", e => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { cmp.x = Math.min(.85, Math.max(.15, cmp.x + (e.key === "ArrowLeft" ? -.05 : .05))); cmpPos(); } });
     cmpPos(); cmpLabels(); probeYears();
+    // like the commute flows: a "Cofnij" chip at the top and the phone's back gesture leave the comparison
+    let chip = document.getElementById("stCmpChip");
+    if (!chip) { chip = document.createElement("div"); chip.id = "stCmpChip"; chip.className = "ext-chip"; document.body.appendChild(chip); }
+    chip.innerHTML = `<button type="button" class="ext-back"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg>Cofnij</button>`;
+    chip.hidden = false; chip.querySelector(".ext-back").onclick = () => { cmpClose(); refreshLegend(); };
+    document.querySelectorAll("dialog[open]").forEach(d => d.close());
+    if (app.isMobile?.()) app.snap?.("peek");
+    if (!document.getElementById("layerPanel")?.hidden) document.querySelector("[data-close-layers]")?.click();
+    setTimeout(() => window.UIHistory?.open("stcmp", () => { cmpClose(); refreshLegend(); }), 0);
   }
   function cmpPos() { if (!cmp) return; const p = (cmp.x * 100).toFixed(2) + "%"; cmp.wrap.querySelector(".st-cmp-map").style.clipPath = `inset(0 0 0 ${p})`; cmp.wrap.querySelector(".st-cmp-line").style.left = p; }
   function cmpLabels() { if (!cmp) return; const sh = v => vName(v).replace(/ (.*)/, ""); cmp.wrap.querySelector(".st-cmp-l").textContent = "◀ " + sh(stA); cmp.wrap.querySelector(".st-cmp-r").textContent = sh(cmpB) + " ▶"; }
@@ -214,7 +223,7 @@
     m2.addLayer({ id: "b", type: "raster", source: "b", paint: { "raster-fade-duration": 0 } });
     cmpLabels();
   }
-  function cmpClose() { if (!cmp) return; map.off("move", cmp.sync); try { cmp.m2.remove(); } catch (e) {} cmp.wrap.remove(); cmp = null; }
+  function cmpClose() { const ch = document.getElementById("stCmpChip"); if (ch) ch.hidden = true; if (!cmp) return; map.off("move", cmp.sync); try { cmp.m2.remove(); } catch (e) {} cmp.wrap.remove(); cmp = null; }
 
   /* ---------- GIOŚ stations ---------- */
   const NORM = { pm25: [10, 20], pm10: [20, 40], pm10_36: [45, 50], no2: [20, 40], bap: [1, 1], arsen: [6, 6], o3_dni: [18, 25], so2: [20, 20] };
@@ -540,6 +549,10 @@
         const go = box.querySelector("[data-st-go]"); if (go) go.onclick = e => { e.preventDefault(); const bb = STARE_BB(); map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 30 }); };
         stStatus();
       } },
+    { id: "cieniowanie", box: "terrainLayers", label: "Cieniowanie terenu", desc: "Rzeźba terenu z numerycznego modelu terenu", kw: "cieniowanie terenu rzeźba hillshade nmt numeryczny model terenu wysokości ukształtowanie skarpy doliny lidar",
+      icon: ["mountains", "#6b6b6b"], tiles: () => wmsT(`${GPW}/PZGIK/NMT/GRID1/WMS/ShadedRelief`, "Raster", "", "image/png"), minz: 9, attr: "GUGiK, cieniowanie numerycznego modelu terenu (geoportal.gov.pl)",
+      layers: s => [{ id: "x-cieniowanie", type: "raster", source: s, paint: { "raster-opacity": .45, "raster-fade-duration": 0 } }],
+      legend: () => note("Cieniowanie rzeźby terenu z numerycznego modelu terenu GUGiK (lotniczy skaning laserowy). Działa razem ze starymi mapami: włącz obie warstwy, żeby zobaczyć rzeźbę pod dawną mapą. Źródło: GUGiK, geoportal.gov.pl.") },
     { id: "gleby", box: "terrainLayers", label: "Mapa glebowo-rolnicza", desc: "Kompleksy przydatności rolniczej gleb", kw: "gleby gleba mapa glebowo rolnicza kompleksy przydatności rolniczej bonitacja grunty orne pszenny żytni użytki zielone oze fotowoltaika",
       icon: ["leaf", "#8a5a2b"], tiles: () => wmsT(`${GPW}/pub/guest/MapaGlebowoRolnicza/MapServer/WMSServer`, "0", "&TRANSPARENT=TRUE", "image/png"), minz: 11, attr: "GUGiK, mapa glebowo-rolnicza",
       layers: s => [{ id: "x-gleby", type: "raster", source: s, paint: { "raster-opacity": .7, "raster-fade-duration": 0 } }],
