@@ -146,12 +146,28 @@
   ],
   "bbox": [
    18.33333,
-   50.75,
+   49.75,
    19.33333,
    51.25
   ],
   "pliki": [
-   "Eb_106_Rosenberg_i._Obersch._1.1938_uniberk.jpg"
+   "Eb_106_Rosenberg_i._Obersch._1.1938_uniberk.jpg",
+   "Gb_128_Gross_Rauden_12.1938.jpg"
+  ]
+ },
+ "gr100_1939": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.33333,
+   49.75,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "Gb_128_Gross_Rauden_7.1939.jpg"
   ]
  },
  "gr100_1940": {
@@ -169,6 +185,21 @@
    "Gb_106_Rosenberg_i._Oberschl._XII.1940.jpg"
   ]
  },
+ "gr100_1943": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.33333,
+   49.75,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "Gb_128_Rybnik-Freistadt-Pless_IX.1943.jpg"
+  ]
+ },
  "gr100_1944": {
   "z": [
    10,
@@ -176,12 +207,13 @@
   ],
   "bbox": [
    18.33333,
-   50.75,
+   49.75,
    19.33333,
    51.25
   ],
   "pliki": [
-   "Gb_106_Welun-Rosenberg_O.S.-Tschenstochau_IX.1944.jpg"
+   "Gb_106_Welun-Rosenberg_O.S.-Tschenstochau_IX.1944.jpg",
+   "Gb_128_Rybnik-Freistadt-Pless_VI.1944_uniberk.jpg"
   ]
  },
  "gr100_1945": {
@@ -191,12 +223,28 @@
   ],
   "bbox": [
    18.33333,
-   50.75,
+   49.75,
    19.33333,
    51.25
   ],
   "pliki": [
-   "Gb_106_Welun-Rosenberg_O.S.-Tschenstochau_I.1945_LoC_G6080_s100_.G41.jpg"
+   "Gb_106_Welun-Rosenberg_O.S.-Tschenstochau_I.1945_LoC_G6080_s100_.G41.jpg",
+   "Gb_128_Rybnik_Ausg.4_IV_1945.jpg"
+  ]
+ },
+ "kdr100_1934": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "KDR100_521_Myslowitz_1934_nnxVVVv_BN_Sygn.ZZK_S-28_545.jpg"
   ]
  },
  "kdr100_1940": {
@@ -212,6 +260,21 @@
   ],
   "pliki": [
    "44-28_Dzialoszyn_1940_APP_Sygn._M.top.100-936.jpg"
+  ]
+ },
+ "kdr100_1943": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "KDR_521_Myslowitz_1943_600dpi.jpg"
   ]
  },
  "kuk75_1878": {
@@ -272,6 +335,21 @@
   ],
   "pliki": [
    "ZONE_5_KOL_XX_MYSLOWITZ_und_OSWIECIM_1905_400dpi.jpg"
+  ]
+ },
+ "kuk75_1906": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "KuK075_Zone_5_Col._XX_Myslowitz und Oświęcim_1906_300dpi_bcuj485446.jpg"
   ]
  },
  "kuk75_1911": {
@@ -603,6 +681,51 @@
    "M-34-63-V_(OSVENCIM)_1944_400dpi_amwig.jpg"
   ]
  },
+ "wig100_1921": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "521_Myslowice_IWG_1921_300dpi.jpg"
+  ]
+ },
+ "wig100_1925": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "A48_B28_(521)_Myslowice_1925_300dpi.jpg"
+  ]
+ },
+ "wig100_1933": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "P48_S28_OSWIECIM_1933_300dpi_bcuj302548-290352.jpg"
+  ]
+ },
  "wig100_1934": {
   "z": [
    10,
@@ -618,6 +741,21 @@
    "P44_S28_DZIALOSZYN_1934_300dpi_bcuj302473-289737.jpg"
   ]
  },
+ "wig100_1937": {
+  "z": [
+   10,
+   14
+  ],
+  "bbox": [
+   18.83333,
+   50.0,
+   19.33333,
+   50.25
+  ],
+  "pliki": [
+   "P48_S28_OSWIECIM_1937_LoC_G6520_s100_.P6.jpg"
+  ]
+ },
  "wig100_1942": {
   "z": [
    10,
@@ -625,12 +763,13 @@
   ],
   "bbox": [
    18.83333,
-   51.0,
+   50.0,
    19.33333,
    51.25
   ],
   "pliki": [
-   "P44_S28_DZIALOSZYN_1942_nn4tSqW_BN_Sygn.ZZK_S-24_136_A.jpg"
+   "P44_S28_DZIALOSZYN_1942_nn4tSqW_BN_Sygn.ZZK_S-24_136_A.jpg",
+   "P48_S28_OSWIECIM_BOM_ca_1942_nnxr41f_BN_Sygn.ZZK_S-11_036_Cim._konsp.jpg"
   ]
  },
  "wig26_1926": {
