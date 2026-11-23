@@ -1,4 +1,4 @@
-/* Visitor analytics (PostHog, EU servers). No cookies or local storage: each visit is an anonymous, separate person.
+/* Visitor analytics (PostHog, EU servers + Cloudflare Web Analytics). No cookies or local storage: each visit is an anonymous, separate person.
    KEY is the PostHog project API key (phc_…), public by design. Empty KEY = nothing is loaded.
    ?notrack=1 turns tracking off in this browser (for our own visits), ?notrack=0 turns it back on. */
 (function () {
@@ -16,7 +16,14 @@
     off = localStorage.getItem("plots-notrack") === "1";
   } catch (e) { /* storage blocked: track normally */ }
   const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !/[?&]track=1/.test(location.search);
-  if (!KEY || off || local || navigator.webdriver) { window.Track = () => {}; return; }
+  if (off || local || navigator.webdriver) { window.Track = () => {}; return; }
+
+  // Cloudflare Web Analytics (no cookies, no personal data); same ?notrack=1 exclusion.
+  const cf = document.createElement("script");
+  cf.defer = true; cf.src = "https://static.cloudflareinsights.com/beacon.min.js";
+  cf.setAttribute("data-cf-beacon", '{"token": "90e84d6a9abe42338a8dca106472892e"}');
+  document.head.appendChild(cf);
+  if (!KEY) { window.Track = () => {}; return; }
 
   const s = document.createElement("script");
   s.src = "https://eu-assets.i.posthog.com/static/array.full.js";
