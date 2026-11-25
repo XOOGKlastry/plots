@@ -447,6 +447,17 @@
       card: p => { const t = MIL[p.k] || MIL.t; return { title: p.n || t[0], src: "OpenStreetMap (współtwórcy OpenStreetMap, ODbL)",
         body: `<p class="gs-st"><i style="background:${t[1]}"></i>${esc(t[0])}</p>` + row("Powierzchnia", p.ha ? `${fmt(p.ha, 0)} ha` : "") +
           `<p class="muted small">Granice według OpenStreetMap są orientacyjne. Czy działka leży na terenie zamkniętym, potwierdza wypis z ewidencji gruntów w starostwie. Budowa w sąsiedztwie poligonu może wymagać uzgodnienia z organem wojskowym.</p>` }; } },
+    { id: "urbex", box: "urbexLayers", label: "Opuszczone miejsca (urbex)", desc: "Opuszczone fabryki, bunkry, pałace, szpitale i inne obiekty", kw: "urbex opuszczone miejsca ruiny bunkier fabryka pałac dwór szpital opuszczony pustostan eksploracja militarne podziemia tunele",
+      icon: ["warning", "#e8590c"], url: "data/urbex/miejsca.geojson",
+      layers: s => [
+        { id: "x-urbex", type: "circle", source: s, paint: { "circle-color": ["case", ["has", "a"], "#adb5bd", "#f59f00"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 10, 6, 14, 9], "circle-stroke-color": "#7a3d00", "circle-stroke-width": 1.2 } },
+        { id: "x-urbex-ic", type: "symbol", source: s, minzoom: 9, layout: { "text-field": "!", "text-size": ["interpolate", ["linear"], ["zoom"], 9, 9, 14, 13], "text-font": ["Noto Sans Bold"], "text-allow-overlap": true }, paint: { "text-color": "#3b1d00" }, noClick: true },
+        { id: "x-urbex-lbl", type: "symbol", source: s, minzoom: 12, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#7a3d00", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => legendRow([["#f59f00", "miejsce opuszczone"], ["#adb5bd", "oznaczone jako nieistniejące lub zabezpieczone"]]) + note("Miejsca zgłaszane przez społeczność eksploratorów, położenie przybliżone. Większość to teren prywatny lub zamknięty: wejście bez zgody właściciela jest naruszeniem prawa, a stan budynków bywa groźny (zawalenia, szyby, azbest). Źródła: desolate.zone, urbexy.pl."),
+      card: p => ({ title: p.n || "Opuszczone miejsce", src: "desolate.zone, urbexy.pl (zgłoszenia społeczności)",
+        body: `<p class="gs-st"><i style="background:${p.a ? "#adb5bd" : "#f59f00"}"></i>${esc(p.k || "opuszczony obiekt")}${p.a ? " · nieaktualne" : ""}</p>` +
+          (p.u ? `<p><a href="${esc(p.u)}" target="_blank" rel="noopener">Opis i zdjęcia</a></p>` : "") +
+          `<p class="muted small">Wejście na teren bez zgody właściciela jest nielegalne, a budynki mogą grozić zawaleniem.</p>` }) },
     { id: "przesyl", box: "limitLayers", label: "Linie przesyłowe w budowie", desc: "Linie 110 kV i wyższe oraz stacje w budowie lub planowane", kw: "linie przesyłowe pse budowa linii 400 kv 220 kv 110 kv planowana linia stacja elektroenergetyczna przesył energii",
       icon: ["lightning", "#c2255c"], url: "data/przesyl/inwestycje.geojson",
       layers: s => [
@@ -595,7 +606,7 @@
       legend: () => legendRow([["#732600","1 pszenny bardzo dobry","box"],["#d3715b","2 pszenny dobry","box"],["#fac1a2","3 pszenny wadliwy","box"],["#fe6b00","4 żytni bardzo dobry","box"],["#febe00","5 żytni dobry","box"],["#fefa00","6 żytni słaby","box"],["#fef680","7 żytni bardzo słaby","box"],["#004c73","8 zbożowo-pastewny mocny","box"],["#1482ff","9 zbożowo-pastewny słaby","box"],["#a80084","10–14 górskie","box"],["#4c7300","1z użytki zielone bardzo dobre i dobre","box"],["#88c31f","2z użytki zielone średnie","box"],["#c7ee98","3z użytki zielone słabe","box"]]) + note("Kompleksy przydatności rolniczej gleb. Białe kropki to tereny leśne lub poza gruntami rolnymi, kreskowanie to zabudowa. Widoczna po przybliżeniu mapy. Źródło: GUGiK, mapa glebowo-rolnicza (usługa WMS, geoportal.gov.pl).") +
         `<p class="small"><a href="${GPW}/pub/guest/MapaGlebowoRolnicza/MapServer/WMSServer?request=GetLegendGraphic&version=1.3.0&format=image/png&layer=0" target="_blank" rel="noopener">Pełna legenda GUGiK (typy i gatunki gleb)</a></p>` },
   ];
-  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył" };
+  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył", urbexLayers: "Opuszczone miejsca" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
 
   /* ---------- engine ---------- */
