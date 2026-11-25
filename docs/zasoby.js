@@ -77,6 +77,15 @@
   function ramp(pal, t) { t = Math.min(1, Math.max(0, t)) * (pal.length - 1); const i = Math.min(pal.length - 2, Math.floor(t)), f = t - i, a = hex(pal[i]), b = hex(pal[i + 1]); return a.map((x, j) => Math.round(x + (b[j] - x) * f)); }
   function classColor(L, v) { let i = 0; while (i < L.breaks.length && v >= L.breaks[i]) i++; return hex(L.pal[Math.min(i, L.pal.length - 1)]); }
   const tr = (L, v) => L.enc[0] === "sqrt" ? Math.sqrt(Math.max(0, v)) : v;
+  /* Barwa poziomicy: odcień skali w tym miejscu, nasycony i ciemny (HSL: S≥0,55, L=0,30), czytelny na jasnym i ciemnym tle. */
+  function isoColor([r, g, b]) {
+    r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0;
+    if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = (h * 60 + 360) % 360; const s0 = d ? d / (1 - Math.abs(mx + mn - 1)) : 0, S = d < 0.04 ? 0.12 : Math.max(0.55, Math.min(0.85, s0 * 1.3)), Lh = 0.3;
+    const C = (1 - Math.abs(2 * Lh - 1)) * S, X = C * (1 - Math.abs((h / 60) % 2 - 1)), m = Lh - C / 2;
+    const [a, bb, cc] = h < 60 ? [C, X, 0] : h < 120 ? [X, C, 0] : h < 180 ? [0, C, X] : h < 240 ? [0, X, C] : h < 300 ? [X, 0, C] : [C, 0, X];
+    return "#" + [a, bb, cc].map(v => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
+  }
   function niceStep(span, n) { const raw = span / n, p = 10 ** Math.floor(Math.log10(raw)), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; }
 
   /* ---------- state ---------- */
@@ -99,12 +108,13 @@
       const lid = "zas-" + g.id + "-r";
       if (!map.getLayer(lid)) map.addLayer({ id: lid, type: "raster", source: "zas-img", layout: { visibility: "none" }, paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.88, 10, 0.78, 13, 0.55, 16, 0.32], "raster-resampling": "linear", "raster-fade-duration": 0 } }, before);
     }
-    if (!map.getLayer("zas-iso-l")) map.addLayer({ id: "zas-iso-l", type: "line", source: "zas-iso", layout: { "line-join": "round", visibility: "none" }, paint: { "line-color": ["coalesce", ["get", "c"], "#1d1d1f"], "line-opacity": ["case", ["get", "major"], 0.6, 0.38], "line-width": ["case", ["get", "major"], 1.3, 0.8] } }, before);
-    if (!map.getLayer("zas-iso-t")) map.addLayer({ id: "zas-iso-t", type: "symbol", source: "zas-iso", layout: { visibility: "none", "symbol-placement": "line", "symbol-spacing": 260, "text-field": ["get", "t"], "text-size": 11, "text-font": ["Noto Sans Bold"], "text-max-angle": 30, "text-padding": 4 }, paint: { "text-color": "#1d1d1f", "text-halo-color": "rgba(255,255,255,.92)", "text-halo-width": 1.6 } });
+    if (!map.getLayer("zas-iso-c")) map.addLayer({ id: "zas-iso-c", type: "line", source: "zas-iso", layout: { "line-join": "round", visibility: "none" }, paint: { "line-color": "#ffffff", "line-opacity": 0.55, "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", ["get", "major"], 3.2, 2.2], 11, ["case", ["get", "major"], 4, 2.8]] } }, before);
+    if (!map.getLayer("zas-iso-l")) map.addLayer({ id: "zas-iso-l", type: "line", source: "zas-iso", layout: { "line-join": "round", visibility: "none" }, paint: { "line-color": ["coalesce", ["get", "c"], "#1d1d1f"], "line-opacity": ["case", ["get", "major"], 0.95, 0.75], "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", ["get", "major"], 1.4, 0.8], 11, ["case", ["get", "major"], 2, 1.1]] } }, before);
+    if (!map.getLayer("zas-iso-t")) map.addLayer({ id: "zas-iso-t", type: "symbol", source: "zas-iso", layout: { visibility: "none", "symbol-placement": "line", "symbol-spacing": 260, "text-field": ["get", "t"], "text-size": 11, "text-font": ["Noto Sans Bold"], "text-max-angle": 30, "text-padding": 4 }, paint: { "text-color": ["coalesce", ["get", "c"], "#1d1d1f"], "text-halo-color": "rgba(255,255,255,.92)", "text-halo-width": 1.6 } });
   }
   function setVisible(gid) {
     for (const g of GROUPS) { const l = "zas-" + g.id + "-r"; if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", g.id === gid ? "visible" : "none"); }
-    for (const l of ["zas-iso-l", "zas-iso-t"]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", gid && state.iso ? "visible" : "none");
+    for (const l of ["zas-iso-c", "zas-iso-l", "zas-iso-t"]) if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", gid && state.iso ? "visible" : "none");
   }
 
   /* Colour the visible window and draw its contours. */
@@ -167,7 +177,7 @@
     let a = new Float64Array(cw * ch); const ok = new Uint8Array(cw * ch);
     const air = !!L.breaks;
     for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) { const v = at(px0 + (i + 0.5) * ww / cw, py0 + (j + 0.5) * wh / ch); const k = j * cw + i; if (Number.isFinite(v)) { a[k] = tr(L, v); ok[k] = 1; } else a[k] = NaN; }
-    if (!air) for (let pass = 0; pass < 2; pass++) { // light 3x3 blur so lines follow the field, not pixel noise
+    if (!air) for (let pass = 0; pass < 5; pass++) { // light 3x3 blur so lines follow the field, not pixel noise
       const b = new Float64Array(a.length);
       for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) { let s = 0, n = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const x = i + di, y = j + dj; if (x < 0 || y < 0 || x >= cw || y >= ch) continue; const v = a[y * cw + x]; if (Number.isFinite(v)) { s += v; n++; } } b[j * cw + i] = ok[j * cw + i] && n ? s / n : NaN; }
       a = b;
@@ -190,9 +200,13 @@
     polys.forEach((p, n) => {
       const raw = L.enc[0] === "sqrt" ? p.value ** 2 : p.value, lab = air ? `${nf(raw, raw % 1 ? 2 : 0)}` : (dg ? nf(raw, dg) : ni(raw));
       const major = air ? true : Math.abs(Math.round(raw / (step * 2)) * step * 2 - raw) < step * 0.01;
+      // kolor linii = barwa skali w tym miejscu, przyciemniona, by była czytelna na własnym tle
+      const base = air ? classColor(L, raw * 1.0001) : ramp(L.pal, (p.value - tr(L, lo)) / Math.max(1e-9, tr(L, hi) - tr(L, lo)));
+      const c = isoColor(base);
       for (const poly of p.coordinates) for (const ring of poly) {
+        if (!air && ring.length < 16) continue; // drobne pętle tylko zaśmiecają mapę
         let run = [];
-        const flush = () => { if (run.length > 2) feats.push({ type: "Feature", geometry: { type: "LineString", coordinates: run.map(toLL) }, properties: { t: lab, major } }); run = []; };
+        const flush = () => { if (run.length > 2) feats.push({ type: "Feature", geometry: { type: "LineString", coordinates: run.map(toLL) }, properties: { t: lab, major, c } }); run = []; };
         for (const pt of ring) { if (valid(pt[0], pt[1])) run.push(pt); else flush(); }
         flush();
       }
