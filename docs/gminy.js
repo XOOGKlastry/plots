@@ -7,7 +7,7 @@
   const categories = ["Przegląd", "Ludność", "Migracje", "Dojazdy", "Rodziny", "Finanse i firmy", "Warunki życia", "Handel", "Paczki", "Transport", "Zdrowie i służby", "Szkoły i rekreacja", "Turystyka", "Energia i ciepło", "Infrastruktura", "Planowanie", "Edukacja i kultura", "Środowisko", "Wybory", "Porównanie", "Źródła"];
   const dialog = $("#gminaDialog");
   let contextRevision=0;
-  let indQuery = "", data = null, loading = null, selected = null, category = "Przegląd", pendingParcel = null, selectedYear = null;
+  let indQuery = "", data = null, loading = null, selected = null, category = "Przegląd", pendingParcel = null, selectedYear = null, trackedGmina = null;
   const categoryIcons={...Object.fromEntries(Object.entries(window.IndicatorIcons?.categories||{}).map(([k,v])=>[k,v.icon])),'Źródła':'file-text','Wybory':'envelope','Porównanie':'chart-bar'};
   const categoryTone = name => ({"Ludność":"blue","Finanse i firmy":"purple","Warunki życia":"orange","Usługi":"pink","Migracje":"cyan","Dojazdy":"cyan","Rodziny":"purple","Handel":"pink","Paczki":"orange","Transport":"cyan","Zdrowie i służby":"orange","Szkoły i rekreacja":"pink","Turystyka":"green","Infrastruktura":"cyan","Energia i ciepło":"orange","Planowanie":"purple","Edukacja i kultura":"pink","Środowisko":"green"}[name] || "blue");
   async function loadGus(g, force) {
@@ -47,6 +47,7 @@
   }
   function drawCard() {
     if (!selected) { chooser(); return; }
+    if (trackedGmina !== selected.k) { trackedGmina = selected.k; window.Track?.("gmina_wybrana",{gmina:selected.n,teryt:selected.k,typ:selected.typ}); }
     selected._selectedYear = null;
     const m = model.metrics(selected), pop = m.find((x) => x.key === "ludnosc"), area = m.find((x) => x.key === "powierzchnia");
     $("#gminaCard").innerHTML = `<button type="button" class="gmina-back" data-choose-gmina>${icon("back")}Zmień gminę</button><div class="gmina-head"><div><h2>${esc(selected.n)}${popTag(selected)}</h2><div class="gmina-type">${esc(selected.typ || "Gmina")}</div>${capitalNote(selected)}</div>${window.MunicipalityCrests.render(selected)}</div><p class="muted small">${esc(region(selected))}</p><div class="gmina-stats"><div class="gmina-stat"><strong>${esc(model.formatValue(pop, false))}</strong><small>mieszkańców${pop.year ? " · " + pop.year : ""}</small></div><div class="gmina-stat"><strong>${esc(model.formatValue(area, false))}</strong><small>km²${area.year ? " · " + area.year : " · rok niepodany"}</small></div></div><button type="button" class="primary" data-gmina-details>Dane gminy ${icon("arrow")}</button><button type="button" class="gmina-report-link" data-gmina-report>${Icons.svg("file-text")}Raport PDF z wszystkimi danymi</button><div class="gmina-source"><span>TERYT ${esc(selected.k)}</span><span>GUS BDL</span></div><p class="boundary-key"><i></i>Granica gminy${selected.k.endsWith('3')?'<span><i></i>Obszar miasta</span>':''}</p>`;
@@ -58,7 +59,7 @@
     try {
       await load();if(context!==contextRevision)return; const g = data.gminy.find((item) => item.k === id);
       if (!g) { app.toast("Brak profilu tej gminy w bieżącym zestawie"); return; }
-      selected = g;app.setCurrentPlace(null); category = "Przegląd";window.Track?.("gmina_wybrana",{gmina:g.n,teryt:g.k,typ:g.typ});
+      selected = g;app.setCurrentPlace(null); category = "Przegląd";
       selectedYear = null;
       await window.GusClient.seed(g).catch(()=>{});if(context!==contextRevision)return;
       app.store.set("gmina", g.k); app.store.set("gminyRecent", [g.k, ...recentIds().filter((k) => k !== g.k)].slice(0, 5));
