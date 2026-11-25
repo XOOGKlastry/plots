@@ -390,6 +390,7 @@
         `<p>${esc(WH_USE[p.k] || WH_USE.p)}</p><p class="muted small">Odległość liczona w linii prostej. Przebieg rur pokazuje warstwa „Sieć ciepłownicza (GESUT)” po dużym przybliżeniu.</p>` };
   }
 
+  const ytLink = (id, alt) => id ? `<p><a href="https://www.youtube.com/watch?v=${esc(id)}" target="_blank" rel="noopener"><img src="https://img.youtube.com/vi/${esc(id)}/mqdefault.jpg" alt="" loading="lazy" style="width:100%;border-radius:8px"/><br/>Obejrzyj film</a></p>` : alt ? `<p><a href="${alt}" target="_blank" rel="noopener">Kanał na YouTube</a></p>` : "";
   const LAYERS = [
     { id: "cieplo", box: "energyLayers", label: "Ciepło odpadowe", desc: "Oczyszczalnie, serwerownie i zakłady blisko sieci ciepłowniczej", kw: "ciepło odpadowe oczyszczalnia ścieków serwerownia data center pompa ciepła ciepłownictwo sieć ciepłownicza ciepło systemowe przemysł e-prtr odzysk ciepła",
       icon: ["thermometer-hot", "#e8590c"], url: "data/energia/cieplo.geojson",
@@ -447,6 +448,20 @@
       card: p => { const t = MIL[p.k] || MIL.t; return { title: p.n || t[0], src: "OpenStreetMap (współtwórcy OpenStreetMap, ODbL)",
         body: `<p class="gs-st"><i style="background:${t[1]}"></i>${esc(t[0])}</p>` + row("Powierzchnia", p.ha ? `${fmt(p.ha, 0)} ha` : "") +
           `<p class="muted small">Granice według OpenStreetMap są orientacyjne. Czy działka leży na terenie zamkniętym, potwierdza wypis z ewidencji gruntów w starostwie. Budowa w sąsiedztwie poligonu może wymagać uzgodnienia z organem wojskowym.</p>` }; } },
+    { id: "yt-drogi", box: "youtubeLayers", label: "Ciekawostki drogowe", desc: "Dziwne drogi, mosty, przejazdy i nazwy z serii kanału Autostrady Polska", kw: "ciekawostki drogowe youtube autostrady polska droga most brod prom przejazd kolejowy granica dziwna nazwa pomnik film",
+      icon: ["road-horizon", "#212529"], url: "data/youtube/ciekawostki.geojson",
+      layers: s => [{ id: "x-yt-drogi", type: "circle", source: s, paint: { "circle-color": ["concat", "#", ["get", "c"]], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 7, 14, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } },
+        { id: "x-yt-drogi-lbl", type: "symbol", source: s, minzoom: 10, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 14 }, paint: { "text-color": "#343a40", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => legendRow([["#000000", "droga"], ["#0288D1", "woda"], ["#795548", "kolej"], ["#0097A7", "pomniki"], ["#FFEA00", "kolej i woda"], ["#673AB7", "granica"], ["#0F9D58", "przyroda"], ["#FF5252", "dziwna nazwa"], ["#F9A825", "inne"], ["#1A237E", "zagraniczne"]]) + note("Miejsca z serii „Ciekawostki drogowe”, odcinki 1–14. Za zgodą autora. Źródło: kanał Autostrady Polska (YouTube), mapa w Moich Mapach Google."),
+      card: p => ({ title: p.n, src: "Autostrady Polska (YouTube), za zgodą autora",
+        body: `<p class="gs-st"><i style="background:#${esc(p.c || "000000")}"></i>${esc(p.k || "ciekawostka")}${p.o ? ` · odcinek ${esc(p.o)}` : ""}</p>` + (p.opis ? `<p>${esc(p.opis)}</p>` : "") + ytLink(p.yt, "https://www.youtube.com/c/AutostradyPolska1978") }) },
+    { id: "yt-legendy", box: "youtubeLayers", label: "Legendy polskiego YouTube", desc: "Miejsca słynnych scen z polskich filmów na YouTube", kw: "legendy polskiego youtube memy słynne sceny filmy youtuberzy miejsca kultowe nagrania",
+      icon: ["film-strip", "#e03131"], url: "data/youtube/legendy.geojson",
+      layers: s => [{ id: "x-yt-leg", type: "circle", source: s, paint: { "circle-color": "#fa5252", "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 7, 14, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } },
+        { id: "x-yt-leg-lbl", type: "symbol", source: s, minzoom: 10, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 14 }, paint: { "text-color": "#a61e1e", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => note("Miejsca, w których nagrano słynne sceny z polskich filmów na YouTube, i miejsca związane z ich bohaterami. Za zgodą autora. Źródło: mapa „Legendy Polskiego YouTube” w Moich Mapach Google."),
+      card: p => ({ title: p.n, src: "„Legendy Polskiego YouTube” (Moje Mapy Google), za zgodą autora",
+        body: (p.opis ? `<p>${esc(p.opis)}</p>` : "") + ytLink(p.yt) }) },
     { id: "zanikle", box: "urbexLayers", label: "Wsie bez mieszkańców", desc: "Miejscowości z urzędową nazwą, w których w spisie 2021 nikt nie mieszkał", kw: "zanikłe wsie wymarłe wsie miejscowości bez mieszkańców wyludnienie opuszczone wsie spis 2021 nsp prng",
       icon: ["house-line", "#6741d9"], url: "data/zanikle/puste.geojson",
       layers: s => [
@@ -614,7 +629,7 @@
       legend: () => legendRow([["#732600","1 pszenny bardzo dobry","box"],["#d3715b","2 pszenny dobry","box"],["#fac1a2","3 pszenny wadliwy","box"],["#fe6b00","4 żytni bardzo dobry","box"],["#febe00","5 żytni dobry","box"],["#fefa00","6 żytni słaby","box"],["#fef680","7 żytni bardzo słaby","box"],["#004c73","8 zbożowo-pastewny mocny","box"],["#1482ff","9 zbożowo-pastewny słaby","box"],["#a80084","10–14 górskie","box"],["#4c7300","1z użytki zielone bardzo dobre i dobre","box"],["#88c31f","2z użytki zielone średnie","box"],["#c7ee98","3z użytki zielone słabe","box"]]) + note("Kompleksy przydatności rolniczej gleb. Białe kropki to tereny leśne lub poza gruntami rolnymi, kreskowanie to zabudowa. Widoczna po przybliżeniu mapy. Źródło: GUGiK, mapa glebowo-rolnicza (usługa WMS, geoportal.gov.pl).") +
         `<p class="small"><a href="${GPW}/pub/guest/MapaGlebowoRolnicza/MapServer/WMSServer?request=GetLegendGraphic&version=1.3.0&format=image/png&layer=0" target="_blank" rel="noopener">Pełna legenda GUGiK (typy i gatunki gleb)</a></p>` },
   ];
-  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył", urbexLayers: "Opuszczone miejsca" };
+  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył", urbexLayers: "Opuszczone miejsca", youtubeLayers: "Ciekawostki z YouTube" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
 
   /* ---------- engine ---------- */
