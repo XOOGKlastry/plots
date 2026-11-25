@@ -9,7 +9,7 @@
   const fmt = (v, d = 1) => (+v).toLocaleString("pl-PL", { minimumFractionDigits: d, maximumFractionDigits: d });
   const link = (href, text) => href ? `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>` : "";
   const row = (k, v) => v || v === 0 ? `<p><span class="muted">${esc(k)}:</span> <b>${esc(String(v))}</b></p>` : "";
-  const legendRow = items => `<div class="terr-legend">${items.map(([c, l, kind]) => `<span><i style="${kind === "line" ? `background:${c};height:3px;border-radius:2px` : kind === "dash" ? `background:repeating-linear-gradient(90deg,${c} 0 5px,transparent 5px 8px);height:3px;border:0` : kind === "box" ? `background:${c};opacity:.75;border-radius:2px` : `background:${c};border-radius:50%`}"></i>${esc(l)}</span>`).join("")}</div>`;
+  const legendRow = items => `<div class="terr-legend">${items.map(([c, l, kind]) => `<span><i style="${kind === "line" ? `background:${c};height:3px;border-radius:2px` : kind === "dash" ? `background:repeating-linear-gradient(90deg,${c} 0 5px,transparent 5px 8px);height:3px;border:0` : kind === "box" ? `background:${c};opacity:.75;border-radius:2px` : kind === "ring" ? `background:#fff;border:2px solid ${c};border-radius:50%;box-sizing:border-box` : `background:${c};border-radius:50%`}"></i>${esc(l)}</span>`).join("")}</div>`;
   const note = t => `<small class="terr-unit">${esc(t)}</small>`;
   const dist = (a, b) => { const k = Math.PI / 180, x = (b.lon - a.lon) * k * Math.cos((a.lat + b.lat) / 2 * k), y = (b.lat - a.lat) * k; return Math.hypot(x, y) * 6371000; };
   const fmtD = m => m < 950 ? `${Math.round(m / 10) * 10} m` : `${fmt(m / 1000, m < 10000 ? 1 : 0)} km`;
@@ -374,7 +374,37 @@
   const MIL = { t: ["teren wojskowy", "#868e96"], p: ["poligon lub strzelnica", "#e8590c"], c: ["teren ćwiczeń", "#f59f00"], l: ["lotnisko wojskowe", "#495057"], b: ["baza wojskowa", "#5c7cfa"], n: ["obszar niebezpieczny", "#e03131"] };
   const PSE_COL = { b: "#c2255c", p: "#f783ac" };
 
+  /* ---------- waste heat ---------- */
+  const WH_K = { o: ["oczyszczalnia ścieków", "drop"], d: ["serwerownia", "hard-drives"], p: ["zakład przemysłowy (E-PRTR)", "factory"] };
+  const WH_O = { 1: ["do 2 km od ciepłowni lub sieci", "#2f9e44"], 2: ["2–5 km od ciepłowni lub sieci", "#f59f00"], 3: ["dalej niż 5 km albo gmina bez sieci", "#adb5bd"] };
+  const WH_USE = { o: "Ścieki mają przez cały rok 10–20 °C. Pompa ciepła na odpływie z oczyszczalni daje ciepło do sieci niskotemperaturowej, zwykle kilka MW na 100 tys. mieszkańców.",
+    d: "Serwerownia oddaje prawie całą pobraną energię elektryczną jako ciepło o temperaturze 25–40 °C. Z pompą ciepła można je oddać do sieci ciepłowniczej.",
+    p: "Zakład spala paliwo lub prowadzi procesy wysokotemperaturowe, więc część ciepła trafia do atmosfery. Wielkość emisji CO₂ daje przybliżenie skali." };
+  function whCard(p) {
+    const k = WH_K[p.k] || WH_K.p, o = WH_O[p.o] || WH_O[3];
+    return { title: p.n || k[0], src: p.k === "p" ? "EEA, E-PRTR v16 (CC BY 4.0); ciepłownie: URE; sieć cieplna: GUS BDL" : "OpenStreetMap (ODbL); ciepłownie: URE; sieć cieplna: GUS BDL",
+      body: `<p class="gs-st"><i style="background:${o[1]}"></i>${esc(k[0])} · ${esc(o[0])}</p>` + row("Miejscowość", p.m) + row("Operator", p.op) +
+        row("Najbliższa ciepłownia lub elektrociepłownia", p.dc != null ? `${fmt(p.dc, 1)} km${p.cr ? ` (${p.cr})` : ""}` : "") +
+        row("Najbliższa rura ciepłownicza w OpenStreetMap", p.dr != null && p.dr < 30 ? `${fmt(p.dr, 1)} km` : "") +
+        row("Sieć cieplna w gminie", p.s ? `${fmt(p.s, 1)} km` : "brak sieci koncesjonowanej") + row("Emisja CO₂", p.co2 ? `${fmt(p.co2, 0)} t rocznie` : "") +
+        `<p>${esc(WH_USE[p.k] || WH_USE.p)}</p><p class="muted small">Odległość liczona w linii prostej. Przebieg rur pokazuje warstwa „Sieć ciepłownicza (GESUT)” po dużym przybliżeniu.</p>` };
+  }
+
   const LAYERS = [
+    { id: "cieplo", box: "energyLayers", label: "Ciepło odpadowe", desc: "Oczyszczalnie, serwerownie i zakłady blisko sieci ciepłowniczej", kw: "ciepło odpadowe oczyszczalnia ścieków serwerownia data center pompa ciepła ciepłownictwo sieć ciepłownicza ciepło systemowe przemysł e-prtr odzysk ciepła",
+      icon: ["thermometer-hot", "#e8590c"], url: "data/energia/cieplo.geojson",
+      layers: s => [{ id: "x-cieplo", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "o"], 1, WH_O[1][1], 2, WH_O[2][1], WH_O[3][1]],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "k"], "p", 3.5, 2.5], 12, ["match", ["get", "k"], "p", 8, 6.5]],
+          "circle-stroke-color": ["match", ["get", "k"], "o", "#1c7ed6", "d", "#7048e8", "#5c1a1a"], "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 2.2] } },
+        { id: "x-cieplo-lbl", type: "symbol", source: s, minzoom: 11, layout: { "text-field": ["coalesce", ["get", "n"], ""], "text-size": 10.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#7a2a05", "text-halo-color": "#fff", "text-halo-width": 1.5 } }],
+      legend: () => legendRow(Object.values(WH_O).map(([l, c]) => [c, l])) + legendRow([["#1c7ed6", "obwódka: oczyszczalnia ścieków", "ring"], ["#7048e8", "serwerownia", "ring"], ["#5c1a1a", "zakład przemysłowy", "ring"]]) +
+        note("Źródła ciepła odpadowego i ich odległość od najbliższej ciepłowni lub elektrociepłowni z koncesją URE albo rury ciepłowniczej z OpenStreetMap. Zielone i żółte leżą w gminach z siecią cieplną (GUS BDL). Oczyszczalnie i serwerownie: OpenStreetMap. Zakłady: E-PRTR bez energetyki, odpadów i hodowli."),
+      card: p => whCard(p) },
+    { id: "siec-ciepl", box: "energyLayers", label: "Sieć ciepłownicza (GESUT)", desc: "Przewody ciepłownicze z ewidencji uzbrojenia terenu", kw: "sieć ciepłownicza przewody ciepłownicze rury gesut kiut uzbrojenie terenu ciepło systemowe",
+      icon: ["path", "#d6336c"], minz: 15, attr: "GUGiK, Krajowa Integracja Uzbrojenia Terenu",
+      tiles: () => wmsT("https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaUzbrojeniaTerenu", "przewod_cieplowniczy", "&TRANSPARENT=TRUE", "image/png"),
+      layers: s => [{ id: "x-siec-ciepl", type: "raster", source: s, minzoom: 15, paint: { "raster-fade-duration": 0 } }],
+      legend: () => note("Przewody ciepłownicze z powiatowych baz GESUT (różowe linie z opisem średnicy). Widoczne od skali około 1:17 000. Nie wszystkie powiaty udostępniają dane. Źródło: GUGiK, Krajowa Integracja Uzbrojenia Terenu (geoportal.gov.pl).") },
     { id: "gios", box: "airLayers", label: "Stacje pomiarowe GIOŚ", desc: "Pomiary 2025 na tle norm, link do bieżących danych", kw: "stacje pomiarowe gioś monitoring powietrza pomiary indeks jakości powietrza smog",
       icon: ["broadcast", "#34a383"], url: "data/gios/stacje.json", toGeo: stationsGeo,
       layers: s => [{ id: "x-gios", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "st"], 3, ST_COL[3], 2, ST_COL[2], 1, ST_COL[1], ST_COL[0]], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 7, 14, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 2 } },
