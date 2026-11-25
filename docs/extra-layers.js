@@ -391,6 +391,7 @@
   }
 
   const ytLink = (id, alt) => id ? `<p><a href="https://www.youtube.com/watch?v=${esc(id)}" target="_blank" rel="noopener"><img src="https://img.youtube.com/vi/${esc(id)}/mqdefault.jpg" alt="" loading="lazy" style="width:100%;border-radius:8px"/><br/>Obejrzyj film</a></p>` : alt ? `<p><a href="${alt}" target="_blank" rel="noopener">Kanał na YouTube</a></p>` : "";
+  const MSBD = { u: ["w użytkowaniu", "#343a40"], r: ["w realizacji", "#e03131"], p: ["w przetargu", "#2f9e44"], g: ["w przygotowaniu", "#1c7ed6"] };
   const LAYERS = [
     { id: "cieplo", box: "energyLayers", label: "Ciepło odpadowe", desc: "Oczyszczalnie, serwerownie i zakłady blisko sieci ciepłowniczej", kw: "ciepło odpadowe oczyszczalnia ścieków serwerownia data center pompa ciepła ciepłownictwo sieć ciepłownicza ciepło systemowe przemysł e-prtr odzysk ciepła",
       icon: ["thermometer-hot", "#e8590c"], url: "data/energia/cieplo.geojson",
@@ -417,6 +418,13 @@
       },
       legend: () => legendRow(Object.values(SEC).map(([l, c]) => [c, l])) + note("Wielkość punktu według rocznej emisji CO₂ (gdy jej brak, według tlenków azotu). Ponad 680 zakładów, które zgłosiły emisje za lata 2022–2024. Źródło: Europejska Agencja Środowiska, Industrial Reporting (E-PRTR), wersja 16 z lutego 2026 r., CC BY 4.0."),
       card: (p, d) => eprtrCard(p, d) },
+    { id: "msbd", box: "transportLayers", label: "Budowa dróg krajowych (GDDKiA)", desc: "Autostrady, ekspresówki i obwodnice: w użytkowaniu, budowie, przetargu, przygotowaniu", kw: "budowa dróg gddkia mapa stanu budowy dróg autostrada droga ekspresowa obwodnica inwestycje drogowe przetarg realizacja przygotowanie",
+      icon: ["road-horizon", "#e03131"], url: "data/drogi/msbd.geojson",
+      layers: s => [{ id: "x-msbd", type: "line", source: s, maxzoom: 11, layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["match", ["get", "s"], "u", 0, 1] },
+        paint: { "line-color": ["match", ["get", "s"], "r", MSBD.r[1], "p", MSBD.p[1], "g", MSBD.g[1], MSBD.u[1]], "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "s"], "u", 1.2, 2.5], 10, ["match", ["get", "s"], "u", 3, 5]], "line-opacity": .9 } }],
+      legend: () => legendRow(Object.values(MSBD).map(([l, c]) => [c, l, "line"])) + note("Stan według Mapy Stanu Budowy Dróg GDDKiA. Przebieg jest schematyczny: przeniesiony ze schematów województw i dopasowany do granic PRG, więc może odbiegać od drogi o 1–2 km, dlatego warstwa znika przy dużym przybliżeniu. Nazwy i terminy odcinków podaje GDDKiA."),
+      card: p => { const t = MSBD[p.s] || MSBD.u; return { title: (p.t === "A" ? "Autostrada" : p.t === "S" ? "Droga ekspresowa" : "Droga krajowa") + ": " + t[0], src: "GDDKiA, Mapa Stanu Budowy Dróg (gov.pl)",
+        body: `<p class="gs-st"><i style="background:${t[1]}"></i>${esc(t[0])}</p><p><a href="https://www.gov.pl/web/gddkia/msbd" target="_blank" rel="noopener">Lista odcinków i szczegóły w GDDKiA</a></p><p class="muted small">Przebieg schematyczny, dokładność 1–2 km.</p>` }; } },
     { id: "mapa-drogowa", box: "transportLayers", label: "Mapa drogowa na osi czasu", desc: "Drogi, kolej i decyzje drogowe, suwak lat 2023–2032", kw: "mapa drogowa oś czasu harmonogram kiedy otwarcie drogi kolej inwestycje suwak lat zrid plan",
       icon: ["calendar-dots", "#2b8a3e"], url: "mapa-drogowa", fetch: mdFetch, side: "data/drogi/gddkia.json", side2: ["mapa-drogowa-k", "data/kolej/kolejplus.json"],
       layers: s => [
