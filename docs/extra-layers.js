@@ -400,11 +400,6 @@
       legend: () => legendRow(Object.values(WH_O).map(([l, c]) => [c, l])) + legendRow([["#1c7ed6", "obwódka: oczyszczalnia ścieków", "ring"], ["#7048e8", "serwerownia", "ring"], ["#5c1a1a", "zakład przemysłowy", "ring"]]) +
         note("Źródła ciepła odpadowego i ich odległość od najbliższej ciepłowni lub elektrociepłowni z koncesją URE albo rury ciepłowniczej z OpenStreetMap. Zielone i żółte leżą w gminach z siecią cieplną (GUS BDL). Oczyszczalnie i serwerownie: OpenStreetMap. Zakłady: E-PRTR bez energetyki, odpadów i hodowli."),
       card: p => whCard(p) },
-    { id: "siec-ciepl", box: "energyLayers", label: "Sieć ciepłownicza (GESUT)", desc: "Przewody ciepłownicze z ewidencji uzbrojenia terenu", kw: "sieć ciepłownicza przewody ciepłownicze rury gesut kiut uzbrojenie terenu ciepło systemowe",
-      icon: ["path", "#d6336c"], minz: 15, attr: "GUGiK, Krajowa Integracja Uzbrojenia Terenu",
-      tiles: () => wmsT("https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaUzbrojeniaTerenu", "przewod_cieplowniczy", "&TRANSPARENT=TRUE", "image/png"),
-      layers: s => [{ id: "x-siec-ciepl", type: "raster", source: s, minzoom: 15, paint: { "raster-fade-duration": 0 } }],
-      legend: () => note("Przewody ciepłownicze z powiatowych baz GESUT (różowe linie z opisem średnicy). Widoczne od skali około 1:17 000. Nie wszystkie powiaty udostępniają dane. Źródło: GUGiK, Krajowa Integracja Uzbrojenia Terenu (geoportal.gov.pl).") },
     { id: "gios", box: "airLayers", label: "Stacje pomiarowe GIOŚ", desc: "Pomiary 2025 na tle norm, link do bieżących danych", kw: "stacje pomiarowe gioś monitoring powietrza pomiary indeks jakości powietrza smog",
       icon: ["broadcast", "#34a383"], url: "data/gios/stacje.json", toGeo: stationsGeo,
       layers: s => [{ id: "x-gios", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "st"], 3, ST_COL[3], 2, ST_COL[2], 1, ST_COL[1], ST_COL[0]], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 7, 14, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 2 } },
@@ -502,6 +497,11 @@
       legend: () => legendRow([["#c2255c", "planowana linia KDP (przebieg orientacyjny)", "dash"]]) + note("Przebieg z OpenStreetMap, odwzorowany przez wolontariuszy na podstawie publikowanych wariantów. Wiążące są decyzje środowiskowe i lokalizacyjne Port Polska (CPK). Mapy Port Polska nie wolno powielać, dlatego podajemy tylko odnośnik.") + `<p class="small">${link("https://portpolska.pl/pl/program-kolejowy", "Mapa inwestycji kolejowych Port Polska z działkami")}</p>`,
       card: p => ({ title: p.n || "Planowana linia kolei dużych prędkości", src: "OpenStreetMap (przebieg orientacyjny)",
         body: `<p class="gs-st"><i style="background:#c2255c"></i>${p.k === "b" ? "W budowie" : "Planowana"}</p><p>Linia kolei dużych prędkości. Przebieg w OpenStreetMap jest orientacyjny i może dotyczyć jednego z wariantów.</p><p>Czy działka leży w pasie inwestycji, sprawdzisz na ${link("https://portpolska.pl/pl/program-kolejowy", "mapie inwestycji kolejowych Port Polska")} (decyzje środowiskowe, plany rezerwacji terenu, decyzje lokalizacyjne).</p>` }) },
+    { id: "noc", box: "terrainLayers", label: "Nocne światło (satelita)", desc: "Zdjęcie Ziemi nocą z satelity VIIRS, kompozycja z 2016 r.", kw: "nocne światło światła nocą satelita viirs black marble nasa zanieczyszczenie światłem łuna miasta oświetlenie ciemne niebo",
+      icon: ["sparkle", "#3b4a8c"], maxz: 8, attr: "NASA Earth Observatory, Black Marble 2016 (GIBS)",
+      tiles: () => "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png",
+      layers: s => [{ id: "x-noc", type: "raster", source: s, paint: { "raster-opacity": 0.85, "raster-fade-duration": 0 } }],
+      legend: () => note("Jasne plamy to oświetlone miasta, drogi i zakłady, ciemne to obszary bez sztucznego światła (dobre do obserwacji nieba). Kompozycja bezchmurnych nocy z 2016 r., szczegółowość około 500 m, więc przy dużym przybliżeniu obraz się rozmywa. Źródło: NASA Earth Observatory, Black Marble (usługa NASA GIBS).") },
     { id: "susza", box: "terrainLayers", label: "Zagrożenie suszą", desc: "Rolnicza, hydrologiczna, hydrogeologiczna, atmosferyczna (PPSS 2021)", kw: "susza zagrożenie suszą rolnicza hydrologiczna hydrogeologiczna atmosferyczna ppss appss wody polskie retencja niedobór wody",
       icon: ["drop", "#e0441f"], url: "susza-ppss2021", fetch: () => suFile(suT), fillClick: true,
       layers: s => [
