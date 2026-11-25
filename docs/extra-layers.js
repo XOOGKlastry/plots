@@ -447,6 +447,14 @@
       card: p => { const t = MIL[p.k] || MIL.t; return { title: p.n || t[0], src: "OpenStreetMap (współtwórcy OpenStreetMap, ODbL)",
         body: `<p class="gs-st"><i style="background:${t[1]}"></i>${esc(t[0])}</p>` + row("Powierzchnia", p.ha ? `${fmt(p.ha, 0)} ha` : "") +
           `<p class="muted small">Granice według OpenStreetMap są orientacyjne. Czy działka leży na terenie zamkniętym, potwierdza wypis z ewidencji gruntów w starostwie. Budowa w sąsiedztwie poligonu może wymagać uzgodnienia z organem wojskowym.</p>` }; } },
+    { id: "zanikle", box: "urbexLayers", label: "Wsie bez mieszkańców", desc: "Miejscowości z urzędową nazwą, w których w spisie 2021 nikt nie mieszkał", kw: "zanikłe wsie wymarłe wsie miejscowości bez mieszkańców wyludnienie opuszczone wsie spis 2021 nsp prng",
+      icon: ["house-line", "#6741d9"], url: "data/zanikle/puste.geojson",
+      layers: s => [
+        { id: "x-zanikle", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "r"], "wieś", "#6741d9", "#b197fc"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3.5, 10, 6, 14, 8], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } },
+        { id: "x-zanikle-lbl", type: "symbol", source: s, minzoom: 9, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#4b2c9e", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => legendRow([["#6741d9", "wieś"], ["#b197fc", "osada, kolonia, przysiółek"]]) + note("Miejscowość z Państwowego Rejestru Nazw Geograficznych leży w obwodzie spisowym, w którym w NSP 2021 nie spisano żadnego mieszkańca. To dolne oszacowanie: pusta wieś w jednym obwodzie z zamieszkaną się tu nie pojawi. Źródła: GUGiK, PRNG; GUS, Narodowy Spis Powszechny 2021 (ludność w obwodach spisowych)."),
+      card: p => ({ title: p.n, src: "GUGiK, PRNG; GUS, NSP 2021 (obwody spisowe)",
+        body: `<p class="gs-st"><i style="background:${p.r === "wieś" ? "#6741d9" : "#b197fc"}"></i>${esc(p.r || "miejscowość")} · gmina ${esc(p.g || "")}</p><p>W spisie 2021 nikt tu nie mieszkał, ale nazwa wciąż jest urzędowa.</p>` }) },
     { id: "urbex", box: "urbexLayers", label: "Opuszczone miejsca (urbex)", desc: "Opuszczone fabryki, bunkry, pałace, szpitale i inne obiekty", kw: "urbex opuszczone miejsca ruiny bunkier fabryka pałac dwór szpital opuszczony pustostan eksploracja militarne podziemia tunele",
       icon: ["warning", "#e8590c"], url: "data/urbex/miejsca.geojson",
       layers: s => [
