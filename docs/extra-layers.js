@@ -526,13 +526,24 @@
           (p.o ? `<p>${esc(p.o)}</p>` : "") + (p.r ? `<p>${esc(p.r)}</p>` : "") + (p.m ? `<p class="small">${esc(p.m)}</p>` : "") +
           (p.u ? `<p>${link(p.u, "Opis w zabytek.pl")}</p>` : "") }) },
     { id: "granice-gmin", box: "cadastralLayers", label: "Granice gmin", desc: "Granice wszystkich gmin, powiatów i województw, upraszczane zależnie od przybliżenia", kw: "granice gmin powiatów województw mapa administracyjna podział prg",
-      icon: ["poland", "#495057"], vtiles: "data/granice/gminy.pmtiles", attr: "GUGiK PRG",
+      icon: ["poland", "#495057"], url: "granice-topo", attr: "GUGiK PRG",
+      /* Linie z tego samego pliku granic gmin, którego aplikacja już używa (każdy wspólny odcinek raz); MapLibre sam upraszcza je zależnie od zoomu. */
+      fetch: async () => { const t = await (window.MunicipalityContext.topology() ? Promise.resolve() : window.MunicipalityContext.ready()).then(() => window.MunicipalityContext.topology());
+        const tr = t.transform, own = new Map(), seen = new Set();
+        const walk = (a, k) => Array.isArray(a) ? a.forEach(x => walk(x, k)) : (own.get(a < 0 ? ~a : a) || own.set(a < 0 ? ~a : a, []).get(a < 0 ? ~a : a)).push(k);
+        for (const o of Object.values(t.objects)) for (const g of o.geometries || []) { if (!g.arcs || seen.has(g.properties.k)) continue; seen.add(g.properties.k); walk(g.arcs, g.properties); }
+        const features = [];
+        t.arcs.forEach((arc, i) => { const ps = own.get(i); if (!ps || ps.length < 2) return; const [a, b] = ps, ka = String(a.k), kb = String(b.k);
+          let x = 0, y = 0; const c = arc.map(q => { x += q[0]; y += q[1]; return [x * tr.scale[0] + tr.translate[0], y * tr.scale[1] + tr.translate[1]]; });
+          const nm = p => p.n + (/1$/.test(String(p.k)) ? " (miasto)" : /2$/.test(String(p.k)) ? " (gm. wiejska)" : "");
+          features.push({ type: "Feature", properties: { l: ka.slice(0, 2) !== kb.slice(0, 2) ? 2 : ka.slice(0, 4) !== kb.slice(0, 4) ? 1 : 0, a: nm(a), b: nm(b) }, geometry: { type: "LineString", coordinates: c } }); });
+        return { type: "FeatureCollection", features }; },
       layers: s => [
-        { id: "x-gr-gm", type: "line", source: s, "source-layer": "g", minzoom: 8, filter: ["==", ["get", "l"], 0], paint: { "line-color": "#495057", "line-width": ["interpolate", ["linear"], ["zoom"], 8, .6, 12, 1.6], "line-opacity": .8 } },
-        { id: "x-gr-pow", type: "line", source: s, "source-layer": "p", minzoom: 6, filter: ["==", ["get", "l"], 1], paint: { "line-color": "#364fc7", "line-width": ["interpolate", ["linear"], ["zoom"], 6, .7, 12, 2.4] } },
-        { id: "x-gr-woj", type: "line", source: s, "source-layer": "w", paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 12, 3.5] } },
-        { id: "x-gr-hl", type: "line", source: s, "source-layer": "g", minzoom: 8, filter: ["==", ["get", "a"], "-"], layout: { "line-cap": "round" }, paint: { "line-color": "#f59f00", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 4, 12, 8], "line-opacity": .9 }, noClick: true },
-        { id: "x-gr-hit", type: "line", source: s, "source-layer": "g", minzoom: 8, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 12 } }],
+        { id: "x-gr-gm", type: "line", source: s, minzoom: 7, filter: ["==", ["get", "l"], 0], paint: { "line-color": "#495057", "line-width": ["interpolate", ["linear"], ["zoom"], 7, .5, 12, 1.6], "line-opacity": .8 } },
+        { id: "x-gr-pow", type: "line", source: s, minzoom: 5.5, filter: ["==", ["get", "l"], 1], paint: { "line-color": "#364fc7", "line-width": ["interpolate", ["linear"], ["zoom"], 6, .7, 12, 2.4] } },
+        { id: "x-gr-woj", type: "line", source: s, filter: ["==", ["get", "l"], 2], paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 12, 3.5] } },
+        { id: "x-gr-hl", type: "line", source: s, minzoom: 8, filter: ["==", ["get", "a"], "-"], layout: { "line-cap": "round" }, paint: { "line-color": "#f59f00", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 4, 12, 8], "line-opacity": .9 }, noClick: true },
+        { id: "x-gr-hit", type: "line", source: s, minzoom: 8, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 12 } }],
       onToggle: on => { if (!on || window._grHover) return; window._grHover = true;
         let key = "", raf = 0, last = null;  /* podświetlenie najechanej granicy: najwyżej raz na klatkę i tylko przy zmianie odcinka */
         const hl = f => { const k = f ? f.properties.a + "|" + f.properties.b : ""; if (k === key || !map.getLayer("x-gr-hl")) return; key = k;
@@ -540,7 +551,7 @@
         map.on("mousemove", "x-gr-hit", e => { last = e.features[0]; map.getCanvas().style.cursor = "pointer"; if (!raf) raf = requestAnimationFrame(() => { raf = 0; hl(last); }); });
         map.on("mouseleave", "x-gr-hit", () => { last = null; map.getCanvas().style.cursor = ""; hl(null); }); },
       legend: () => legendRow([["#495057", "granica gminy", "line"], ["#364fc7", "granica powiatu", "line"], ["#c2255c", "granica województwa", "line"]]) + note("Kliknij granicę, by zobaczyć, które gminy rozdziela. Włącza się sama przy ciekawostkach 4FUN o granicach. Źródło: GUGiK PRG."),
-      card: p => p.a ? ({ title: p.a + " / " + p.b, src: "GUGiK PRG", body: `<p class="gs-st"><i style="background:${["#495057", "#364fc7", "#c2255c"][p.l || 0]}"></i>Granica ${["gmin", "gmin i zarazem powiatów", "gmin, powiatów i województw"][p.l || 0]}</p><p>Wspólny odcinek: <b>${p.m >= 1000 ? fmt(p.m / 1000, 1) + " km" : p.m + " m"}</b></p>` }) : null },
+      card: p => p.a ? ({ title: p.a + " / " + p.b, src: "GUGiK PRG", body: `<p class="gs-st"><i style="background:${["#495057", "#364fc7", "#c2255c"][p.l || 0]}"></i>Granica ${["gmin", "gmin i zarazem powiatów", "gmin, powiatów i województw"][p.l || 0]}</p>` }) : null },
     { id: "ulice-dl", box: "curioLayers", label: "Najdłuższe ulice w Polsce", desc: "Ranking najdłuższych ulic w jednej miejscowości według osi ulic z PRG", kw: "najdłuższa ulica w polsce długość ulicy aleja ranking ciekawostki prg",
       icon: ["road-horizon", "#e8590c"], url: "data/granice/daleko.geojson",
       layers: s => [{ id: "x-ulice-dl", type: "line", source: s, filter: ["==", ["get", "k"], "u"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#e8590c", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 3, 12, 6] } }],
