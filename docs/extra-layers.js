@@ -481,14 +481,22 @@
       card: p => ({ title: p.n, src: "GUGiK, PRNG; GUS, NSP 2021 (obwody spisowe)",
         body: `<p class="gs-st"><i style="background:${p.r === "wieś" ? "#6741d9" : "#b197fc"}"></i>${esc(p.r || "miejscowość")} · gmina ${esc(p.g || "")}</p><p>W spisie 2021 nikt tu nie mieszkał, ale nazwa wciąż jest urzędowa.</p>` }) },
     { id: "zabytki", box: "heritageLayers", label: "Rejestr zabytków", desc: "Zabytki nieruchome wpisane do rejestru (budynki, parki, układy)", kw: "zabytki rejestr zabytków nieruchome kościół pałac dwór park zabytkowy konserwator nid ochrona konserwatorska kamienica",
-      icon: ["castle-turret", "#a61e4d"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_IMD/service.svc/get", "Immovable_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 12, attr: "Narodowy Instytut Dziedzictwa, rejestr zabytków nieruchomych",
+      icon: ["castle-turret", "#a61e4d"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_IMD/service.svc/get", "Immovable_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 12, attr: "NID, rejestr zabytków",
       layers: s => [{ id: "x-zabytki", type: "raster", source: s, paint: { "raster-opacity": .5, "raster-fade-duration": 0 } }],
       legend: () => note("Obiekty i obszary wpisane do rejestru zabytków nieruchomych. Wpis oznacza, że budowa, rozbiórka i większość prac wymaga pozwolenia wojewódzkiego konserwatora zabytków. Widoczne po przybliżeniu mapy. Opisy obiektów: zabytek.pl. Źródło: Narodowy Instytut Dziedzictwa (usługa WMS).") +
         `<p class="small"><a href="https://zabytek.pl/pl/mapa" target="_blank" rel="noopener">Mapa zabytków NID z opisami</a></p>` },
     { id: "archeo", box: "heritageLayers", label: "Stanowiska archeologiczne", desc: "Zabytki archeologiczne w rejestrze: grodziska, kurhany, osady, cmentarzyska", kw: "archeologia stanowiska archeologiczne grodzisko kurhan osada cmentarzysko azp zabytki archeologiczne rejestr nid badania",
-      icon: ["shovel", "#8a5a2b"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_AMD/service.svc/get", "Archaeological_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 11, attr: "Narodowy Instytut Dziedzictwa, rejestr zabytków archeologicznych",
+      icon: ["shovel", "#8a5a2b"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_AMD/service.svc/get", "Archaeological_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 11, attr: "NID, rejestr zabytków",
       layers: s => [{ id: "x-archeo", type: "raster", source: s, paint: { "raster-opacity": .9, "raster-fade-duration": 0 } }],
       legend: () => note("Stanowiska wpisane do rejestru zabytków archeologicznych, położenie często przybliżone. Prace ziemne w ich obrębie wymagają pozwolenia konserwatora i zwykle badań archeologicznych na koszt inwestora. Stanowisk spoza rejestru (ewidencja AZP) NID nie udostępnia jako otwartych danych. Źródło: Narodowy Instytut Dziedzictwa (usługa WMS).") },
+    { id: "grodziska", box: "heritageLayers", label: "Grodziska i kurhany", desc: "Grodziska, kurhany, megality i inne stanowiska archeologiczne z OpenStreetMap", kw: "grodzisko grodziska gród kurhan kurhany megality cmentarzysko osada archeologia słowianie wczesne średniowiecze wały",
+      icon: ["mountains", "#8a5a2b"], url: "data/zabytki/grodziska.geojson",
+      layers: s => [
+        { id: "x-grodziska", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "k"], "g", "#8a5a2b", "k", "#2b8a3e", "#868e96"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.5, 10, 5.5, 14, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 1 } },
+        { id: "x-grodziska-lbl", type: "symbol", source: s, minzoom: 11, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#5c3d1e", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => legendRow([["#8a5a2b", "grodzisko"], ["#2b8a3e", "kurhan, megality, cmentarzysko"], ["#868e96", "inne stanowisko (osada, kopalnia)"]]) + note("Stanowiska oznaczone w OpenStreetMap, także spoza rejestru zabytków. Dla zabytków objętych ochroną prawną włącz warstwę „Stanowiska archeologiczne” (rejestr NID). Źródło: OpenStreetMap (licencja ODbL)."),
+      card: p => ({ title: p.n || ({ g: "Grodzisko", k: "Kurhan" }[p.k] || "Stanowisko archeologiczne"), src: "OpenStreetMap (ODbL)",
+        body: `<p class="gs-st"><i style="background:${{ g: "#8a5a2b", k: "#2b8a3e" }[p.k] || "#868e96"}"></i>${{ g: "grodzisko", k: "kurhan, megality, cmentarzysko" }[p.k] || "stanowisko archeologiczne"}${p.e ? ", " + esc(p.e) : ""}</p>` + (p.w ? `<p>${link("https://pl.wikipedia.org/wiki/" + encodeURIComponent((p.w.split(":").slice(1).join(":") || p.w).replace(/ /g, "_")), "Wikipedia")}</p>` : "") + `<p class="small">${link(p.o, "Obiekt w OpenStreetMap")}</p>` }) },
     { id: "pomniki", box: "heritageLayers", label: "Pomniki historii i UNESCO", desc: "Najcenniejsze zabytki Polski: pomniki historii i lista światowego dziedzictwa", kw: "pomnik historii unesco światowe dziedzictwo zabytki najcenniejsze zamek katedra kopalnia soli",
       icon: ["bank", "#c08b00"], url: "data/zabytki/pomniki.geojson",
       layers: s => [
@@ -510,6 +518,14 @@
         body: `<p class="gs-st"><i style="background:${p.a ? "#adb5bd" : "#f59f00"}"></i>${esc(p.k || "opuszczony obiekt")}${p.a ? " · nieaktualne" : ""}</p>` +
           (p.u ? `<p><a href="${esc(p.u)}" target="_blank" rel="noopener">Opis i zdjęcia</a></p>` : "") +
           `<p class="muted small">Wejście na teren bez zgody właściciela jest nielegalne, a budynki mogą grozić zawaleniem.</p>` }) },
+    { id: "bunkry", box: "urbexLayers", label: "Bunkry i forty", desc: "Schrony bojowe, bunkry, forty i twierdze z mapy OpenStreetMap", kw: "bunkry bunkier schron schrony forty fort twierdza fortyfikacje militaria wał pomorski międzyrzecki rejon umocniony linia mołotowa regelbau tobruk",
+      icon: ["shield", "#495057"], url: "data/urbex/bunkry.geojson",
+      layers: s => [
+        { id: "x-bunkry", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "k"], "f", "#7048e8", "#495057"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "k"], "f", 3.5, 2], 10, 5, 14, 8], "circle-stroke-color": "#fff", "circle-stroke-width": 1 } },
+        { id: "x-bunkry-lbl", type: "symbol", source: s, minzoom: 12, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.2], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#343a40", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => legendRow([["#495057", "bunkier, schron"], ["#7048e8", "fort, twierdza"]]) + note("Obiekty oznaczone na mapie OpenStreetMap przez społeczność, więc pokrycie bywa nierówne. Wiele bunkrów leży na terenie prywatnym, wojskowym albo w rezerwatach nietoperzy (zimą wejście zabronione). Źródło: OpenStreetMap (licencja ODbL)."),
+      card: p => ({ title: p.n || (p.k === "f" ? "Fort" : "Bunkier"), src: "OpenStreetMap (ODbL)",
+        body: `<p class="gs-st"><i style="background:${p.k === "f" ? "#7048e8" : "#495057"}"></i>${esc(p.t || (p.k === "f" ? "fort, twierdza" : "bunkier, schron"))}${p.r ? " · ruina" : ""}</p>` + (p.w ? `<p>${link("https://pl.wikipedia.org/wiki/" + encodeURIComponent((p.w.split(":").slice(1).join(":") || p.w).replace(/ /g, "_")), "Wikipedia")}</p>` : "") + `<p class="small">${link(p.o, "Obiekt w OpenStreetMap")}</p>` }) },
     { id: "przesyl", box: "limitLayers", label: "Linie przesyłowe w budowie", desc: "Linie 110 kV i wyższe oraz stacje w budowie lub planowane", kw: "linie przesyłowe pse budowa linii 400 kv 220 kv 110 kv planowana linia stacja elektroenergetyczna przesył energii",
       icon: ["lightning", "#c2255c"], url: "data/przesyl/inwestycje.geojson",
       layers: s => [
