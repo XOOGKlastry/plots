@@ -525,14 +525,37 @@
         body: `<p class="gs-st"><i style="background:${p.k === "un" ? "#1c7ed6" : "#c08b00"}"></i>${p.k === "un" ? "Światowe dziedzictwo UNESCO" : "Pomnik historii"}${p.d ? ", wpis " + esc(p.d) : ""}</p>` +
           (p.o ? `<p>${esc(p.o)}</p>` : "") + (p.r ? `<p>${esc(p.r)}</p>` : "") + (p.m ? `<p class="small">${esc(p.m)}</p>` : "") +
           (p.u ? `<p>${link(p.u, "Opis w zabytek.pl")}</p>` : "") }) },
-    { id: "granice-gmin", box: "curioLayers", label: "Granice gmin", desc: "Granice wszystkich gmin, powiatów i województw, upraszczane zależnie od przybliżenia", kw: "granice gmin powiatów województw mapa administracyjna podział prg",
+    { id: "granice-gmin", box: "cadastralLayers", label: "Granice gmin", desc: "Granice wszystkich gmin, powiatów i województw, upraszczane zależnie od przybliżenia", kw: "granice gmin powiatów województw mapa administracyjna podział prg",
       icon: ["poland", "#495057"], vtiles: "data/granice/gminy.pmtiles", attr: "GUGiK PRG",
       layers: s => [
         { id: "x-gr-gm", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "l"], 0], minzoom: 6, paint: { "line-color": "#495057", "line-width": ["interpolate", ["linear"], ["zoom"], 6, .4, 12, 1.6], "line-opacity": .8 } },
         { id: "x-gr-pow", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "l"], 1], paint: { "line-color": "#364fc7", "line-width": ["interpolate", ["linear"], ["zoom"], 5, .7, 12, 2.4] } },
-        { id: "x-gr-woj", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "l"], 2], paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 12, 3.5] } }],
-      legend: () => legendRow([["#495057", "granica gminy", "line"], ["#364fc7", "granica powiatu", "line"], ["#c2255c", "granica województwa", "line"]]) + note("Włącza się sama przy ciekawostkach o granicach. Źródło: GUGiK PRG."),
-      card: () => null },
+        { id: "x-gr-woj", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "l"], 2], paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 12, 3.5] } },
+        { id: "x-gr-hl", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "a"], " "], layout: { "line-cap": "round" }, paint: { "line-color": "#f59f00", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4, 12, 8], "line-opacity": .9 }, noClick: true },
+        { id: "x-gr-hit", type: "line", source: s, "source-layer": "g", minzoom: 6, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 14 } }],
+      onToggle: on => { if (!on || window._grHover) return; window._grHover = true;
+        const hl = f => map.getLayer("x-gr-hl") && map.setFilter("x-gr-hl", f ? ["all", ["==", ["get", "a"], f.properties.a], ["==", ["get", "b"], f.properties.b]] : ["==", ["get", "a"], " "]);
+        map.on("mousemove", "x-gr-hit", e => { map.getCanvas().style.cursor = "pointer"; hl(e.features[0]); });
+        map.on("mouseleave", "x-gr-hit", () => { map.getCanvas().style.cursor = ""; hl(null); }); },
+      legend: () => legendRow([["#495057", "granica gminy", "line"], ["#364fc7", "granica powiatu", "line"], ["#c2255c", "granica województwa", "line"]]) + note("Kliknij granicę, by zobaczyć, które gminy rozdziela. Włącza się sama przy ciekawostkach 4FUN o granicach. Źródło: GUGiK PRG."),
+      card: p => p.a ? ({ title: p.a + " / " + p.b, src: "GUGiK PRG", body: `<p class="gs-st"><i style="background:${["#495057", "#364fc7", "#c2255c"][p.l || 0]}"></i>Granica ${["gmin", "gmin i zarazem powiatów", "gmin, powiatów i województw"][p.l || 0]}</p><p>Wspólny odcinek: <b>${p.m >= 1000 ? fmt(p.m / 1000, 1) + " km" : p.m + " m"}</b></p>` }) : null },
+    { id: "ulice-dl", box: "curioLayers", label: "Najdłuższe ulice w Polsce", desc: "Ranking najdłuższych ulic w jednej miejscowości według osi ulic z PRG", kw: "najdłuższa ulica w polsce długość ulicy aleja ranking ciekawostki prg",
+      icon: ["road-horizon", "#e8590c"], url: "data/granice/daleko.geojson",
+      layers: s => [{ id: "x-ulice-dl", type: "line", source: s, filter: ["==", ["get", "k"], "u"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#e8590c", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 3, 12, 6] } }],
+      legend: () => note("Długość osi ulicy w jednej miejscowości. Ulice dwujezdniowe liczone raz (jezdnie oddalone o mniej niż 50 m). Część ulic to w praktyce trasy szybkiego ruchu albo długie drogi przez wieś. Źródło: GUGiK PRG (osie ulic), obliczenia własne."),
+      rank: d => [{ t: "Najdłuższe ulice", c: "#e8590c", items: d.features.filter(x => P(x).k === "u").map(x => [P(x).n, P(x).d / 1000, "km", XY(x), P(x).m + (P(x).g !== P(x).m ? ", gm. " + P(x).g : ""), 12]) }],
+      card: p => p.k === "u" ? ({ title: p.n, src: "GUGiK PRG (obliczenia własne)", body: `<p class="gs-st"><i style="background:#e8590c"></i><b>${fmt(p.d / 1000, 1)} km</b> długości</p><p>${esc(p.m)}${p.g !== p.m ? ", gm. " + esc(p.g) : ""}</p>` }) : null },
+    { id: "urzad-daleko", box: "curioLayers", label: "Najdalej do urzędu gminy", desc: "Wsie najbardziej oddalone od urzędu swojej gminy i gminy o najdłuższej średniej drodze do urzędu", kw: "najdalej do urzędu gminy odległość wieś urząd gminy daleko ciekawostki prng",
+      icon: ["bank", "#5f3dc4"], url: "data/granice/daleko.geojson",
+      layers: s => [
+        { id: "x-urz-l", type: "line", source: s, filter: ["==", ["get", "k"], "w"], paint: { "line-color": "#5f3dc4", "line-width": 2.5, "line-dasharray": [2, 1.5] } },
+        { id: "x-urz-p", type: "circle", source: s, filter: ["==", ["get", "k"], "s"], paint: { "circle-color": "#9775fa", "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 5, 11, 9], "circle-stroke-color": "#fff", "circle-stroke-width": 2 } }],
+      legend: () => legendRow([["#5f3dc4", "wieś i urząd jej gminy (w linii prostej)", "dash"], ["#9775fa", "urzędy gmin, do których wsie mają średnio najdalej"]]) + note("Odległość w linii prostej od punktu wsi do siedziby urzędu. Źródło: GUGiK PRNG (wsie), Katalog Podmiotów Publicznych gov.pl (adresy urzędów), obliczenia własne."),
+      rank: d => { const f = d.features; return [
+        { t: "Najdalsze wsie", c: "#5f3dc4", items: f.filter(x => P(x).k === "w").map(x => [P(x).n, P(x).d, "km", x.geometry.coordinates[0], "gm. " + P(x).g, 12]) },
+        { t: "Średnio najdalej", c: "#9775fa", items: f.filter(x => P(x).k === "s").map(x => [P(x).n, P(x).d, "km", XY(x), `${P(x).c} wsi, najdalsza ${fmt(P(x).x, 1)} km`, 10]) }]; },
+      card: p => p.k === "w" ? ({ title: p.n, src: "GUGiK PRNG, KAPP gov.pl (obliczenia własne)", body: `<p class="gs-st"><i style="background:#5f3dc4"></i><b>${fmt(p.d, 1)} km</b> do urzędu gminy</p><p>${esc(p.u)}</p>` })
+        : p.k === "s" ? ({ title: "Gmina " + p.n, src: "GUGiK PRNG, KAPP gov.pl (obliczenia własne)", body: `<p class="gs-st"><i style="background:#9775fa"></i>Średnio <b>${fmt(p.d, 1)} km</b> z wsi do urzędu</p><p>${p.c} wsi, najdalsza ${fmt(p.x, 1)} km</p>` }) : null },
     { id: "rekordy-granic", borders: true, box: "curioLayers", label: "Rekordy granic gmin", desc: "Najdłuższe i najkrótsze granice między dwiema gminami oraz gminy z największą liczbą sąsiadów", kw: "najkrótsza granica gmin najdłuższa granica sąsiedzi gminy liczba sąsiadów rekord ciekawostki prg",
       icon: ["arrows-left-right", "#c2255c"], url: "data/granice/rekordy.geojson",
       layers: s => [
@@ -836,7 +859,7 @@
 
   /* ---------- engine ---------- */
   const cache = {};
-  const load = L => cache[L.url] || (cache[L.url] = (L.fetch ? L.fetch() : fetch(L.url).then(r => { if (!r.ok) throw Error(r.status); return r.json(); })).catch(e => { delete cache[L.url]; throw e; }));
+  const load = L => cache[L.url] || (cache[L.url] = (L.fetch ? L.fetch() : fetch(L.url, { cache: "no-cache" }).then(r => { if (!r.ok) throw Error(r.status); return r.json(); })).catch(e => { delete cache[L.url]; throw e; }));
   const raw = {}, sideData = {};
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   const added = new Set();
@@ -893,7 +916,7 @@
   }
   function mount() {
     const boxes = {};
-    const ORDER = ["granice-gmin", "nazwy-msc", "ksztalty", "proste", "odludzia", "wysokosci", "enklawy", "rekordy-granic"], ord = L => { const i = ORDER.indexOf(L.id); return i < 0 ? 99 : i; };
+    const ORDER = ["nazwy-msc", "ksztalty", "proste", "odludzia", "wysokosci", "enklawy", "rekordy-granic", "ulice-dl", "urzad-daleko"], ord = L => { const i = ORDER.indexOf(L.id); return i < 0 ? 99 : i; };
     for (const L of [...LAYERS].sort((a, b) => a.box === "curioLayers" && b.box === "curioLayers" ? ord(a) - ord(b) : 0)) (boxes[L.box] = boxes[L.box] || []).push(L);
     for (const [id, ls] of Object.entries(boxes)) {
       const el = document.getElementById(id); if (!el) continue;
