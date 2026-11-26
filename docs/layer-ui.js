@@ -18,7 +18,7 @@
   if(document.getElementById('energyLayers'))group(document.getElementById('energyLayers'),'Energetyka','lightning');
   if(document.getElementById('resourceLayers'))group(document.getElementById('resourceLayers'),'Wiatr i słońce','wind');
   if(document.getElementById('airLayers'))group(document.getElementById('airLayers'),'Jakość powietrza','cloud');
-  for(const [id,t,ic] of [['transportLayers','Drogi i kolej','road-horizon'],['limitLayers','Lotnictwo, wojsko, przesył','airplane-tilt'],['heritageLayers','Zabytki','castle-turret'],['urbexLayers','Opuszczone miejsca','warning'],['youtubeLayers','Ciekawostki z YouTube','film-strip']]){const el=document.getElementById(id);if(el)group(el,t,ic);}
+  for(const [id,t,ic] of [['transportLayers','Drogi i kolej','road-horizon'],['limitLayers','Lotnictwo, wojsko, przesył','airplane-tilt'],['heritageLayers','Zabytki','castle-turret'],['urbexLayers','Opuszczone miejsca','warning'],['youtubeLayers','Ciekawostki z YouTube','film-strip'],['curioLayers','Ciekawostki przestrzenne','ruler']]){const el=document.getElementById(id);if(el)group(el,t,ic);}
   if(document.getElementById('poiLayers'))group(document.getElementById('poiLayers'),'Usługi i miejsca','storefront');
   const services=document.getElementById('surroundingsLayers'),priceEntry=document.getElementById('surPrices').closest('.layer-entry'),legend=document.getElementById('priceLegend');
   const prices=document.createElement('div');prices.id='priceLayers';prices.className='layer-group';services.after(prices);prices.append(priceEntry,legend);

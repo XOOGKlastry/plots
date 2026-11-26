@@ -525,6 +525,23 @@
         body: `<p class="gs-st"><i style="background:${p.k === "un" ? "#1c7ed6" : "#c08b00"}"></i>${p.k === "un" ? "Światowe dziedzictwo UNESCO" : "Pomnik historii"}${p.d ? ", wpis " + esc(p.d) : ""}</p>` +
           (p.o ? `<p>${esc(p.o)}</p>` : "") + (p.r ? `<p>${esc(p.r)}</p>` : "") + (p.m ? `<p class="small">${esc(p.m)}</p>` : "") +
           (p.u ? `<p>${link(p.u, "Opis w zabytek.pl")}</p>` : "") }) },
+    { id: "granice-bud", box: "curioLayers", label: "Budynki przecięte granicą", desc: "Domy, hale i garaże, przez które biegnie granica gmin, powiatów lub województw", kw: "granica gminy przecina budynek dom na granicy dwie gminy podzielony budynek powiat województwo ciekawostki prg bdot",
+      icon: ["buildings", "#d6336c"], url: "data/granice/budynki.geojson",
+      layers: s => [
+        { id: "x-granbud-f", type: "fill", source: s, filter: ["has", "o"], minzoom: 13, paint: { "fill-color": ["match", ["get", "l"], "w", "#c2255c", "p", "#f76707", "#fab005"], "fill-opacity": .55 } },
+        { id: "x-granbud", type: "circle", source: s, filter: ["!", ["has", "o"]], maxzoom: 15, paint: { "circle-color": ["match", ["get", "l"], "w", "#c2255c", "p", "#f76707", "#fab005"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "l"], "g", 2.5, 4], 10, 6], "circle-stroke-color": "#fff", "circle-stroke-width": 1.2 } }],
+      legend: () => legendRow([["#c2255c", "granica województw"], ["#f76707", "granica powiatów"], ["#fab005", "granica gmin"]]) + note("Budynki z BDOT10k, które granica gminy z PRG dzieli tak, że w każdej gminie leży co najmniej 5% budynku i 5 m². Część przypadków to niedokładność granic lub obrysów, a nie prawdziwy podział. Taki budynek płaci podatek i ma adres w gminie, w której leży działka. Źródło: GUGiK (BDOT10k, PRG), obliczenia własne."),
+      card: p => ({ title: p.n || (p.f ? p.f[0].toUpperCase() + p.f.slice(1) : "Budynek") + " na granicy", src: "GUGiK: BDOT10k, PRG (obliczenia własne)",
+        body: `<p class="gs-st"><i style="background:${{ w: "#c2255c", p: "#f76707" }[p.l] || "#fab005"}"></i>Granica ${{ w: "województw", p: "powiatów" }[p.l] || "gmin"}</p>` +
+          (p.g || []).map(g => `<p>${esc(g[0])}: <b>${g[1]}%</b> budynku</p>`).join("") + `<p class="small">${p.a ? fmt(p.a, 0) + " m²" : ""}${p.k ? " · kondygnacji: " + esc(p.k) : ""}${p.x ? " · " + esc(p.x) : ""}</p>` }) },
+    { id: "proste", box: "curioLayers", label: "Najdłuższe proste drogi i tory", desc: "Ranking najdłuższych prostych odcinków dróg i linii kolejowych w Polsce", kw: "najdłuższa prosta droga tor kolejowy prosty odcinek rekord ranking autostrada linia kolejowa ciekawostki bdot",
+      icon: ["ruler", "#1971c2"], url: "data/granice/proste.geojson",
+      layers: s => [
+        { id: "x-proste", type: "line", source: s, layout: { "line-cap": "round" }, paint: { "line-color": ["match", ["get", "t"], "t", "#5f3dc4", "#1971c2"], "line-width": ["interpolate", ["linear"], ["zoom"], 5, ["case", ["<=", ["get", "r"], 10], 4, 2.5], 12, 7], "line-opacity": .85 } },
+        { id: "x-proste-lbl", type: "symbol", source: s, minzoom: 7, layout: { "symbol-placement": "line-center", "text-field": ["concat", ["to-string", ["get", "km"]], " km"], "text-size": 11, "text-font": ["Noto Sans Bold"] }, paint: { "text-color": ["match", ["get", "t"], "t", "#5f3dc4", "#1971c2"], "text-halo-color": "#fff", "text-halo-width": 2 }, noClick: true }],
+      legend: () => legendRow([["#1971c2", "droga (60 najdłuższych prostych)"], ["#5f3dc4", "tor kolejowy (30 najdłuższych)"]]) + note("Prosta to odcinek, który odbiega od linii łączącej jego końce najwyżej o 5 m, a na łączeniach zmienia kierunek o mniej niż 1°. Liczone z dróg i torów BDOT10k, jezdnie równoległe liczone raz. Źródło: GUGiK BDOT10k, obliczenia własne."),
+      card: p => ({ title: `${p.r}. ${p.t === "t" ? "najdłuższy prosty tor" : "najdłuższa prosta droga"}: ${fmt(p.km, 1)} km`, src: "GUGiK BDOT10k (obliczenia własne)",
+        body: `<p class="gs-st"><i style="background:${p.t === "t" ? "#5f3dc4" : "#1971c2"}"></i>${esc(p.c || "")}${p.n ? " · " + esc(p.t === "t" ? "linia " + p.n : p.n.replace(/\|/g, ", ")) : ""}</p>` + (p.s ? `<p>${esc(p.s)}</p>` : "") + (p.m ? `<p class="small">${esc(p.m)}</p>` : "") }) },
     { id: "urbex", box: "urbexLayers", label: "Opuszczone miejsca (urbex)", desc: "Opuszczone fabryki, bunkry, pałace, szpitale i inne obiekty", kw: "urbex opuszczone miejsca ruiny bunkier fabryka pałac dwór szpital opuszczony pustostan eksploracja militarne podziemia tunele",
       icon: ["warning", "#e8590c"], url: "data/urbex/miejsca.geojson",
       layers: s => [
@@ -692,7 +709,7 @@
       legend: () => legendRow([["#732600","1 pszenny bardzo dobry","box"],["#d3715b","2 pszenny dobry","box"],["#fac1a2","3 pszenny wadliwy","box"],["#fe6b00","4 żytni bardzo dobry","box"],["#febe00","5 żytni dobry","box"],["#fefa00","6 żytni słaby","box"],["#fef680","7 żytni bardzo słaby","box"],["#004c73","8 zbożowo-pastewny mocny","box"],["#1482ff","9 zbożowo-pastewny słaby","box"],["#a80084","10–14 górskie","box"],["#4c7300","1z użytki zielone bardzo dobre i dobre","box"],["#88c31f","2z użytki zielone średnie","box"],["#c7ee98","3z użytki zielone słabe","box"]]) + note("Kompleksy przydatności rolniczej gleb. Białe kropki to tereny leśne lub poza gruntami rolnymi, kreskowanie to zabudowa. Widoczna po przybliżeniu mapy. Źródło: GUGiK, mapa glebowo-rolnicza (usługa WMS, geoportal.gov.pl).") +
         `<p class="small"><a href="${GPW}/pub/guest/MapaGlebowoRolnicza/MapServer/WMSServer?request=GetLegendGraphic&version=1.3.0&format=image/png&layer=0" target="_blank" rel="noopener">Pełna legenda GUGiK (typy i gatunki gleb)</a></p>` },
   ];
-  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył", heritageLayers: "Zabytki", urbexLayers: "Opuszczone miejsca", youtubeLayers: "Ciekawostki z YouTube" };
+  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył", heritageLayers: "Zabytki", curioLayers: "Ciekawostki przestrzenne", urbexLayers: "Opuszczone miejsca", youtubeLayers: "Ciekawostki z YouTube" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
 
   /* ---------- engine ---------- */
