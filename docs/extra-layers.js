@@ -528,15 +528,17 @@
     { id: "granice-gmin", box: "cadastralLayers", label: "Granice gmin", desc: "Granice wszystkich gmin, powiatów i województw, upraszczane zależnie od przybliżenia", kw: "granice gmin powiatów województw mapa administracyjna podział prg",
       icon: ["poland", "#495057"], vtiles: "data/granice/gminy.pmtiles", attr: "GUGiK PRG",
       layers: s => [
-        { id: "x-gr-gm", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "l"], 0], minzoom: 6, paint: { "line-color": "#495057", "line-width": ["interpolate", ["linear"], ["zoom"], 6, .4, 12, 1.6], "line-opacity": .8 } },
-        { id: "x-gr-pow", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "l"], 1], paint: { "line-color": "#364fc7", "line-width": ["interpolate", ["linear"], ["zoom"], 5, .7, 12, 2.4] } },
-        { id: "x-gr-woj", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "l"], 2], paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 12, 3.5] } },
-        { id: "x-gr-hl", type: "line", source: s, "source-layer": "g", filter: ["==", ["get", "a"], " "], layout: { "line-cap": "round" }, paint: { "line-color": "#f59f00", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4, 12, 8], "line-opacity": .9 }, noClick: true },
-        { id: "x-gr-hit", type: "line", source: s, "source-layer": "g", minzoom: 6, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 14 } }],
+        { id: "x-gr-gm", type: "line", source: s, "source-layer": "g", minzoom: 8, filter: ["==", ["get", "l"], 0], paint: { "line-color": "#495057", "line-width": ["interpolate", ["linear"], ["zoom"], 8, .6, 12, 1.6], "line-opacity": .8 } },
+        { id: "x-gr-pow", type: "line", source: s, "source-layer": "p", minzoom: 6, filter: ["==", ["get", "l"], 1], paint: { "line-color": "#364fc7", "line-width": ["interpolate", ["linear"], ["zoom"], 6, .7, 12, 2.4] } },
+        { id: "x-gr-woj", type: "line", source: s, "source-layer": "w", paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 12, 3.5] } },
+        { id: "x-gr-hl", type: "line", source: s, "source-layer": "g", minzoom: 8, filter: ["==", ["get", "a"], "-"], layout: { "line-cap": "round" }, paint: { "line-color": "#f59f00", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 4, 12, 8], "line-opacity": .9 }, noClick: true },
+        { id: "x-gr-hit", type: "line", source: s, "source-layer": "g", minzoom: 8, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 12 } }],
       onToggle: on => { if (!on || window._grHover) return; window._grHover = true;
-        const hl = f => map.getLayer("x-gr-hl") && map.setFilter("x-gr-hl", f ? ["all", ["==", ["get", "a"], f.properties.a], ["==", ["get", "b"], f.properties.b]] : ["==", ["get", "a"], " "]);
-        map.on("mousemove", "x-gr-hit", e => { map.getCanvas().style.cursor = "pointer"; hl(e.features[0]); });
-        map.on("mouseleave", "x-gr-hit", () => { map.getCanvas().style.cursor = ""; hl(null); }); },
+        let key = "", raf = 0, last = null;  /* podświetlenie najechanej granicy: najwyżej raz na klatkę i tylko przy zmianie odcinka */
+        const hl = f => { const k = f ? f.properties.a + "|" + f.properties.b : ""; if (k === key || !map.getLayer("x-gr-hl")) return; key = k;
+          map.setFilter("x-gr-hl", f ? ["all", ["==", ["get", "a"], f.properties.a], ["==", ["get", "b"], f.properties.b]] : ["==", ["get", "a"], "-"]); };
+        map.on("mousemove", "x-gr-hit", e => { last = e.features[0]; map.getCanvas().style.cursor = "pointer"; if (!raf) raf = requestAnimationFrame(() => { raf = 0; hl(last); }); });
+        map.on("mouseleave", "x-gr-hit", () => { last = null; map.getCanvas().style.cursor = ""; hl(null); }); },
       legend: () => legendRow([["#495057", "granica gminy", "line"], ["#364fc7", "granica powiatu", "line"], ["#c2255c", "granica województwa", "line"]]) + note("Kliknij granicę, by zobaczyć, które gminy rozdziela. Włącza się sama przy ciekawostkach 4FUN o granicach. Źródło: GUGiK PRG."),
       card: p => p.a ? ({ title: p.a + " / " + p.b, src: "GUGiK PRG", body: `<p class="gs-st"><i style="background:${["#495057", "#364fc7", "#c2255c"][p.l || 0]}"></i>Granica ${["gmin", "gmin i zarazem powiatów", "gmin, powiatów i województw"][p.l || 0]}</p><p>Wspólny odcinek: <b>${p.m >= 1000 ? fmt(p.m / 1000, 1) + " km" : p.m + " m"}</b></p>` }) : null },
     { id: "ulice-dl", box: "curioLayers", label: "Najdłuższe ulice w Polsce", desc: "Ranking najdłuższych ulic w jednej miejscowości według osi ulic z PRG", kw: "najdłuższa ulica w polsce długość ulicy aleja ranking ciekawostki prg",
