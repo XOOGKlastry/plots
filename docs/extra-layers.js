@@ -480,6 +480,25 @@
       legend: () => legendRow([["#6741d9", "wieś"], ["#b197fc", "osada, kolonia, przysiółek"]]) + note("Miejscowość z Państwowego Rejestru Nazw Geograficznych leży w obwodzie spisowym, w którym w NSP 2021 nie spisano żadnego mieszkańca. To dolne oszacowanie: pusta wieś w jednym obwodzie z zamieszkaną się tu nie pojawi. Źródła: GUGiK, PRNG; GUS, Narodowy Spis Powszechny 2021 (ludność w obwodach spisowych)."),
       card: p => ({ title: p.n, src: "GUGiK, PRNG; GUS, NSP 2021 (obwody spisowe)",
         body: `<p class="gs-st"><i style="background:${p.r === "wieś" ? "#6741d9" : "#b197fc"}"></i>${esc(p.r || "miejscowość")} · gmina ${esc(p.g || "")}</p><p>W spisie 2021 nikt tu nie mieszkał, ale nazwa wciąż jest urzędowa.</p>` }) },
+    { id: "zabytki", box: "heritageLayers", label: "Rejestr zabytków", desc: "Zabytki nieruchome wpisane do rejestru (budynki, parki, układy)", kw: "zabytki rejestr zabytków nieruchome kościół pałac dwór park zabytkowy konserwator nid ochrona konserwatorska kamienica",
+      icon: ["castle-turret", "#a61e4d"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_IMD/service.svc/get", "Immovable_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 12, attr: "Narodowy Instytut Dziedzictwa, rejestr zabytków nieruchomych",
+      layers: s => [{ id: "x-zabytki", type: "raster", source: s, paint: { "raster-opacity": .5, "raster-fade-duration": 0 } }],
+      legend: () => note("Obiekty i obszary wpisane do rejestru zabytków nieruchomych. Wpis oznacza, że budowa, rozbiórka i większość prac wymaga pozwolenia wojewódzkiego konserwatora zabytków. Widoczne po przybliżeniu mapy. Opisy obiektów: zabytek.pl. Źródło: Narodowy Instytut Dziedzictwa (usługa WMS).") +
+        `<p class="small"><a href="https://zabytek.pl/pl/mapa" target="_blank" rel="noopener">Mapa zabytków NID z opisami</a></p>` },
+    { id: "archeo", box: "heritageLayers", label: "Stanowiska archeologiczne", desc: "Zabytki archeologiczne w rejestrze: grodziska, kurhany, osady, cmentarzyska", kw: "archeologia stanowiska archeologiczne grodzisko kurhan osada cmentarzysko azp zabytki archeologiczne rejestr nid badania",
+      icon: ["shovel", "#8a5a2b"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_AMD/service.svc/get", "Archaeological_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 11, attr: "Narodowy Instytut Dziedzictwa, rejestr zabytków archeologicznych",
+      layers: s => [{ id: "x-archeo", type: "raster", source: s, paint: { "raster-opacity": .9, "raster-fade-duration": 0 } }],
+      legend: () => note("Stanowiska wpisane do rejestru zabytków archeologicznych, położenie często przybliżone. Prace ziemne w ich obrębie wymagają pozwolenia konserwatora i zwykle badań archeologicznych na koszt inwestora. Stanowisk spoza rejestru (ewidencja AZP) NID nie udostępnia jako otwartych danych. Źródło: Narodowy Instytut Dziedzictwa (usługa WMS).") },
+    { id: "pomniki", box: "heritageLayers", label: "Pomniki historii i UNESCO", desc: "Najcenniejsze zabytki Polski: pomniki historii i lista światowego dziedzictwa", kw: "pomnik historii unesco światowe dziedzictwo zabytki najcenniejsze zamek katedra kopalnia soli",
+      icon: ["bank", "#c08b00"], url: "data/zabytki/pomniki.geojson",
+      layers: s => [
+        { id: "x-pomniki", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "k"], "un", "#1c7ed6", "#c08b00"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 7, 14, 10], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } },
+        { id: "x-pomniki-lbl", type: "symbol", source: s, minzoom: 10, layout: { "text-field": ["get", "n"], "text-size": 11, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 14 }, paint: { "text-color": "#5c3d00", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => legendRow([["#c08b00", "pomnik historii"], ["#1c7ed6", "lista światowego dziedzictwa UNESCO"]]) + note("Pomniki historii ustanawia Prezydent RP, listę UNESCO prowadzi Komitet Światowego Dziedzictwa. Źródło: Narodowy Instytut Dziedzictwa (dane.gov.pl)."),
+      card: p => ({ title: p.n, src: "Narodowy Instytut Dziedzictwa (dane.gov.pl)",
+        body: `<p class="gs-st"><i style="background:${p.k === "un" ? "#1c7ed6" : "#c08b00"}"></i>${p.k === "un" ? "Światowe dziedzictwo UNESCO" : "Pomnik historii"}${p.d ? ", wpis " + esc(p.d) : ""}</p>` +
+          (p.o ? `<p>${esc(p.o)}</p>` : "") + (p.r ? `<p>${esc(p.r)}</p>` : "") + (p.m ? `<p class="small">${esc(p.m)}</p>` : "") +
+          (p.u ? `<p>${link(p.u, "Opis w zabytek.pl")}</p>` : "") }) },
     { id: "urbex", box: "urbexLayers", label: "Opuszczone miejsca (urbex)", desc: "Opuszczone fabryki, bunkry, pałace, szpitale i inne obiekty", kw: "urbex opuszczone miejsca ruiny bunkier fabryka pałac dwór szpital opuszczony pustostan eksploracja militarne podziemia tunele",
       icon: ["warning", "#e8590c"], url: "data/urbex/miejsca.geojson",
       layers: s => [
@@ -639,7 +658,7 @@
       legend: () => legendRow([["#732600","1 pszenny bardzo dobry","box"],["#d3715b","2 pszenny dobry","box"],["#fac1a2","3 pszenny wadliwy","box"],["#fe6b00","4 żytni bardzo dobry","box"],["#febe00","5 żytni dobry","box"],["#fefa00","6 żytni słaby","box"],["#fef680","7 żytni bardzo słaby","box"],["#004c73","8 zbożowo-pastewny mocny","box"],["#1482ff","9 zbożowo-pastewny słaby","box"],["#a80084","10–14 górskie","box"],["#4c7300","1z użytki zielone bardzo dobre i dobre","box"],["#88c31f","2z użytki zielone średnie","box"],["#c7ee98","3z użytki zielone słabe","box"]]) + note("Kompleksy przydatności rolniczej gleb. Białe kropki to tereny leśne lub poza gruntami rolnymi, kreskowanie to zabudowa. Widoczna po przybliżeniu mapy. Źródło: GUGiK, mapa glebowo-rolnicza (usługa WMS, geoportal.gov.pl).") +
         `<p class="small"><a href="${GPW}/pub/guest/MapaGlebowoRolnicza/MapServer/WMSServer?request=GetLegendGraphic&version=1.3.0&format=image/png&layer=0" target="_blank" rel="noopener">Pełna legenda GUGiK (typy i gatunki gleb)</a></p>` },
   ];
-  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył", urbexLayers: "Opuszczone miejsca", youtubeLayers: "Ciekawostki z YouTube" };
+  const TITLES = { transportLayers: "Drogi i kolej", limitLayers: "Lotnictwo, wojsko, przesył", heritageLayers: "Zabytki", urbexLayers: "Opuszczone miejsca", youtubeLayers: "Ciekawostki z YouTube" };
   window.ExtraLayers = { LAYERS, legendRow, note, row, link, fmt };
 
   /* ---------- engine ---------- */
