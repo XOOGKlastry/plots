@@ -3,7 +3,8 @@
  const app=window.PLOTS,map=app.map,cache=new Map(),pending=new Map();let current=null,revision=0,data=null;
  const empty=()=>({type:'FeatureCollection',features:[]});
  // The selected gmina outline is always shown in the Gmina tab (no separate layer switch).
- function visible(){return !window.DistanceModule?.isOpen()&&app.currentTab()==='gmina';}
+ let forced=null;// a curiosity can show a gmina outline outside the Gmina tab
+ function visible(){return !window.DistanceModule?.isOpen()&&(app.currentTab()==='gmina'||(forced&&forced===current));}
  map.on('movestart',e=>{if(e.originalEvent)flight++;});
  // Neighbours: gminy sharing a border arc with the selected one (from the country topology the app already loads).
  let nbIndex=null;
@@ -60,5 +61,5 @@
  document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,false);});
  document.addEventListener('plots:mode',render);
  document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,false);});
- window.MunicipalBoundaries={select,current:()=>current,fit:()=>current?select(current,true):Promise.resolve(false)};
+ window.MunicipalBoundaries={show:id=>{forced=id;return select(id,false).then(()=>render());},select,current:()=>current,fit:()=>current?select(current,true):Promise.resolve(false)};
 })();
