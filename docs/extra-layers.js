@@ -480,15 +480,22 @@
       legend: () => legendRow([["#6741d9", "wieś"], ["#b197fc", "osada, kolonia, przysiółek"]]) + note("Miejscowość z Państwowego Rejestru Nazw Geograficznych leży w obwodzie spisowym, w którym w NSP 2021 nie spisano żadnego mieszkańca. To dolne oszacowanie: pusta wieś w jednym obwodzie z zamieszkaną się tu nie pojawi. Źródła: GUGiK, PRNG; GUS, Narodowy Spis Powszechny 2021 (ludność w obwodach spisowych)."),
       card: p => ({ title: p.n, src: "GUGiK, PRNG; GUS, NSP 2021 (obwody spisowe)",
         body: `<p class="gs-st"><i style="background:${p.r === "wieś" ? "#6741d9" : "#b197fc"}"></i>${esc(p.r || "miejscowość")} · gmina ${esc(p.g || "")}</p><p>W spisie 2021 nikt tu nie mieszkał, ale nazwa wciąż jest urzędowa.</p>` }) },
-    { id: "zabytki", box: "heritageLayers", label: "Rejestr zabytków", desc: "Zabytki nieruchome wpisane do rejestru (budynki, parki, układy)", kw: "zabytki rejestr zabytków nieruchome kościół pałac dwór park zabytkowy konserwator nid ochrona konserwatorska kamienica",
-      icon: ["castle-turret", "#a61e4d"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_IMD/service.svc/get", "Immovable_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 12, attr: "NID, rejestr zabytków",
-      layers: s => [{ id: "x-zabytki", type: "raster", source: s, paint: { "raster-opacity": .5, "raster-fade-duration": 0 } }],
-      legend: () => note("Obiekty i obszary wpisane do rejestru zabytków nieruchomych. Wpis oznacza, że budowa, rozbiórka i większość prac wymaga pozwolenia wojewódzkiego konserwatora zabytków. Widoczne po przybliżeniu mapy. Opisy obiektów: zabytek.pl. Źródło: Narodowy Instytut Dziedzictwa (usługa WMS).") +
-        `<p class="small"><a href="https://zabytek.pl/pl/mapa" target="_blank" rel="noopener">Mapa zabytków NID z opisami</a></p>` },
-    { id: "archeo", box: "heritageLayers", label: "Stanowiska archeologiczne", desc: "Zabytki archeologiczne w rejestrze: grodziska, kurhany, osady, cmentarzyska", kw: "archeologia stanowiska archeologiczne grodzisko kurhan osada cmentarzysko azp zabytki archeologiczne rejestr nid badania",
-      icon: ["shovel", "#8a5a2b"], tiles: () => wmsT("https://usluga.zabytek.gov.pl/INSPIRE_AMD/service.svc/get", "Archaeological_Monuments", "&TRANSPARENT=TRUE", "image/png"), minz: 11, attr: "NID, rejestr zabytków",
-      layers: s => [{ id: "x-archeo", type: "raster", source: s, paint: { "raster-opacity": .9, "raster-fade-duration": 0 } }],
-      legend: () => note("Stanowiska wpisane do rejestru zabytków archeologicznych, położenie często przybliżone. Prace ziemne w ich obrębie wymagają pozwolenia konserwatora i zwykle badań archeologicznych na koszt inwestora. Stanowisk spoza rejestru (ewidencja AZP) NID nie udostępnia jako otwartych danych. Źródło: Narodowy Instytut Dziedzictwa (usługa WMS).") },
+    { id: "zabytki", box: "heritageLayers", label: "Rejestr zabytków", desc: "Zabytki nieruchome wpisane do rejestru: kościoły, dwory, parki, kamienice", kw: "zabytki rejestr zabytków nieruchome kościół pałac dwór park zabytkowy konserwator nid ochrona konserwatorska kamienica",
+      icon: ["castle-turret", "#a61e4d"], vtiles: "data/zabytki/zabytki.pmtiles", attr: "NID, rejestr zabytków; PRG GUGiK",
+      layers: s => [
+        { id: "x-zabytki", type: "circle", source: s, "source-layer": "rejestr", paint: { "circle-color": ["case", ["==", ["get", "q"], "a"], "#a61e4d", "#e599b4"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 1.6, 10, 3.5, 14, 7], "circle-stroke-color": "#fff", "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 6, 0, 10, 1] } },
+        { id: "x-zabytki-lbl", type: "symbol", source: s, "source-layer": "rejestr", minzoom: 15, layout: { "text-field": ["get", "n"], "text-size": 10.5, "text-font": ["Noto Sans Regular"], "text-offset": [0, 1.1], "text-anchor": "top", "text-max-width": 11 }, paint: { "text-color": "#7a1238", "text-halo-color": "#fff", "text-halo-width": 1.5 }, noClick: true }],
+      legend: () => legendRow([["#a61e4d", "położenie wg adresu"], ["#e599b4", "położenie przybliżone (środek miejscowości)"]]) + note("Obiekty wpisane do rejestru zabytków nieruchomych. Wpis oznacza, że budowa, rozbiórka i większość prac wymaga pozwolenia wojewódzkiego konserwatora zabytków. NID nie podaje współrzędnych, więc punkt ustalono z adresu (PRG) albo, gdy adresu brak, w środku miejscowości. Obszarowe wpisy (układy urbanistyczne, parki) są pokazane jako punkt. Źródła: Narodowy Instytut Dziedzictwa (dane.gov.pl), GUGiK PRG."),
+      card: p => ({ title: p.n || "Zabytek", src: "Narodowy Instytut Dziedzictwa (dane.gov.pl)",
+        body: `<p class="gs-st"><i style="background:${p.q === "a" ? "#a61e4d" : "#e599b4"}"></i>Rejestr zabytków${p.f ? ", " + esc(p.f) : ""}</p>` + (p.c ? `<p>${esc(p.c)}</p>` : "") + (p.m ? `<p class="small">${esc(p.m)}${p.q === "a" ? "" : " · położenie przybliżone"}</p>` : "") +
+          `<p>${link("https://zabytek.pl/pl/obiekty/zabytek?inspire_id=PL.1.9.ZIPOZ." + p.i + "&rejestr=rejestr-zabytkow", "Opis w zabytek.pl")}</p>` }) },
+    { id: "archeo", box: "heritageLayers", label: "Stanowiska archeologiczne", desc: "Rejestr zabytków archeologicznych: grodziska, kurhany, osady, cmentarzyska", kw: "archeologia stanowiska archeologiczne grodzisko kurhan osada cmentarzysko azp zabytki archeologiczne rejestr nid badania",
+      icon: ["shovel", "#8a5a2b"], vtiles: "data/zabytki/zabytki.pmtiles", attr: "NID, rejestr zabytków; PRG GUGiK",
+      layers: s => [{ id: "x-archeo", type: "circle", source: s, "source-layer": "archeo", paint: { "circle-color": "#b5651d", "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 2, 10, 4, 14, 7], "circle-stroke-color": "#fff", "circle-stroke-width": 1 } }],
+      legend: () => note("Stanowiska wpisane do rejestru zabytków archeologicznych. Prace ziemne w ich obrębie wymagają pozwolenia konserwatora i zwykle badań archeologicznych na koszt inwestora. NID podaje tylko miejscowość, więc punkt stoi w jej środku, a dokładne położenie trzeba sprawdzić u konserwatora. Stanowisk spoza rejestru (ewidencja AZP) NID nie udostępnia. Źródła: Narodowy Instytut Dziedzictwa (dane.gov.pl), GUGiK PRG."),
+      card: p => ({ title: p.n || "Stanowisko archeologiczne", src: "Narodowy Instytut Dziedzictwa (dane.gov.pl)",
+        body: `<p class="gs-st"><i style="background:#b5651d"></i>${esc(p.f || "stanowisko archeologiczne")}</p>` + (p.c ? `<p>${esc(p.c)}</p>` : "") + (p.z ? `<p class="small">AZP ${esc(p.z)} · położenie przybliżone</p>` : "") +
+          `<p>${link("https://zabytek.pl/pl/obiekty/zabytek?inspire_id=PL.1.9.ZIPOZ." + p.i + "&rejestr=rejestr-zabytkow", "Opis w zabytek.pl")}</p>` }) },
     { id: "grodziska", box: "heritageLayers", label: "Grodziska i kurhany", desc: "Grodziska, kurhany, megality i inne stanowiska archeologiczne z OpenStreetMap", kw: "grodzisko grodziska gród kurhan kurhany megality cmentarzysko osada archeologia słowianie wczesne średniowiecze wały",
       icon: ["mountains", "#8a5a2b"], url: "data/zabytki/grodziska.geojson",
       layers: s => [
@@ -683,18 +690,21 @@
   const raw = {}, sideData = {};
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   const added = new Set();
+  let pmOn = false;  /* kafle wektorowe z jednego pliku PMTiles obok strony */
+  const vtSource = L => { if (!pmOn && window.pmtiles) { try { maplibregl.addProtocol("pmtiles", new pmtiles.Protocol().tile); } catch (e) {} pmOn = true; }
+    return { type: "vector", url: "pmtiles://" + new URL(L.vtiles, location.href).href, attribution: L.attr || "" }; };
   async function apply(L, on) {
     const leg = document.getElementById("x-leg-" + L.id);
     if (leg) { leg.hidden = !on; if (on) leg.innerHTML = L.legend(); }
     if (on && !added.has(L.id)) {
       let d = null;
-      if (!L.tiles) { try { d = await load(L); } catch (e) { app.toast("Nie udało się wczytać warstwy"); return; } }
+      if (!L.tiles && !L.vtiles) { try { d = await load(L); } catch (e) { app.toast("Nie udało się wczytać warstwy"); return; } }
       raw[L.id] = d;
       if (L.side) fetch(L.side).then(r => r.ok ? r.json() : null).then(x => { sideData[L.id] = x; }).catch(() => {});
       if (L.side2) fetch(L.side2[1]).then(r => r.ok ? r.json() : null).then(x => { sideData[L.side2[0]] = x; }).catch(() => {});
       const src = "x-" + L.id;
       try {
-        if (!map.getSource(src)) { map.addSource(src, L.tiles ? { type: "raster", tiles: [L.tiles()], tileSize: 256, minzoom: L.minz || 0, maxzoom: L.maxz || 19, ...(L.bounds ? { bounds: L.bounds } : {}), attribution: L.attr || "" } : { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
+        if (!map.getSource(src)) { map.addSource(src, L.vtiles ? vtSource(L) : L.tiles ? { type: "raster", tiles: [L.tiles()], tileSize: 256, minzoom: L.minz || 0, maxzoom: L.maxz || 19, ...(L.bounds ? { bounds: L.bounds } : {}), attribution: L.attr || "" } : { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
         for (const spec of L.layers(src)) if (!map.getLayer(spec.id)) map.addLayer(spec, spec.type === "fill" || spec.type === "line" || spec.type === "raster" ? firstSymbol() : undefined);
         added.add(L.id);
       } catch (e) { console.warn(e); return; }
