@@ -5,7 +5,18 @@
  // The selected gmina outline is always shown in the Gmina tab (no separate layer switch).
  function visible(){return !window.DistanceModule?.isOpen()&&app.currentTab()==='gmina';}
  map.on('movestart',e=>{if(e.originalEvent)flight++;});
- function render(){map.getSource('municipal-boundaries')?.setData(visible()&&data?data:empty());}
+ // Neighbours: gminy sharing a border arc with the selected one (from the country topology the app already loads).
+ let nbIndex=null;
+ function neighbours(id){
+  const topo=window.MunicipalityContext?.topology?.();if(!topo||!id)return [];
+  if(!nbIndex){const own=new Map(),seen=new Set();const walk=(a,k)=>Array.isArray(a)?a.forEach(x=>walk(x,k)):(()=>{const i=a<0?~a:a;(own.get(i)||own.set(i,new Set()).get(i)).add(k);})();
+   for(const o of Object.values(topo.objects))for(const g of o.geometries||[]){if(!g.arcs||seen.has(g.properties.k))continue;seen.add(g.properties.k);walk(g.arcs,String(g.properties.k));}
+   nbIndex=new Map();for(const ks of own.values())for(const a of ks)for(const b of ks)if(a!==b)(nbIndex.get(a)||nbIndex.set(a,new Set()).get(a)).add(b);}
+  return [...(nbIndex.get(String(id))||[])];
+ }
+ function nbData(){if(!current)return empty();const fs=neighbours(current).map(k=>window.MunicipalityContext.shape(k)).filter(Boolean);
+  return {type:'FeatureCollection',features:fs.map(s=>({type:'Feature',properties:{},geometry:{type:'MultiPolygon',coordinates:s.polygons}}))};}
+ function render(){const on=visible()&&data;map.getSource('municipal-boundaries')?.setData(on?data:empty());map.getSource('municipal-neighbours')?.setData(on?nbData():empty());}
  function save(id,value){try{localStorage.setItem('plots.boundary.'+id,JSON.stringify(value));let recent=JSON.parse(localStorage.getItem('plots.boundaryRecent')||'[]');recent=[id,...recent.filter(x=>x!==id)];recent.slice(6).forEach(x=>localStorage.removeItem('plots.boundary.'+x));localStorage.setItem('plots.boundaryRecent',JSON.stringify(recent.slice(0,6)));}catch{/* Storage is optional. */}}
  async function load(id){
   if(cache.has(id))return cache.get(id);
@@ -36,12 +47,16 @@
  }
  function initialize(){
   app.registerOverlaySource('municipal-boundaries');map.addSource('municipal-boundaries',{type:'geojson',data:empty(),attribution:'© GUGiK · PRG'});
+  app.registerOverlaySource('municipal-neighbours');map.addSource('municipal-neighbours',{type:'geojson',data:empty(),tolerance:.6});
+  map.addLayer({id:'municipal-neighbour-fill',type:'fill',source:'municipal-neighbours',paint:{'fill-color':'#4dabf7','fill-opacity':.09}},map.getLayer('dz-fill')?'dz-fill':undefined);
+  map.addLayer({id:'municipal-neighbour-line',type:'line',source:'municipal-neighbours',paint:{'line-color':'#4dabf7','line-width':2,'line-opacity':.8}});
+  window.MunicipalityContext?.ready?.().then(()=>render()).catch(()=>{});
   map.addLayer({id:'municipal-boundary-fill',type:'fill',source:'municipal-boundaries',paint:{'fill-color':['match',['get','kind'],'miasto','#8b5cf6','#087cfc'],'fill-opacity':.06}},map.getLayer('dz-fill')?'dz-fill':undefined);
   map.addLayer({id:'municipal-boundary-line',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'gmina'],paint:{'line-color':'#087cfc','line-width':3}});
   map.addLayer({id:'municipal-boundary-glow',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'gmina'],paint:{'line-color':'#087cfc','line-width':16,'line-blur':10,'line-opacity':0}},'municipal-boundary-line');
   map.addLayer({id:'municipal-city-line',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'miasto'],paint:{'line-color':'#8b5cf6','line-width':2.5,'line-dasharray':[3,2]}});render();
  }
- if(map.loaded())initialize();else map.once('load',initialize);
+ if(map.loaded())setTimeout(initialize);else map.once('load',initialize);
  document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,false);});
  document.addEventListener('plots:mode',render);
  document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,false);});

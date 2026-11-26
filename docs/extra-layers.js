@@ -525,33 +525,6 @@
         body: `<p class="gs-st"><i style="background:${p.k === "un" ? "#1c7ed6" : "#c08b00"}"></i>${p.k === "un" ? "Światowe dziedzictwo UNESCO" : "Pomnik historii"}${p.d ? ", wpis " + esc(p.d) : ""}</p>` +
           (p.o ? `<p>${esc(p.o)}</p>` : "") + (p.r ? `<p>${esc(p.r)}</p>` : "") + (p.m ? `<p class="small">${esc(p.m)}</p>` : "") +
           (p.u ? `<p>${link(p.u, "Opis w zabytek.pl")}</p>` : "") }) },
-    { id: "granice-gmin", box: "cadastralLayers", label: "Granice gmin", desc: "Granice wszystkich gmin, powiatów i województw, upraszczane zależnie od przybliżenia", kw: "granice gmin powiatów województw mapa administracyjna podział prg",
-      icon: ["poland", "#495057"], url: "granice-topo", attr: "GUGiK PRG",
-      /* Linie z tego samego pliku granic gmin, którego aplikacja już używa (każdy wspólny odcinek raz); MapLibre sam upraszcza je zależnie od zoomu. */
-      fetch: async () => { const t = await (window.MunicipalityContext.topology() ? Promise.resolve() : window.MunicipalityContext.ready()).then(() => window.MunicipalityContext.topology());
-        const tr = t.transform, own = new Map(), seen = new Set();
-        const walk = (a, k) => Array.isArray(a) ? a.forEach(x => walk(x, k)) : (own.get(a < 0 ? ~a : a) || own.set(a < 0 ? ~a : a, []).get(a < 0 ? ~a : a)).push(k);
-        for (const o of Object.values(t.objects)) for (const g of o.geometries || []) { if (!g.arcs || seen.has(g.properties.k)) continue; seen.add(g.properties.k); walk(g.arcs, g.properties); }
-        const features = [];
-        t.arcs.forEach((arc, i) => { const ps = own.get(i); if (!ps || ps.length < 2) return; const [a, b] = ps, ka = String(a.k), kb = String(b.k);
-          let x = 0, y = 0; const c = arc.map(q => { x += q[0]; y += q[1]; return [x * tr.scale[0] + tr.translate[0], y * tr.scale[1] + tr.translate[1]]; });
-          const nm = p => p.n + (/1$/.test(String(p.k)) ? " (miasto)" : /2$/.test(String(p.k)) ? " (gm. wiejska)" : "");
-          features.push({ type: "Feature", properties: { l: ka.slice(0, 2) !== kb.slice(0, 2) ? 2 : ka.slice(0, 4) !== kb.slice(0, 4) ? 1 : 0, a: nm(a), b: nm(b) }, geometry: { type: "LineString", coordinates: c } }); });
-        return { type: "FeatureCollection", features }; },
-      layers: s => [
-        { id: "x-gr-gm", type: "line", source: s, minzoom: 7, filter: ["==", ["get", "l"], 0], paint: { "line-color": "#495057", "line-width": ["interpolate", ["linear"], ["zoom"], 7, .5, 12, 1.6], "line-opacity": .8 } },
-        { id: "x-gr-pow", type: "line", source: s, minzoom: 5.5, filter: ["==", ["get", "l"], 1], paint: { "line-color": "#364fc7", "line-width": ["interpolate", ["linear"], ["zoom"], 6, .7, 12, 2.4] } },
-        { id: "x-gr-woj", type: "line", source: s, filter: ["==", ["get", "l"], 2], paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 12, 3.5] } },
-        { id: "x-gr-hl", type: "line", source: s, minzoom: 8, filter: ["==", ["get", "a"], "-"], layout: { "line-cap": "round" }, paint: { "line-color": "#f59f00", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 4, 12, 8], "line-opacity": .9 }, noClick: true },
-        { id: "x-gr-hit", type: "line", source: s, minzoom: 8, paint: { "line-color": "#000", "line-opacity": 0, "line-width": 12 } }],
-      onToggle: on => { if (!on || window._grHover) return; window._grHover = true;
-        let key = "", raf = 0, last = null;  /* podświetlenie najechanej granicy: najwyżej raz na klatkę i tylko przy zmianie odcinka */
-        const hl = f => { const k = f ? f.properties.a + "|" + f.properties.b : ""; if (k === key || !map.getLayer("x-gr-hl")) return; key = k;
-          map.setFilter("x-gr-hl", f ? ["all", ["==", ["get", "a"], f.properties.a], ["==", ["get", "b"], f.properties.b]] : ["==", ["get", "a"], "-"]); };
-        map.on("mousemove", "x-gr-hit", e => { last = e.features[0]; map.getCanvas().style.cursor = "pointer"; if (!raf) raf = requestAnimationFrame(() => { raf = 0; hl(last); }); });
-        map.on("mouseleave", "x-gr-hit", () => { last = null; map.getCanvas().style.cursor = ""; hl(null); }); },
-      legend: () => legendRow([["#495057", "granica gminy", "line"], ["#364fc7", "granica powiatu", "line"], ["#c2255c", "granica województwa", "line"]]) + note("Kliknij granicę, by zobaczyć, które gminy rozdziela. Włącza się sama przy ciekawostkach 4FUN o granicach. Źródło: GUGiK PRG."),
-      card: p => p.a ? ({ title: p.a + " / " + p.b, src: "GUGiK PRG", body: `<p class="gs-st"><i style="background:${["#495057", "#364fc7", "#c2255c"][p.l || 0]}"></i>Granica ${["gmin", "gmin i zarazem powiatów", "gmin, powiatów i województw"][p.l || 0]}</p>` }) : null },
     { id: "ulice-dl", box: "curioLayers", label: "Najdłuższe ulice w Polsce", desc: "Ranking najdłuższych ulic w jednej miejscowości według osi ulic z PRG", kw: "najdłuższa ulica w polsce długość ulicy aleja ranking ciekawostki prg",
       icon: ["road-horizon", "#e8590c"], url: "data/granice/daleko.geojson",
       layers: s => [{ id: "x-ulice-dl", type: "line", source: s, filter: ["==", ["get", "k"], "u"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#e8590c", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 3, 12, 6] } }],
@@ -569,7 +542,7 @@
         { t: "Średnio najdalej", c: "#9775fa", items: f.filter(x => P(x).k === "s").map(x => [P(x).n, P(x).d, "km", XY(x), `${P(x).c} wsi, najdalsza ${fmt(P(x).x, 1)} km`, 10]) }]; },
       card: p => p.k === "w" ? ({ title: p.n, src: "GUGiK PRNG, KAPP gov.pl (obliczenia własne)", body: `<p class="gs-st"><i style="background:#5f3dc4"></i><b>${fmt(p.d, 1)} km</b> do urzędu gminy</p><p>${esc(p.u)}</p>` })
         : p.k === "s" ? ({ title: "Gmina " + p.n, src: "GUGiK PRNG, KAPP gov.pl (obliczenia własne)", body: `<p class="gs-st"><i style="background:#9775fa"></i>Średnio <b>${fmt(p.d, 1)} km</b> z wsi do urzędu</p><p>${p.c} wsi, najdalsza ${fmt(p.x, 1)} km</p>` }) : null },
-    { id: "rekordy-granic", borders: true, box: "curioLayers", label: "Rekordy granic gmin", desc: "Najdłuższe i najkrótsze granice między dwiema gminami oraz gminy z największą liczbą sąsiadów", kw: "najkrótsza granica gmin najdłuższa granica sąsiedzi gminy liczba sąsiadów rekord ciekawostki prg",
+    { id: "rekordy-granic", box: "curioLayers", label: "Rekordy granic gmin", desc: "Najdłuższe i najkrótsze granice między dwiema gminami oraz gminy z największą liczbą sąsiadów", kw: "najkrótsza granica gmin najdłuższa granica sąsiedzi gminy liczba sąsiadów rekord ciekawostki prg",
       icon: ["arrows-left-right", "#c2255c"], url: "data/granice/rekordy.geojson",
       layers: s => [
         { id: "x-rek-l", type: "line", source: s, filter: ["==", ["get", "k"], "L"], layout: { "line-cap": "round" }, paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 3, 11, 6], "line-opacity": .85 } },
@@ -582,7 +555,7 @@
         { t: "Najwięcej sąsiadów", c: "#1971c2", items: f.filter(x => P(x).k === "N").map(x => [P(x).a, P(x).c, "gmin", XY(x), "", 10]) }]; },
       card: p => p.k === "N" ? ({ title: p.a, src: "GUGiK PRG (obliczenia własne)", body: `<p class="gs-st"><i style="background:#1971c2"></i>Graniczy z <b>${p.c}</b> gminami</p>` })
         : ({ title: p.a + " / " + p.b, src: "GUGiK PRG (obliczenia własne)", body: `<p class="gs-st"><i style="background:${p.k === "S" ? "#f08c00" : "#c2255c"}"></i>Wspólna granica: <b>${p.k === "S" ? fmt(p.m, 1) + " m" : fmt(p.m / 1000, 1) + " km"}</b></p>` }) },
-    { id: "granice-bud", borders: true, box: "curioLayers", label: "Budynki przecięte granicą", desc: "Domy, hale i garaże, przez które biegnie granica gmin, powiatów lub województw", kw: "granica gminy przecina budynek dom na granicy dwie gminy podzielony budynek powiat województwo ciekawostki prg bdot",
+    { id: "granice-bud", box: "curioLayers", label: "Budynki przecięte granicą", desc: "Domy, hale i garaże, przez które biegnie granica gmin, powiatów lub województw", kw: "granica gminy przecina budynek dom na granicy dwie gminy podzielony budynek powiat województwo ciekawostki prg bdot",
       icon: ["buildings", "#d6336c"], url: "data/granice/budynki.geojson",
       layers: s => [
         { id: "x-granbud-f", type: "fill", source: s, filter: ["has", "o"], minzoom: 13, paint: { "fill-color": ["match", ["get", "l"], "w", "#c2255c", "p", "#f76707", "#fab005"], "fill-opacity": .55 } },
@@ -630,7 +603,7 @@
         { t: "Największa różnica", c: "#e67700", items: top(f.filter(x => P(x).k === "max"), x => P(x).d, 15).map(x => [P(x).n, Math.round(P(x).d), "m różnicy", XY(x), "", 11]) }]; },
       card: p => ({ title: (p.k === "max" ? "Najwyższy punkt: " : "Najniższy punkt: ") + p.n, src: "Copernicus DEM GLO-30 (ESA), PRG",
         body: `<p class="gs-st"><i style="background:${p.k === "max" ? "#5c940d" : "#1971c2"}"></i><b>${fmt(p.h, 0)} m n.p.m.</b></p><p>Różnica wysokości w gminie: ${fmt(p.d, 0)} m</p><p class="small muted">Model 30 m, wynik przybliżony</p>` }) },
-    { id: "wezly", borders: true, box: "curioLayers", label: "Trójstyki granic", desc: "Punkty, w których schodzą się 3 lub 4 gminy, powiaty albo województwa", kw: "trójstyk czwórstyk granice gmin powiatów województw punkt styku granica ciekawostki prg",
+    { id: "wezly", box: "curioLayers", label: "Trójstyki granic", desc: "Punkty, w których schodzą się 3 lub 4 gminy, powiaty albo województwa", kw: "trójstyk czwórstyk granice gmin powiatów województw punkt styku granica ciekawostki prg",
       icon: ["crosshair", "#5f3dc4"], url: "data/granice/wezly.geojson",
       layers: s => [{ id: "x-wezly", type: "circle", source: s, filter: ["any", ["!=", ["get", "l"], "g"], [">=", ["zoom"], 9], [">=", ["get", "n"], 4]], paint: { "circle-color": ["match", ["get", "l"], "w", "#c2255c", "p", "#f76707", "#7950f2"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "l"], "w", 5, "p", 2.5, 2], 11, ["match", ["get", "l"], "w", 9, "p", 6, 5]], "circle-stroke-color": ["case", [">=", ["get", "n"], 4], "#000", "#fff"], "circle-stroke-width": ["case", [">=", ["get", "n"], 4], 2.5, 1.2] } }],
       legend: () => legendRow([["#c2255c", "trójstyk województw (19)"], ["#f76707", "trójstyk powiatów (625)"], ["#7950f2", "trójstyk gmin, widoczny od zoomu 9"]]) + note("Punkty, w których stykają się granice trzech gmin. Czarna obwódka to czwórstyk: 6 miejsc w Polsce, gdzie spotykają się cztery gminy. Źródło: GUGiK PRG, obliczenia własne."),
@@ -639,7 +612,7 @@
         { t: "Województw", c: "#c2255c", items: f.filter(x => P(x).l === "w").map(x => [P(x).g.join(" / "), 3, "gminy", XY(x), "", 13]) }]; },
       card: p => ({ title: (p.n >= 4 ? "Czwórstyk" : "Trójstyk") + " " + ({ w: "województw", p: "powiatów" }[p.l] || "gmin"), src: "GUGiK PRG (obliczenia własne)",
         body: `<p class="gs-st"><i style="background:${{ w: "#c2255c", p: "#f76707" }[p.l] || "#7950f2"}"></i>Spotykają się ${p.n} gminy</p>` + (p.g || []).map(g => `<p>${esc(g)}</p>`).join("") }) },
-    { id: "enklawy", borders: true, box: "curioLayers", label: "Enklawy i eksklawy gmin", desc: "Gminy otoczone przez jedną gminę i części gmin oderwane od reszty", kw: "enklawa eksklawa gmina otoczona oderwana część gminy obwarzanek granice ciekawostki prg",
+    { id: "enklawy", box: "curioLayers", label: "Enklawy i eksklawy gmin", desc: "Gminy otoczone przez jedną gminę i części gmin oderwane od reszty", kw: "enklawa eksklawa gmina otoczona oderwana część gminy obwarzanek granice ciekawostki prg",
       icon: ["target", "#0b7285"], url: "data/granice/enklawy.geojson",
       layers: s => [
         { id: "x-eksklawy", type: "fill", source: s, filter: ["==", ["get", "e"], "eks"], paint: { "fill-color": "#0b7285", "fill-opacity": .45, "fill-outline-color": "#0b7285" } },
@@ -653,7 +626,7 @@
         { t: "Eksklawy", c: "#0b7285", items: top(f.filter(x => P(x).e === "eks"), x => P(x).a, 20).map(x => [P(x).n, P(x).a, "ha", XY(x), P(x).t, 13]) }]; },
       card: p => p.e === "dziw" || p.e === "dziwp" ? ({ title: p.n + " w gminie " + p.s, src: "GUGiK PRG, BDOT10k, PRNG (obliczenia własne)", body: `<p class="gs-st"><i style="background:#d6336c"></i>Najdziwniejsza enklawa</p><p>${esc(p.o)}</p>` }) : p.e === "enk" ? ({ title: p.n, src: "GUGiK PRG (obliczenia własne)", body: `<p class="gs-st"><i style="background:#15aabf"></i>Enklawa, ${esc(p.t || "")}</p><p>W całości otoczona przez gminę ${esc(p.s)}</p><p class="small">${fmt(p.a, 1)} km²</p>` })
         : ({ title: p.n, src: "GUGiK PRG (obliczenia własne)", body: `<p class="gs-st"><i style="background:#0b7285"></i>Eksklawa, ${esc(p.t || "")}</p><p>Oderwana część gminy, ${fmt(p.a, 1)} ha</p>${p.c > 1 ? `<p class="small">Gmina ma ${p.c} oderwanych części</p>` : ""}` }) },
-    { id: "ksztalty", borders: true, box: "curioLayers", label: "Kształty gmin: rekordy", desc: "Najbardziej okrągłe, najbardziej poszarpane i najbardziej wydłużone gminy", kw: "kształt gminy najbardziej okrągła zwarta poszarpana wydłużona granice ranking ciekawostki",
+    { id: "ksztalty", box: "curioLayers", label: "Kształty gmin: rekordy", desc: "Najbardziej okrągłe, najbardziej poszarpane i najbardziej wydłużone gminy", kw: "kształt gminy najbardziej okrągła zwarta poszarpana wydłużona granice ranking ciekawostki",
       icon: ["map-pin", "#2f9e44"], url: "data/granice/ksztalty.geojson",
       layers: s => [{ id: "x-ksztalty", type: "circle", source: s, paint: { "circle-color": ["match", ["get", "k"], "zw", "#2f9e44", "po", "#e8590c", "#1971c2"], "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 10, 10], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } },
         { id: "x-ksztalty-lbl", type: "symbol", source: s, layout: { "text-field": ["to-string", ["get", "r"]], "text-size": 10, "text-font": ["Noto Sans Bold"], "text-allow-overlap": true }, paint: { "text-color": "#fff" }, noClick: true }],
@@ -661,7 +634,7 @@
       rank: d => { const f = d.features, s = (k, c, t, v, u) => ({ t, c, items: f.filter(x => P(x).k === k).map(x => [P(x).n, v(x), u, XY(x), P(x).t, 11]) }); return [
         s("zw", "#2f9e44", "Najbardziej okrągłe", x => P(x).pp, ""), s("po", "#e8590c", "Najbardziej poszarpane", x => P(x).pp, ""), s("wy", "#1971c2", "Najbardziej wydłużone", x => P(x).el, ": 1")]; },
       card: p => ({ title: p.n, src: "GUGiK PRG (obliczenia własne)", body: `<p class="gs-st"><i style="background:${{ zw: "#2f9e44", po: "#e8590c" }[p.k] || "#1971c2"}"></i>${p.r}. miejsce: ${{ zw: "najbardziej zwarta", po: "najbardziej poszarpana", wy: "najbardziej wydłużona" }[p.k]}</p><p>Zwartość ${fmt(p.pp, 2)} (koło = 1)</p><p>Wydłużenie ${fmt(p.el, 2)} : 1</p><p class="small">${esc(p.t || "")}</p>` }) },
-    { id: "ulice-granica", borders: true, box: "curioLayers", label: "Ulice na granicy gmin", desc: "Ulice, których jedna strona leży w innej gminie niż druga", kw: "ulica na granicy gmin dwie gminy jedna ulica druga strona ulicy inna gmina adres granica ciekawostki",
+    { id: "ulice-granica", box: "curioLayers", label: "Ulice na granicy gmin", desc: "Ulice, których jedna strona leży w innej gminie niż druga", kw: "ulica na granicy gmin dwie gminy jedna ulica druga strona ulicy inna gmina adres granica ciekawostki",
       icon: ["path", "#c2255c"], url: "data/granice/ulice_granica.geojson",
       layers: s => [
         { id: "x-ulgr-l", type: "line", source: s, filter: ["==", ["get", "z"], "b"], layout: { "line-cap": "round" }, paint: { "line-color": "#c2255c", "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2, 14, 6], "line-opacity": .8 } },
@@ -921,11 +894,6 @@
     if (on && leg && L.legendInit) L.legendInit(leg);
     if (on && leg && L.rank && raw[L.id]) renderRank(L, leg, raw[L.id]);
     L.onToggle?.(on);
-    if (L.borders) {  /* ciekawostki o granicach od razu pokazują granice gmin */
-      const gb = document.getElementById("x-granice-gmin"), any = LAYERS.some(x => x.borders && document.getElementById("x-" + x.id)?.checked);
-      if (gb && any && !gb.checked) { gb.checked = true; gb.dataset.auto = "1"; gb.dispatchEvent(new Event("change", { bubbles: true })); }
-      else if (gb && !any && gb.checked && gb.dataset.auto) { delete gb.dataset.auto; gb.checked = false; gb.dispatchEvent(new Event("change", { bubbles: true })); }
-    }
   }
   function mount() {
     const boxes = {};
