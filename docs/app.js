@@ -476,7 +476,7 @@
     const setVis = (ids, on) => ids.forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", on ? "visible" : "none"));
     const bind = (el, key, ids, def) => { el.checked = store.get(key, def); setVis(ids, el.checked); el.onchange = () => { store.set(key, el.checked); setVis(ids, el.checked); }; };
     bind($("#lyrDz"), "dz", ["dz-fill", "dz-line", "dz-sel"], true);
-    bind($("#lyrAdr"), "adr2", ["adr-pt", "adr-lbl", "adr-hit"], true);
+    { const a = $("#lyrAdr"); a.checked = true; setVis(["adr-pt", "adr-lbl", "adr-hit"], true); a.closest(".layer-entry")?.setAttribute("hidden", ""); }  // punkty adresowe zawsze widoczne
     const o = $("#opac"); o.value = store.get("opac", 45); $("#opacValue").textContent = o.value + "%";
     o.oninput = () => { store.set("opac", +o.value);applyParcelColors(); $("#opacValue").textContent = o.value + "%"; };
     const countLayers = () => { $("#layerCount").textContent = document.querySelectorAll("#layerPanel .layer-entry input[type=checkbox]:checked").length; };

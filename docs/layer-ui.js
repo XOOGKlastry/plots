@@ -18,7 +18,8 @@
   if(document.getElementById('energyLayers'))group(document.getElementById('energyLayers'),'Energetyka','lightning');
   if(document.getElementById('resourceLayers'))group(document.getElementById('resourceLayers'),'Wiatr i słońce','wind');
   if(document.getElementById('airLayers'))group(document.getElementById('airLayers'),'Jakość powietrza','cloud');
-  for(const [id,t,ic] of [['transportLayers','Drogi i kolej','road-horizon'],['limitLayers','Lotnictwo, wojsko, przesył','airplane-tilt'],['heritageLayers','Zabytki','castle-turret'],['urbexLayers','Opuszczone miejsca','warning'],['youtubeLayers','Ciekawostki z YouTube','film-strip'],['curioLayers','Ciekawostki przestrzenne','ruler']]){const el=document.getElementById(id);if(el)group(el,t,ic);}
+  for(const [id,t,ic] of [['transportLayers','Drogi i kolej','road-horizon'],['limitLayers','Lotnictwo, wojsko, przesył','airplane-tilt'],['heritageLayers','Zabytki','castle-turret'],['urbexLayers','Opuszczone miejsca','warning']]){const el=document.getElementById(id);if(el)group(el,t,ic);}
+  {const yt=document.getElementById('youtubeLayers'),cu=document.getElementById('curioLayers');if(yt&&cu){const fun=document.createElement('div');fun.id='funLayers';fun.className='layer-group fun-group';cu.before(fun);fun.append(cu,yt);group(fun,'4FUN','sparkle').classList.add('fun-section');}}
   if(document.getElementById('poiLayers'))group(document.getElementById('poiLayers'),'Usługi i miejsca','storefront');
   const services=document.getElementById('surroundingsLayers'),priceEntry=document.getElementById('surPrices').closest('.layer-entry'),legend=document.getElementById('priceLegend');
   const prices=document.createElement('div');prices.id='priceLayers';prices.className='layer-group';services.after(prices);prices.append(priceEntry,legend);
@@ -33,7 +34,7 @@
   // One tap turns every overlay off (parcels, addresses, plans, terrain, services); names on imagery stay.
   const off=document.createElement('button');off.type='button';off.id='layersOff';off.className='layers-off';
   document.querySelector('#basemaps').after(off);
-  const onBoxes=()=>[...panel.querySelectorAll('.layer-entry input[type=checkbox]:checked')].filter(i=>i.id!=='lyrParcelColors');
+  const onBoxes=()=>[...panel.querySelectorAll('.layer-entry input[type=checkbox]:checked')].filter(i=>i.id!=='lyrParcelColors'&&i.id!=='lyrAdr');
   function syncOff(){const n=onBoxes().length;off.disabled=!n;off.innerHTML=`${Icons.svg('stack')}${n?`Wyłącz warstwy <b>${n}</b>`:'Warstwy wyłączone'}`;}
   off.onclick=()=>{const c=document.getElementById('lyrParcelColors');if(c?.checked){c.checked=false;c.dispatchEvent(new Event('change',{bubbles:true}));}onBoxes().forEach(i=>{i.checked=false;i.dispatchEvent(new Event('change',{bubbles:true}));});syncOff();};
   panel.addEventListener('change',()=>setTimeout(syncOff));syncOff();
