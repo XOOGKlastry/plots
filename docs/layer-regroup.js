@@ -7,7 +7,7 @@
   let on = true; try { on = localStorage.getItem(KEY) !== "0"; } catch (e) {}
   if (params.get("uklad") === "stary") on = false; if (params.get("uklad") === "nowy") on = true;
   const GROUPS = [
-    ["Ludzie i okolica", "users-three", "", ["terr-spis", "terr-gunb", "terr-internet", "x-noc", "surPrices", "poiAll"]],
+    ["Ludzie i okolica", "users-three", "", ["terr-spis", "terr-gunb", "terr-internet", "x-bud-gmin", "x-bud-mieszk", "x-noc", "surPrices", "poiAll"]],
     ["Zagrożenia", "warning", "", ["terr-powodz", "x-susza", "terr-osuwiska", "terr-egms", "terr-gornicze", "x-halas-ldwn", "x-halas-ln"]],
     ["Woda", "drop", "", ["x-wp-zlewnie", "x-wp-rzeki", "x-wp-podziemne", "x-wp-nadzory", "x-wp-chronione"]],
     ["Przyroda i grunt", "tree", "", ["terr-lasy", "x-gleby", "x-cieniowanie", "x-wysokosci"]],
