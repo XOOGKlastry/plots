@@ -60,11 +60,12 @@
       await load();if(context!==contextRevision)return; const g = data.gminy.find((item) => item.k === id);
       if (!g) { app.toast("Brak profilu tej gminy w bieżącym zestawie"); return; }
       selected = g;app.setCurrentPlace(null); category = "Przegląd";
+      app.showGmina();const shown=fly?window.MunicipalBoundaries?.select(g.k,true):null;
       selectedYear = null;
       await window.GusClient.seed(g).catch(()=>{});if(context!==contextRevision)return;
       app.store.set("gmina", g.k); app.store.set("gminyRecent", [g.k, ...recentIds().filter((k) => k !== g.k)].slice(0, 5));
       drawCard(); app.showGmina();
-      if(fly){const shown=await window.MunicipalBoundaries?.select(g.k,true);if(context!==contextRevision)return;if(!shown&&Number.isFinite(g.lon)&&Number.isFinite(g.lat))app.framePoint(g.lon,g.lat,11);}
+      if(fly){if(!(await shown)&&context===contextRevision&&Number.isFinite(g.lon)&&Number.isFinite(g.lat))app.framePoint(g.lon,g.lat,11);}
 
       if (dialog.open) renderDetails();
       loadGus(g, false).catch(error=>console.warn(error.message));

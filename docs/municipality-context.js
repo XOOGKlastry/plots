@@ -17,5 +17,10 @@
  document.addEventListener('plots:point',e=>update(e.detail).catch(()=>window.PLOTS.toast('Dane gmin są chwilowo niedostępne')));
  document.addEventListener('plots:parcel',()=>revision++);
  document.addEventListener('plots:manual-gmina',()=>revision++);
- window.MunicipalityContext={ready,update,topology:()=>raw};
+ // Instant local lookup (no network) once the country topology is loaded.
+ function local(lon,lat){return shapes?model.lookup(shapes,Number(lon),Number(lat)):null;}
+ function shape(id){return shapes?.find(f=>f.id===id)||null;}
+ window.MunicipalityContext={ready,update,local,shape,topology:()=>raw};
+ // Preload in idle time so clicks below the parcel zoom resolve instantly.
+ (window.requestIdleCallback||setTimeout)(()=>ready().catch(()=>{}),{timeout:4000});
 })();

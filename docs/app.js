@@ -491,7 +491,7 @@
       if(window.PLOTS_ENERGY?.handleClick(e))return;
       if(window.ExtraLayers?.handleClick?.(e))return;
       const point={lon:e.lngLat.lng,lat:e.lngLat.lat};
-      if(map.getZoom()<MINZ){addressRequest++;await window.MunicipalityContext.update(point);if(click!==clickRevision)return;const id=window.PLOTS_GMINY.current();if(id)window.PLOTS_GMINY.select(id,true);else {tab("gmina");snap("half");}return;}
+      if(map.getZoom()<MINZ){addressRequest++;const fast=window.MunicipalityContext.local?.(point.lon,point.lat);if(fast){window.PLOTS_GMINY.select(fast,true);return;}await window.MunicipalityContext.update(point);if(click!==clickRevision)return;const id=window.PLOTS_GMINY.current();if(id)window.PLOTS_GMINY.select(id,true);else {tab("gmina");snap("half");}return;}
       if (window.PLOTS_PLANNING?.inspecting()) return;
       const r = isMobile() ? 18 : 9;
       const box = [[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]];
@@ -525,7 +525,10 @@
     updStatus();
   });
   function syncMapScale(){const far=map.getZoom()<MINZ;document.body.classList.toggle("municipality-scale",far);// A chosen point or parcel keeps its card when zooming out; only an empty card gives way to the gmina view.
-    if(far&&curTab!=="gmina"&&!currentPlace&&!window.DistanceModule?.isOpen())tab("gmina");}
+    if(far&&curTab!=="gmina"&&!currentPlace&&!window.DistanceModule?.isOpen())tab("gmina");
+    // Zooming out by hand: the gmina under the map centre becomes the context (highlight only, no fly).
+    if(far&&userZoom&&!currentPlace&&!window.DistanceModule?.isOpen()){const c=map.getCenter(),id=window.MunicipalityContext?.local?.(c.lng,c.lat);if(id&&id!==window.PLOTS_GMINY?.current())window.PLOTS_GMINY.setContext(id);}userZoom=false;}
+  let userZoom=false;map.on("zoomstart",e=>{if(e.originalEvent)userZoom=true;});
   map.on("load",syncMapScale);map.on("zoomend",syncMapScale);
   map.on("dragstart", () => { if (isMobile() && (panel.dataset.snap === "half" || panel.dataset.snap === "full")) snap("peek"); });
   map.on("moveend", () => { updStatus(); const c = map.getCenter(); store.set("view", { center: [c.lng, c.lat], zoom: map.getZoom() }); });

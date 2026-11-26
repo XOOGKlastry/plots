@@ -4,10 +4,7 @@
  const empty=()=>({type:'FeatureCollection',features:[]});
  // The selected gmina outline is always shown in the Gmina tab (no separate layer switch).
  function visible(){return !window.DistanceModule?.isOpen()&&app.currentTab()==='gmina';}
- // A user gesture after selection cancels the pending fit, so a quick zoom-out is never undone by a late boundary load.
- let gesture=0;map.on('movestart',e=>{if(e.originalEvent)gesture++;});
- // The whole gmina is in view when its bbox fits inside the visible map (with a small tolerance).
- function inView(b){const v=map.getBounds(),dx=(b[2]-b[0])*.05,dy=(b[3]-b[1])*.05;return v.getWest()<=b[0]+dx&&v.getEast()>=b[2]-dx&&v.getSouth()<=b[1]+dy&&v.getNorth()>=b[3]-dy;}
+ map.on('movestart',e=>{if(e.originalEvent)flight++;});
  function render(){map.getSource('municipal-boundaries')?.setData(visible()&&data?data:empty());}
  function save(id,value){try{localStorage.setItem('plots.boundary.'+id,JSON.stringify(value));let recent=JSON.parse(localStorage.getItem('plots.boundaryRecent')||'[]');recent=[id,...recent.filter(x=>x!==id)];recent.slice(6).forEach(x=>localStorage.removeItem('plots.boundary.'+x));localStorage.setItem('plots.boundaryRecent',JSON.stringify(recent.slice(0,6)));}catch{/* Storage is optional. */}}
  async function load(id){
@@ -15,10 +12,18 @@
   if(!pending.has(id))pending.set(id,app.api('/api/gmina-granice?id='+id).then(value=>{if(value.type!=='FeatureCollection'||!Array.isArray(value.bbox)||value.simplified!==false)throw Error('Nieprawidłowe granice');cache.set(id,value);save(id,value);return value;}).catch(error=>{try{const saved=JSON.parse(localStorage.getItem('plots.boundary.'+id)||'null');if(saved?.municipality===id&&saved.features&&saved.bbox){cache.set(id,saved);return saved;}}catch{}throw error;}).finally(()=>pending.delete(id)));
   return pending.get(id);
  }
+ // One controller: highlight at once (local outline), fly once with a single token, then swap in the detailed outline.
+ let flight=0;
+ function quick(id){const s=window.MunicipalityContext?.shape?.(id);if(!s)return null;return {type:'FeatureCollection',bbox:s.bbox,features:[{type:'Feature',properties:{kind:'gmina'},geometry:{type:'MultiPolygon',coordinates:s.polygons}}]};}
+ function fly(bbox){const run=++flight,anim=window.Motion?.on(),far=map.getZoom()<8.5;app.frame(bbox,16,anim?{duration:far?1800:900}:{});if(anim)map.once('moveend',()=>{if(run===flight)flash();});else flash();}
  async function select(id,fit=false){
-  if(current!==id){current=id;revision++;data=null;render();}const run=revision,moves=gesture;if(!id)return false;
-  try{const value=await load(id);if(run!==revision)return false;data=value;render();if(fit==='auto')fit=!inView(value.bbox);if(fit&&gesture===moves&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen()){const anim=window.Motion?.on(),far=map.getZoom()<8.5;app.frame(value.bbox,16,anim?{duration:far?2300:1100}:{});if(anim)map.once('moveend',()=>{if(run===revision)flash();});return true;}if(window.Motion?.on())flash();return true;}
-  catch(error){if(run===revision&&fit)app.toast('Granice gminy są chwilowo niedostępne');return false;}
+  if(current!==id){current=id;revision++;data=null;}const run=revision;
+  if(!id){render();return false;}
+  const q=data?null:quick(id);if(q){data=q;render();}
+  const canFly=()=>fit&&app.currentTab()==='gmina'&&!window.StatsMap?.isOpen();
+  let flown=false;if(q&&canFly()){fly(q.bbox);flown=true;}
+  try{const value=await load(id);if(run!==revision)return flown;data=value;render();if(!flown&&canFly()){fly(value.bbox);flown=true;}return true;}
+  catch(error){if(run===revision&&fit&&!flown)app.toast('Granice gminy są chwilowo niedostępne');return flown;}
  }
  // Short glow of the outline and fill when a gmina is shown (only with animations on).
  let glow=0;
@@ -37,8 +42,8 @@
   map.addLayer({id:'municipal-city-line',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'miasto'],paint:{'line-color':'#8b5cf6','line-width':2.5,'line-dasharray':[3,2]}});render();
  }
  if(map.loaded())initialize();else map.once('load',initialize);
- document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,visible());});
+ document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,false);});
  document.addEventListener('plots:mode',render);
- document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,'auto');});
+ document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,false);});
  window.MunicipalBoundaries={select,current:()=>current,fit:()=>current?select(current,true):Promise.resolve(false)};
 })();
