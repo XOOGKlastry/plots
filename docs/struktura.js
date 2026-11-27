@@ -64,7 +64,8 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
     for (const l of layersFor()) if (map.getLayer(l.id)) map.removeLayer(l.id);
     for (const id of ["st-pt", "st-dr", "st-b", "st-mask"]) if (map.getSource(id)) map.removeSource(id);
   }
-  function rise(k, delay = 0) { setTimeout(() => { if (map.getLayer("st-" + k)) map.setPaintProperty("st-" + k, "fill-extrusion-height", on[k] ? H(k) : 0); }, calm ? 0 : delay); }
+  function rise(k, delay = 0) { setTimeout(() => { if (!map.getLayer("st-" + k)) return; map.setPaintProperty("st-" + k, "fill-extrusion-height", on[k] && !calm ? H(k) : 0);
+    if (on[k] && !calm) setTimeout(() => map.getLayer("st-" + k) && map.setPaintProperty("st-" + k, "fill-extrusion-height", 0), 950); }, calm ? 0 : delay); }
   function puff(k) {
     if (calm || !data) return;
     const f = data.pt.features.filter(x => x.properties.k === k), step = Math.max(1, Math.floor(f.length / 70)), W = innerWidth, Hh = innerHeight;
@@ -161,8 +162,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
     addMap(); const [w, s, e, n] = data.bbox;
     if (map.isMoving()) await new Promise(r => { map.once("moveend", r); setTimeout(r, 2500); });
     const cam = map.cameraForBounds([[w, s], [e, n]], { padding: app.isMobile() ? { top: 90, bottom: innerHeight * .5, left: 20, right: 20 } : { top: 50, bottom: 50, left: 50, right: 440 } });
-    if (cam) map.easeTo({ ...cam, zoom: cam.zoom + (calm ? 0 : .25), pitch: calm ? 0 : 52, bearing: calm ? 0 : -12, duration: calm ? 0 : 1600 });
-    if (!calm) setTimeout(() => { if (document.body.classList.contains("struct-open") && map.getPitch() < 20) map.easeTo({ pitch: 52, bearing: -12, duration: 900 }); }, 1900);
+    if (cam) map.easeTo({ ...cam, zoom: cam.zoom + (calm ? 0 : .25), pitch: 0, bearing: 0, duration: calm ? 0 : 1200 });
     map.setPaintProperty("st-mask", "fill-opacity", .86); map.setPaintProperty("st-b", "line-opacity", 1);
     C.forEach(([k], i) => rise(k, 900 + i * 120));
     body();
