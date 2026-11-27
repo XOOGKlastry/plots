@@ -275,7 +275,7 @@
   }
   mountPanels();
   const start = () => { if (state.on) render(); document.getElementById("resourceLayers")?.dispatchEvent(new Event("change", { bubbles: true })); };
-  if (map.isStyleLoaded()) start(); else map.once("load", start);
+  if (map._loaded) start(); else map.once("load", start);
   map.on("styledata", () => { if (state.on && !map.getLayer("zas-" + state.on + "-r")) schedule(); });
 
   /* ---------- place card ---------- */

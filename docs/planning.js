@@ -24,7 +24,7 @@
     }
     count();
   }
-  if (map.loaded()) initialize(); else map.once("load", initialize);
+  if (map._loaded) initialize(); else map.once("load", initialize);
   document.getElementById("inspectPlans").onclick=()=>{
     if(!active().length){app.toast("Najpierw włącz MPZP lub plan ogólny");return;}
     inspect=!inspect;document.getElementById("inspectPlans").setAttribute("aria-pressed",String(inspect));

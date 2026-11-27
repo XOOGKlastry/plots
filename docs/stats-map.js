@@ -394,6 +394,6 @@
   });
 
   const params = new URLSearchParams(location.search);
-  if (params.get("stat")) { const go = () => open(params.get("stat"), { year: Number(params.get("rok")) || null }); if (map.loaded()) go(); else map.once("load", go); }
+  if (params.get("stat")) { const go = () => open(params.get("stat"), { year: Number(params.get("rok")) || null }); if (map._loaded) go(); else map.once("load", go); }
   window.StatsMap = { open, close, isOpen: () => active, defs: () => defs, gminy: () => gminy, series: d => series(d, "value").values };
 })();

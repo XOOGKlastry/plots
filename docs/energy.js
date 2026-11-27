@@ -113,7 +113,7 @@
     panel.dispatchEvent(new Event("change", { bubbles: true }));
   }
   map.on("styledata", () => { for (const L of LAYERS) if (added.has(L.id) && !map.getLayer(L.layers()[0].id)) { added.delete(L.id); if (document.getElementById("en-" + L.id).checked) apply(L, true); } });
-  if (map.loaded()) init(); else map.once("load", init);
+  if (map._loaded) init(); else map.once("load", init);
 
   /* Karta obiektu: tylko punkty (linie nie przechwytują stuknięć, żeby nie zasłaniać działek). */
   const POINTS = ["en-moce", "en-mag", "en-turb", "en-turb-plan", "en-pv", "en-woda", "en-bio", "en-cie", "en-gpz", "en-lad", "en-odb"];

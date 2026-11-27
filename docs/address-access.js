@@ -12,7 +12,7 @@
     map.addLayer({id:'address-direction-names',type:'symbol',source:'address-directions',filter:['==',['geometry-type'],'Point'],layout:{'text-field':['concat',['to-string',['get','rank']],' · ',['get','label']],'text-font':['Noto Sans Regular'],'text-size':10,'text-max-width':24,'text-anchor':['match',['get','rank'],1,'bottom','top'],'text-offset':['match',['get','rank'],1,['literal',[0,-1.9]],['literal',[0,1.9]]],'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#182636','text-halo-color':'#fff','text-halo-width':2.5}});
     map.addLayer({id:'address-direction-labels',type:'symbol',source:'address-directions',filter:['==',['geometry-type'],'Point'],layout:{'text-field':['to-string',['get','rank']],'text-font':['Noto Sans Regular'],'text-size':11,'text-offset':[1.15,-1.15],'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#fff','text-halo-color':'#007aff','text-halo-width':4}});
   }
-  if(map.loaded())initialize();else map.once('load',initialize);
+  if(map._loaded)initialize();else map.once('load',initialize);
   document.addEventListener('plots:selection',clear);
   document.addEventListener('plots:address',e=>{origin={lon:+e.detail.lon,lat:+e.detail.lat};window.DistanceModule?.setOrigin(origin);});
   async function matrix(at,targets,signal,costing){

@@ -57,7 +57,7 @@
   map.addLayer({id:'municipal-boundary-glow',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'gmina'],paint:{'line-color':'#087cfc','line-width':16,'line-blur':10,'line-opacity':0}},'municipal-boundary-line');
   map.addLayer({id:'municipal-city-line',type:'line',source:'municipal-boundaries',filter:['==',['get','kind'],'miasto'],paint:{'line-color':'#8b5cf6','line-width':2.5,'line-dasharray':[3,2]}});render();
  }
- if(map.loaded())setTimeout(initialize);else map.once('load',initialize);
+ if(map._loaded)setTimeout(initialize);else map.once('load',initialize);
  document.addEventListener('plots:gmina',e=>{if(e.detail.id!==current)select(e.detail.id,false);});
  document.addEventListener('plots:mode',render);
  document.addEventListener('plots:tab',e=>{render();if(e.detail==='gmina'&&current)select(current,false);});

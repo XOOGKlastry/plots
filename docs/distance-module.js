@@ -142,7 +142,7 @@
   app.registerOverlaySource('distance-buildings');map.addSource('distance-buildings',{type:'geojson',data:{type:'FeatureCollection',features:[]},attribution:'© GUGiK · BDOT10k'});
   map.addLayer({id:'distance-building-points',type:'circle',source:'distance-buildings',paint:{'circle-radius':['interpolate',['linear'],['zoom'],13,3.5,15,5,18,8],'circle-color':['case',['==',['get','code'],255],'#9299a4',['step',['get','minutes'],palette[0],5,palette[1],10,palette[2],15,palette[3],30,palette[4],45,palette[5]]],'circle-stroke-color':'#fff','circle-stroke-width':1,'circle-opacity':1}},map.getLayer('address-direction-lines')?'address-direction-lines':undefined);
  }
- if(map.loaded())initialize();else map.once('load',initialize);
+ if(map._loaded)initialize();else map.once('load',initialize);
  function setMode(value){mode=value;panel.querySelectorAll('[data-distance-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.distanceMode===mode)));document.getElementById('walkingTimeLabel').textContent=mode==='outside'?'Dalej niż':mode==='within'?'Do':'Próg czasu dojścia';queue();}
  panel.addEventListener('click',e=>{
   if(e.target.closest('[data-distance-back],[data-distance-map]'))close();

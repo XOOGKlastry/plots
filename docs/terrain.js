@@ -190,7 +190,7 @@
     if (map.getLayer("terr-spis")) map.setPaintProperty("terr-spis", "fill-color", stepExpr(spisMode));
     document.getElementById("terr-leg-spis").innerHTML = spisLegend();
   });
-  if (map.loaded()) init(); else map.once("load", init);
+  if (map._loaded) init(); else map.once("load", init);
 
   /* ---------- „Teren i otoczenie” w karcie miejsca ---------- */
   const fmt = n => Math.round(n).toLocaleString("pl-PL");

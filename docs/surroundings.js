@@ -218,7 +218,7 @@
       map.addLayer(lineLayer("near-poi-outline","near-poi-lines",11));map.addLayer(lineLayer("poi-all-outline","poi-all-lines",ALLZ));
       window.PoiIcons?.attach(map);map.addLayer({id:"near-poi-points",type:"symbol",source:"near-poi",minzoom:11,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],11,0.62,14,0.88,17,1.15,19,1.35],"icon-allow-overlap":false,"icon-padding":2}});map.addLayer({id:"poi-all-points",type:"symbol",source:"poi-all",minzoom:ALLZ,layout:{"icon-image":["concat","poi-",["get","network"]],"icon-size":["interpolate",["linear"],["zoom"],13,0.72,15,0.92,17,1.15,19,1.35],"icon-allow-overlap":false,"icon-padding":2}});
         map.on("moveend",()=>{clearTimeout(timer);timer=setTimeout(update,150);scheduleAll();});update();updateAll();if(state.prices)loadPrices();};
-      let added=false;const tryLayers=()=>{if(added||!map.isStyleLoaded())return;added=true;map.off("styledata",tryLayers);map.off("idle",tryLayers);layers();};if(map.isStyleLoaded())tryLayers();else{map.on("styledata",tryLayers);map.on("idle",tryLayers);}
+      let added=false;const tryLayers=()=>{if(added||!(map.style?map.style._loaded:map.isStyleLoaded()))return;added=true;map.off("styledata",tryLayers);map.off("idle",tryLayers);layers();};if(map.style?map.style._loaded:map.isStyleLoaded())tryLayers();else{map.on("styledata",tryLayers);map.on("idle",tryLayers);}
       document.getElementById("networkSelect").onchange=e=>{state.network=e.target.value;remember();update();};
       for(const [id,key] of [["surPoi","poi"],["surPrices","prices"]])document.getElementById(id).onchange=e=>{state[key]=e.target.checked;remember();if(key==="prices")loadPrices();else update();};
       remember();

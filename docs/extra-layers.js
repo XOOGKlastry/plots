@@ -1058,6 +1058,11 @@
   const cache = {};
   const load = L => cache[L.url] || (cache[L.url] = (L.fetch ? L.fetch() : fetch(L.url, { cache: "no-cache" }).then(r => { if (!r.ok) throw Error(r.status); return r.json(); })).catch(e => { delete cache[L.url]; throw e; }));
   const raw = {}, sideData = {};
+  /* isStyleLoaded() jest fałszywe, dopóki ładuje się jakiekolwiek źródło (kafle, inne warstwy), więc sprawdzam tylko sam styl */
+  const styleReady = () => map.style ? !!map.style._loaded : map.isStyleLoaded();
+  /* warstwy kryjące całą Polskę: naraz tylko jedna, inaczej się zasłaniają i spowalniają mapę */
+  const FULL = ["przyr-gmin", "bud-gmin", "bud-mieszk", "geografia", "susza", "wp-zlewnie", "wp-podziemne"];
+  const offOthers = id => { if (!FULL.includes(id)) return; for (const o of FULL) { if (o === id) continue; const cb = document.getElementById("x-" + o); if (cb?.checked) { cb.checked = false; app.store.set("extra." + o, false); const L = LAYERS.find(x => x.id === o); if (L) apply(L, false); } } };
   const firstSymbol = () => map.getStyle().layers.find(l => l.type === "symbol")?.id;
   const added = new Set();
   let pmOn = false;  /* kafle wektorowe z jednego pliku PMTiles obok strony */
@@ -1097,7 +1102,7 @@
       if (L.side) fetch(L.side).then(r => r.ok ? r.json() : null).then(x => { sideData[L.id] = x; }).catch(() => {});
       if (L.side2) fetch(L.side2[1]).then(r => r.ok ? r.json() : null).then(x => { sideData[L.side2[0]] = x; }).catch(() => {});
       const src = "x-" + L.id;
-      for (let i = 0; i < 100 && !map.isStyleLoaded(); i++) await new Promise(r => setTimeout(r, 150));  /* styl mapy może się jeszcze przeładowywać (zmiana podkładu) */
+      for (let i = 0; i < 100 && !styleReady(); i++) await new Promise(r => setTimeout(r, 150));  /* styl mapy może się jeszcze przeładowywać (zmiana podkładu) */
       try {
         if (!map.getSource(src)) { map.addSource(src, L.vtiles ? vtSource(L) : L.tiles ? { type: "raster", tiles: [L.tiles()], tileSize: 256, minzoom: L.minz || 0, maxzoom: L.maxz || 19, ...(L.bounds ? { bounds: L.bounds } : {}), attribution: L.attr || "" } : { type: "geojson", data: L.toGeo ? L.toGeo(d) : d, attribution: L.attr || "" }); app.registerOverlaySource?.(src); }
         for (const spec of L.layers(src)) if (!map.getLayer(spec.id)) map.addLayer(spec, spec.type === "fill" || spec.type === "line" || spec.type === "raster" ? firstSymbol() : undefined);
@@ -1127,13 +1132,14 @@
     for (const L of LAYERS) {
       const cb = document.getElementById("x-" + L.id); if (!cb) continue;
       cb.checked = app.store.get("extra." + L.id, false);
-      cb.onchange = () => { app.store.set("extra." + L.id, cb.checked); apply(L, cb.checked); if (cb.checked && L.minz && map.getZoom() < L.minz) app.toast("Przybliż mapę, aby zobaczyć tę warstwę"); };
+      cb.onchange = () => { app.store.set("extra." + L.id, cb.checked); if (cb.checked) offOthers(L.id); apply(L, cb.checked); if (cb.checked && L.minz && map.getZoom() < L.minz) app.toast("Przybliż mapę, aby zobaczyć tę warstwę"); };
     }
   }
   mount();
-  function init() { for (const L of LAYERS) if (document.getElementById("x-" + L.id)?.checked) apply(L, true); document.getElementById("layerPanel")?.dispatchEvent(new Event("change", { bubbles: true })); }
-  if (map.isStyleLoaded()) init(); else map.once("load", init);
-  map.on("styledata", () => { for (const L of LAYERS) if (added.has(L.id) && !map.getLayer(L.layers("x-" + L.id)[0].id)) { added.delete(L.id); if (document.getElementById("x-" + L.id)?.checked) apply(L, true); } });
+  function init() { { const f = FULL.find(id => document.getElementById("x-" + id)?.checked); if (f) offOthers(f); } for (const L of LAYERS) if (document.getElementById("x-" + L.id)?.checked) apply(L, true); document.getElementById("layerPanel")?.dispatchEvent(new Event("change", { bubbles: true })); }
+  if (map._loaded) init(); else map.once("load", init);
+  let sdT = 0; map.on("styledata", () => { clearTimeout(sdT); sdT = setTimeout(restyle, 120); });
+  function restyle() { for (const L of LAYERS) if (added.has(L.id) && !map.getLayer(L._l0 || (L._l0 = L.layers("x-" + L.id)[0].id))) { added.delete(L.id); if (document.getElementById("x-" + L.id)?.checked) apply(L, true); } }
 
   function card(L, f, ll) {
     const c = L.card(f.properties || {}, raw[L.id], f, sideData[L.id]); if (!c) return false;
