@@ -121,7 +121,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
     if (!sheet || !data) return;
     const tot = C.reduce((a, c) => a + (on[c[0]] ? data.ha[c[0]] || 0 : 0), 0);
     count(sheet.querySelector(".st-big"), tot);
-    sheet.querySelector(".st-list").innerHTML = C.filter(c => data.ha[c[0]]).map(c => `<div class="st-row"><span class="st-dot" style="background:${c[2]}"></span><span>${c[1]}</span><span class="v">${fmt(data.ha[c[0]] / 100, 1)} km²<br>${fmt(data.ha[c[0]] / Object.values(data.ha).reduce((a, b) => a + b, 0) * 100, 1)}%</span><button type="button" class="st-tg ${on[c[0]] ? "" : "off"}" data-k="${c[0]}" aria-label="${esc(c[1])}" aria-pressed="${!!on[c[0]]}"></button></div>`).join("") +
+    sheet.querySelector(".st-list").innerHTML = C.filter(c => data.ha[c[0]]).map(c => `<div class="st-row"><span class="st-dot" style="background:${c[2]}"></span><span>${c[1]}</span><span class="v">${data.ha[c[0]] < 100 ? fmt(data.ha[c[0]], 1) + " ha" : fmt(data.ha[c[0]] / 100, 1) + " km²"}<br>${fmt(data.ha[c[0]] / Object.values(data.ha).reduce((a, b) => a + b, 0) * 100, 1)}%</span><button type="button" class="st-tg ${on[c[0]] ? "" : "off"}" data-k="${c[0]}" aria-label="${esc(c[1])}" aria-pressed="${!!on[c[0]]}"></button></div>`).join("") +
       `<div class="st-row" style="margin-top:6px"><span class="st-dot" style="background:#ff9500"></span><span>Drogi (${fmt(Object.values(data.km || {}).reduce((a, b) => a + b, 0), 0)} km)</span><span class="v"></span><button type="button" class="st-tg ${roadsOn ? "" : "off"}" data-road aria-label="Drogi"></button></div>`;
     sheet.querySelectorAll(".st-tg[data-k]").forEach(b => b.onclick = () => setK(b.dataset.k, !on[b.dataset.k]));
     sheet.querySelector("[data-road]").onclick = () => roads(!roadsOn);
@@ -156,7 +156,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
     document.body.classList.add("struct-open"); window.UIHistory?.open("struktura", () => close(true));
     const g = (await window.PLOTS_GMINY.all?.())?.find(x => x.k === t); shell(g?.n || "Gmina");
     try {
-      const r = await fetch(app.base + "/api/struktura/" + t, { signal: AbortSignal.timeout(130000) }); if (!r.ok) throw Error(r.status);
+      const r = await fetch(app.base + "/api/struktura/" + t + "?v=3", { signal: AbortSignal.timeout(130000) }); if (!r.ok) throw Error(r.status);
       data = await r.json(); if (!document.body.classList.contains("struct-open")) return;
     } catch (e) { sheet.querySelector(".st-body").innerHTML = `<div class="st-load">Serwer nie odpowiada. Spróbuj za chwilę.</div>`; return; }
     on = Object.fromEntries(C.map(c => [c[0], !!data.ha?.[c[0]]])); roadsOn = flat = false;
