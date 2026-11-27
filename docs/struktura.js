@@ -6,9 +6,11 @@
   const map = app.map, esc = app.esc, ns = "http://www.w3.org/2000/svg";
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const C = [
-    ["las", "Lasy", "#5b9a6e", 1], ["orne", "Uprawy na gruntach ornych", "#e9d7a0", 1], ["traw", "Roślinność trawiasta", "#b9d69a", 1],
-    ["sad", "Sady, plantacje, działki", "#d9a9bd", 1], ["zab", "Zabudowa", "#c98a72", 1], ["krz", "Zarośla", "#8fbf9f", 1],
-    ["woda", "Wody", "#86b8e0", 1], ["kom", "Place i tereny komunikacji", "#c4c4c9", 1], ["inne", "Nieużytki i wyrobiska", "#d6c8b0", 1]];
+    ["las", "Lasy", "#5b9a6e", 1], ["krz", "Roślinność krzewiasta i zadrzewienia", "#94c4a3", 1], ["traw", "Roślinność trawiasta", "#c6de9f", 1],
+    ["orne", "Uprawy na gruntach", "#ead8a2", 1], ["dzial", "Ogródki działkowe", "#cdbf82", 1], ["cm", "Cmentarze", "#8fa39a", 1],
+    ["zjed", "Zabudowa mieszkaniowa jednorodzinna", "#e3ad90", 1], ["zwiel", "Zabudowa mieszkaniowa wielorodzinna", "#c97c64", 1],
+    ["zusl", "Zabudowa usługowo-handlowa", "#bb8db3", 1], ["zprz", "Zabudowa przemysłowa", "#9b8faa", 1], ["zpoz", "Pozostała zabudowa", "#c2bdb6", 1],
+    ["niez", "Tereny niezabudowane i nieużytki", "#ddd3c1", 1], ["woda", "Wody", "#86b8e0", 1]];
   const R = [[[0, 1, 2], "Autostrady i ekspresowe", "#d9485f", 5], [[3], "Drogi główne", "#e0864a", 3.6], [[4], "Drogi zbiorcze", "#d9b44a", 2.6],
     [[5, 6], "Drogi lokalne i dojazdowe", "#6e6e73", 1.6], [[7], "Drogi wewnętrzne", "#a8a8ad", .8]];
   let data = null, on = {}, saved = [], sheet = null, roadsOn = false, flat = false, view = 0;
@@ -57,7 +59,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
   function addMap() {
     const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], b = data.b, rings = b.type === "Polygon" ? [b.coordinates[0]] : b.coordinates.map(p => p[0]);
     const src = { "st-pt": data.pt, "st-dr": data.dr, "st-b": { type: "Feature", geometry: b, properties: {} }, "st-mask": { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [world, ...rings] } } };
-    for (const [id, d] of Object.entries(src)) { if (map.getSource(id)) map.getSource(id).setData(d); else { map.addSource(id, { type: "geojson", data: d, tolerance: .8, maxzoom: 13, buffer: 32 }); app.registerOverlaySource?.(id); } }
+    for (const [id, d] of Object.entries(src)) { if (map.getSource(id)) map.getSource(id).setData(d); else { map.addSource(id, { type: "geojson", data: d, tolerance: .8, maxzoom: 12, buffer: 16 }); app.registerOverlaySource?.(id); } }
     for (const l of layersFor()) if (!map.getLayer(l.id)) map.addLayer(l);
   }
   function removeMap() {

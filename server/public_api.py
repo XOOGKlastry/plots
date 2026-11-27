@@ -831,23 +831,27 @@ def extra_frontend_asset(asset_path: str) -> Response:
 
 
 # ---------- Struktura gminy: pokrycie terenu i drogi BDOT10k przycięte do jednej gminy (jeden plik JSON, cache na dysku) ----------
-_STR_DIR = Path(__file__).with_name("cache_struktura2"); _STR_DIR.mkdir(exist_ok=True)
+_STR_DIR = Path(__file__).with_name("cache_struktura3"); _STR_DIR.mkdir(exist_ok=True)
 _STR_PT = """
- select 'las' k, geom from bdot_pokrycie.bdot_ptlz
- union all select case when rodzaj='uprawa na gruntach ornych' then 'orne' else 'traw' end, geom from bdot_pokrycie.bdot_pttr
- union all select 'sad', geom from bdot_pokrycie.bdot_ptut
- union all select 'zab', geom from bdot_pokrycie.bdot_ptzb
- union all select 'woda', geom from bdot_pokrycie.bdot_ptwp
- union all select 'kom', geom from bdot_pokrycie.bdot_ptkm
- union all select 'kom', geom from bdot_pokrycie.bdot_ptpl
+ select case when rodzaj in ('las','zagajnik') then 'las' else 'krz' end k, geom from bdot_pokrycie.bdot_ptlz
  union all select 'krz', geom from bdot_pokrycie.bdot_ptrk
- union all select 'inne', geom from bdot_pokrycie.bdot_ptgn
- union all select 'inne', geom from bdot_pokrycie.bdot_ptnz
- union all select 'inne', geom from bdot_pokrycie.bdot_ptso
- union all select 'inne', geom from bdot_pokrycie.bdot_ptwz"""
+ union all select case when rodzaj='uprawa na gruntach ornych' then 'orne' else 'traw' end, geom from bdot_pokrycie.bdot_pttr
+ union all select case when rodzaj='ogródki działkowe' then 'dzial' else 'orne' end, geom from bdot_pokrycie.bdot_ptut
+ union all select case rodzaj when 'jednorodzinna' then 'zjed' when 'wielorodzinna' then 'zwiel' when 'handlowo-usługowa' then 'zusl'
+   when 'przemysłowo-składowa' then 'zprz' else 'zpoz' end, geom from bdot_pokrycie.bdot_ptzb
+ union all select 'woda', geom from bdot_pokrycie.bdot_ptwp
+ union all select 'zpoz', geom from bdot_pokrycie.bdot_ptkm
+ union all select 'niez', geom from bdot_pokrycie.bdot_ptpl
+ union all select 'niez', geom from bdot_pokrycie.bdot_ptgn
+ union all select 'niez', geom from bdot_pokrycie.bdot_ptnz
+ union all select 'niez', geom from bdot_pokrycie.bdot_ptso
+ union all select 'niez', geom from bdot_pokrycie.bdot_ptwz"""
 _STR_SQL = """with g as (select jpt_nazwa_ n, geom from administracja.gminypolskie where jpt_kod_je = %(t)s limit 1),
-p as (select t.k, case when st_within(t.geom, g.geom) then t.geom else st_collectionextract(st_intersection(t.geom, g.geom), 3) end geom
+cm as (select st_union(st_intersection(c.geom, g.geom)) geom from bdot_pokrycie.cmentarze c, g where c.geom && g.geom and st_intersects(c.geom, g.geom)),
+p0 as (select t.k, case when st_within(t.geom, g.geom) then t.geom else st_collectionextract(st_intersection(t.geom, g.geom), 3) end geom
       from (""" + _STR_PT + """) t, g where t.geom && g.geom and st_intersects(t.geom, g.geom)),
+p as (select p0.k, case when cm.geom is not null and p0.geom && cm.geom and st_intersects(p0.geom, cm.geom) then st_collectionextract(st_difference(p0.geom, cm.geom), 3) else p0.geom end geom from p0 left join cm on true
+      union all select 'cm', geom from cm where geom is not null),
 d as (select case d.klasadrogi when 'autostrada' then 0 when 'droga ekspresowa' then 1 when 'droga główna ruchu przyśpieszonego' then 2 when 'droga główna' then 3
         when 'droga zbiorcza' then 4 when 'droga lokalna' then 5 when 'droga dojazdowa' then 6 else 7 end r,
         case when st_within(d.geom, g.geom) then d.geom else st_collectionextract(st_intersection(d.geom, g.geom), 2) end geom
@@ -859,9 +863,9 @@ select json_build_object(
  'ha', (select json_object_agg(k, ha) from (select k, round(sum(st_area(geom))::numeric / 1e4, 1) ha from p group by k) x),
  'km', (select json_object_agg(r, km) from (select r, round(sum(st_length(geom))::numeric / 1e3, 1) km from d group by r) x),
  'pt', (select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(json_build_object('type', 'Feature', 'properties', json_build_object('k', k),
-        'geometry', st_asgeojson(st_transform(st_simplifypreservetopology(geom, 8), 4326), 5)::json)), '[]')) from p where not st_isempty(geom) and st_area(geom) > 150),
+        'geometry', st_asgeojson(st_transform(gs, 4326), 4)::json)), '[]')) from (select k, st_simplifypreservetopology(st_union(geom), 8) gs from p where not st_isempty(geom) and st_area(geom) > 300 group by k, round(st_x(st_centroid(geom)) / 1500), round(st_y(st_centroid(geom)) / 1500)) u where not st_isempty(gs)),
  'dr', (select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(json_build_object('type', 'Feature', 'properties', json_build_object('r', r),
-        'geometry', st_asgeojson(st_transform(st_simplify(geom, 6), 4326), 5)::json) order by r), '[]')) from d where not st_isempty(geom)))"""
+        'geometry', st_asgeojson(st_transform(st_simplify(geom, 8), 4326), 4)::json) order by r), '[]')) from (select r, st_linemerge(st_collect(geom)) geom from d where not st_isempty(geom) group by r, round(st_x(st_centroid(geom)) / 2000), round(st_y(st_centroid(geom)) / 2000)) x))"""
 _STR_LOCK = threading.Lock()
 
 @app.route("/api/struktura/<t>", methods=["GET", "OPTIONS"])
