@@ -1105,4 +1105,4 @@ body.urz-open #layersFab,body.urz-open .bm-toggle,body.urz-open #layerPanel,body
 #layerPanel>.section-head{position:sticky;top:-20px;z-index:5;margin:-20px -20px 13px;padding:16px 20px 10px;background:var(--solid);border-radius:24px 24px 0 0}@media(max-width:767px){#layerPanel>.section-head{top:-19px;margin:-19px -19px 13px;padding:15px 19px 10px}}
 .bud-metric{display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0 8px}.bud-metric select{flex:1;min-width:0;font-size:12px;padding:6px 8px;border-radius:9px;border:1px solid var(--line);background:var(--solid)}
 .to-stats{display:flex;align-items:center;gap:8px;width:100%;margin:8px 0 4px;padding:9px 12px;border:0;border-radius:10px;background:#e7f5ff;color:#1864ab;font:600 13px/1.2 inherit;cursor:pointer;text-align:left}
-.to-stats span{flex:1}.to-stats .ic{width:16px;height:16px}.to-stats:hover{background:#d0ebff}
+.to-stats span{flex:1}.to-stats .ic{width:18px;height:18px}.to-stats:hover{background:#d0ebff}

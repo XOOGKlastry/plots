@@ -50,7 +50,7 @@
         box.append(e); if (extra) box.append(extra);
       }
       if (!box.children.length) continue;
-      if (stat) { const b = document.createElement("button"); b.type = "button"; b.className = "to-stats"; b.innerHTML = `${Icons.svg("chart-bar")}<span>Gminy na tle Polski</span>${Icons.svg("caret-right")}`; b.onclick = () => window.StatsMap?.open(stat); sec.querySelector(".layer-section-body").append(b); }
+      if (stat) { const b = document.createElement("button"); b.type = "button"; b.className = "to-stats"; b.innerHTML = `${Icons.svg("poland")}<span>Gminy na tle Polski</span>${Icons.svg("caret-right")}`; b.onclick = () => window.StatsMap?.open(stat); sec.querySelector(".layer-section-body").append(b); }
       if (cls) fun.before(sec); else { anchor.after(sec); anchor = sec; }
     }
     /* stare grupy, z których wszystko wyjechało, znikają */
