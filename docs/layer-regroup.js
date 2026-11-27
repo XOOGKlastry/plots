@@ -14,7 +14,7 @@
     ["Energetyka", "lightning", "", ["en-wn", "x-przesyl", "en-moce", "en-sn", "en-wiatr", "x-wiatr-domy", "en-pv", "en-inne", "en-magazyny", "en-ladowanie", "en-odb"], "turbiny_100km2"],
     ["OZE i klimat", "wind", "", ["zas-wind", "zas-power", "zas-pvout", "zas-ghi", "zas-temp", "x-klimat-st", "en-miejsca", "en-wdost", "en-pog", "terr-geotermia", "x-cieplo"], "wiatr_dost2_proc"],
     ["Powietrze", "cloud", "", ["zas-air", "x-gios", "x-eprtr"], "ceeb_kociol_pozakl_proc"],
-    ["Drogi i kolej", "road-horizon", "", ["x-canard", "x-msbd", "x-mapa-drogowa", "x-drogi", "x-zrid", "terr-ruch", "x-kolej", "x-kdp"], "sewik_zabici_100k"],
+    ["Drogi i kolej", "road-horizon", "", ["x-canard", "x-msbd", "x-mapa-drogowa", "x-drogi", "x-zrid", "terr-ruch", "x-kolej", "x-kdp", "x-kolej-daleko"], "sewik_zabici_100k"],
     ["Lotnictwo i wojsko", "airplane-tilt", "", ["x-lotniska", "x-wojsko"]],
     ["Historia", "castle-turret", "hist-section", ["x-stare-mapy", "x-zabytki", "x-archeo", "x-grodziska", "x-pomniki"], "nid_rejestr_100km2"],
     ["Przygoda", "warning", "adv-section", ["x-urbex", "x-bunkry", "x-zanikle", "x-odludzia"]]
