@@ -8,3 +8,4 @@ tools/
 cloudflare*
 node_modules/
 browser-results/
+server/cache_struktura/

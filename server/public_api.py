@@ -829,6 +829,59 @@ def extra_frontend_asset(asset_path: str) -> Response:
     headers = {"Cache-Control": "no-cache"} if asset_path == "sw.js" else {}
     return Response(path.read_bytes(), content_type=content_type, headers=headers)
 
+
+# ---------- Struktura gminy: pokrycie terenu i drogi BDOT10k przycięte do jednej gminy (jeden plik JSON, cache na dysku) ----------
+_STR_DIR = Path(__file__).with_name("cache_struktura"); _STR_DIR.mkdir(exist_ok=True)
+_STR_PT = """
+ select 'las' k, geom from bdot_pokrycie.bdot_ptlz
+ union all select case when rodzaj='uprawa na gruntach ornych' then 'orne' else 'traw' end, geom from bdot_pokrycie.bdot_pttr
+ union all select 'sad', geom from bdot_pokrycie.bdot_ptut
+ union all select 'zab', geom from bdot_pokrycie.bdot_ptzb
+ union all select 'woda', geom from bdot_pokrycie.bdot_ptwp
+ union all select 'kom', geom from bdot_pokrycie.bdot_ptkm
+ union all select 'kom', geom from bdot_pokrycie.bdot_ptpl
+ union all select 'krz', geom from bdot_pokrycie.bdot_ptrk
+ union all select 'inne', geom from bdot_pokrycie.bdot_ptgn
+ union all select 'inne', geom from bdot_pokrycie.bdot_ptnz
+ union all select 'inne', geom from bdot_pokrycie.bdot_ptso
+ union all select 'inne', geom from bdot_pokrycie.bdot_ptwz"""
+_STR_SQL = """with g as (select jpt_nazwa_ n, geom from administracja.gminypolskie where jpt_kod_je = %(t)s limit 1),
+p as (select t.k, case when st_within(t.geom, g.geom) then t.geom else st_collectionextract(st_intersection(t.geom, g.geom), 3) end geom
+      from (""" + _STR_PT + """) t, g where t.geom && g.geom and st_intersects(t.geom, g.geom)),
+d as (select case d.klasadrogi when 'autostrada' then 0 when 'droga ekspresowa' then 1 when 'droga główna ruchu przyśpieszonego' then 2 when 'droga główna' then 3
+        when 'droga zbiorcza' then 4 when 'droga lokalna' then 5 when 'droga dojazdowa' then 6 else 7 end r,
+        case when st_within(d.geom, g.geom) then d.geom else st_collectionextract(st_intersection(d.geom, g.geom), 2) end geom
+      from bdot_reszta.bdot_skdr d, g where d.geom && g.geom and st_intersects(d.geom, g.geom))
+select json_build_object(
+ 'n', (select n from g),
+ 'b', (select st_asgeojson(st_transform(st_simplifypreservetopology(geom, 15), 4326), 5)::json from g),
+ 'bbox', (select json_build_array(st_xmin(e), st_ymin(e), st_xmax(e), st_ymax(e)) from (select st_extent(st_transform(geom, 4326)) e from g) x),
+ 'ha', (select json_object_agg(k, ha) from (select k, round(sum(st_area(geom))::numeric / 1e4, 1) ha from p group by k) x),
+ 'km', (select json_object_agg(r, km) from (select r, round(sum(st_length(geom))::numeric / 1e3, 1) km from d group by r) x),
+ 'pt', (select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(json_build_object('type', 'Feature', 'properties', json_build_object('k', k),
+        'geometry', st_asgeojson(st_transform(st_simplifypreservetopology(geom, 3), 4326), 5)::json)), '[]')) from p where not st_isempty(geom)),
+ 'dr', (select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(json_build_object('type', 'Feature', 'properties', json_build_object('r', r),
+        'geometry', st_asgeojson(st_transform(st_simplify(geom, 2), 4326), 5)::json) order by r), '[]')) from d where not st_isempty(geom)))"""
+_STR_LOCK = threading.Lock()
+
+@app.route("/api/struktura/<t>", methods=["GET", "OPTIONS"])
+def api_struktura(t):
+    if request.method == "OPTIONS": return Response(status=204)
+    if not re.match(r"^\d{7}$", t): abort(400)
+    import gzip
+    f = _STR_DIR / (t + ".json.gz")
+    if not f.exists():
+        with _STR_LOCK:
+            if not f.exists():
+                with psycopg.connect(DSN, autocommit=True, options="-c statement_timeout=120000") as c:
+                    row = c.execute(_STR_SQL, {"t": t}).fetchone()[0]
+                if not row or not row.get("n"): abort(404)
+                f.write_bytes(gzip.compress(json.dumps(row, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 6))
+    b = f.read_bytes()
+    if "gzip" in (request.headers.get("Accept-Encoding") or ""):
+        return Response(b, mimetype="application/json", headers={"Content-Encoding": "gzip", "Cache-Control": "public, max-age=86400", "Vary": "Accept-Encoding"})
+    return Response(gzip.decompress(b), mimetype="application/json", headers={"Cache-Control": "public, max-age=86400"})
+
 from admin_api import register_admin_api
 register_admin_api(app, POOL)
 

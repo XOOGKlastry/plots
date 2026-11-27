@@ -8,8 +8,13 @@
   const ic = n => window.Icons?.svg(n) || "";
   box.innerHTML = `<button type="button" data-open-stats>${ic("poland")}<span>Polska</span></button>
     <button type="button" data-open-distance>${ic("person-simple-walk")}<span>Odległości</span></button>
-    <button type="button" data-open-transit>${ic("bus")}<span>Komunikacja</span></button>`;
+    <button type="button" data-open-transit>${ic("bus")}<span>Komunikacja</span></button>
+    <button type="button" data-open-struktura>${ic("leaf")}<span>Struktura</span></button>`;
   document.body.append(box);
+  /* Struktura gminy: przycisk w szybkich akcjach panelu i moduł ładowany osobno */
+  const qa = document.querySelector(".quick-actions");
+  if (qa && !qa.querySelector("[data-open-struktura]")) { const b = document.createElement("button"); b.type = "button"; b.dataset.openStruktura = ""; b.innerHTML = `<span>${ic("leaf")}</span>Struktura`; qa.append(b); }
+  if (!window.Struktura) { const s = document.createElement("script"); s.src = "struktura.js?v=2"; document.body.append(s); }
   const BUSY = /\b(stats-open|distance-mode|transit-module|layers-open)\b/;
   function sync() {
     const b = document.body, folded = app.isMobile() ? /^(peek|hidden)$/.test(b.dataset.snap || "") : b.classList.contains("collapsed");
