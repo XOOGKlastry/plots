@@ -4,8 +4,8 @@
 (function () {
   "use strict";
   const model = window.GminyModel;
-  let gminy = null, names = null, ready = null;
-  const cache = new Map(), LIMIT = 12;
+  let gminy = null, names = null, ready = null, byK = new Map();
+  const cache = new Map(), LIMIT = 60;
 
   function load() {
     if (!ready) ready = (async () => {
@@ -13,7 +13,7 @@
         window.PLOTS_GMINY.all(),
         fetch("data/gminy.json").then(r => r.ok ? r.json() : {}).catch(() => ({}))
       ]);
-      gminy = list;
+      gminy = list; byK = new Map(list.map(g => [g.k, g]));
       names = { pow: new Map((raw.powiaty || []).map(x => [x.k, x.n])), woj: new Map((raw.wojewodztwa || []).map(x => [x.k, x.n])) };
     })().catch(e => { ready = null; throw e; });
     return ready;
@@ -98,6 +98,6 @@
     return (gminy || []).filter(x => x.k !== k && x.k.slice(-1) === typ && pop(x) > 0)
       .map(x => [x, Math.abs(Math.log(pop(x) / (p0 || 1)))]).sort((a, b) => a[1] - b[1]).slice(0, n).map(([x]) => x.k);
   }
-  function gmina(k) { return gminy?.find(g => g.k === k) || null; }
-  window.IndicatorStore = { load, neighbours, similar, values, position, rankIn, levels, source, gmina, gminy: () => gminy || [], powiat: k => names?.pow.get(k.slice(0, 4)) || "", wojewodztwo: k => names?.woj.get(k.slice(0, 2)) || "" };
+  function gmina(k) { return byK.get(k) || null; }
+  window.IndicatorStore = { invalidate: key => { for (const id of [...cache.keys()]) if (id.startsWith(key + ":")) cache.delete(id); }, load, neighbours, similar, values, position, rankIn, levels, source, gmina, gminy: () => gminy || [], powiat: k => names?.pow.get(k.slice(0, 4)) || "", wojewodztwo: k => names?.woj.get(k.slice(0, 2)) || "" };
 })();

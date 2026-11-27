@@ -17,13 +17,20 @@
   /* --- przełącznik trybów --- */
   const sw = document.createElement("nav");
   sw.className = "mode-switch"; sw.setAttribute("aria-label", "Tryb aplikacji");
-  sw.innerHTML = [["mapa", "map-trifold", "Mapa"], ["statystyki", "poland", "Statystyki"], ["dashboard", "chart-bar", "Dashboard"]]
+  const NAMES = { mapa: "Mapa", statystyki: "Polska", dashboard: "Wykresy" };
+  sw.innerHTML = [["mapa", "map-trifold"], ["statystyki", "poland"], ["dashboard", "chart-bar"]].map(([m, i]) => [m, i, NAMES[m]])
     .map(([m, i, t]) => `<button type="button" data-mode-go="${m}" aria-pressed="false">${icon(i)}<span>${t}</span></button>`).join("");
   document.body.append(sw);
   function syncSwitch() { const t = P.get("tryb"); sw.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.modeGo === t)); }
   document.addEventListener("click", e => { const b = e.target.closest("[data-mode-go]"); if (b) go(b.dataset.modeGo); });
   // Telefon i zwinięty panel: wejście do dashboardu obok przycisku „Polska” w module po prawej.
-  document.querySelector(".side-mods [data-open-stats]")?.insertAdjacentHTML("afterend", `<button type="button" data-mode-go="dashboard">${icon("chart-bar")}<span>Dashboard</span></button>`);
+  document.querySelector(".side-mods [data-open-stats]")?.insertAdjacentHTML("afterend", `<button type="button" data-mode-go="dashboard">${icon("chart-bar")}<span>${NAMES.dashboard}</span></button>`);
+  // Karta gminy na mapie i panel Polska: przycisk prosto do wykresów gminy.
+  document.querySelector("#panel .quick-actions")?.insertAdjacentHTML("beforeend", `<button type="button" data-mode-go="dashboard"><span>${icon("chart-bar")}</span>${NAMES.dashboard}</button>`);
+  document.getElementById("statsSelected")?.insertAdjacentHTML("afterend", `<button type="button" class="stats-to-dash" data-mode-go="dashboard">${icon("chart-bar")}<span><b>Wykresy i tabela gmin</b><small>porównanie z sąsiadami, powiatem i Polską</small></span>${icon("caret-right")}</button>`);
+  // Miejsce kliknięcia: od niego rozchodzi się animacja wejścia do wykresów i do niego wraca przy wyjściu.
+  let tapX = innerWidth / 2, tapY = 40;
+  addEventListener("pointerdown", e => { tapX = e.clientX; tapY = e.clientY; }, true);
   addEventListener("keydown", e => {
     if (e.target.closest?.("input,select,textarea,[contenteditable]") || e.ctrlKey || e.metaKey || e.altKey) return;
     const m = { 1: "mapa", 2: "statystyki", 3: "dashboard" }[e.key]; if (m) go(m);
@@ -41,11 +48,12 @@
     </header>
     <div class="dash-body">
       <div id="dashTitle" class="dash-title"></div>
+      <div class="dash-jump"><button type="button" data-jump="map">${icon("map-trifold")}<span>Pokaż na mapie</span></button><button type="button" data-jump="pl">${icon("poland")}<span>Ten wskaźnik na mapie Polski</span></button></div>
       <div id="dashKpi" class="dash-kpi" aria-live="polite"></div>
       <div class="dash-grid">
         <section class="dash-card"><header><h2>Na tle sąsiadów</h2></header><div id="dashNb"></div></section>
         <section class="dash-card"><header><h2>Gmina, powiat, województwo, Polska</h2></header><div id="dashLadder"></div></section>
-        <section class="dash-card"><header><h2>Rozkład wszystkich gmin</h2></header><div id="dashHist"></div></section>
+        <section class="dash-card dash-wide"><header><h2>Zmiany w czasie</h2><div class="stats-seg" id="dashTrendMode" role="group" aria-label="Co pokazać w czasie"><button type="button" data-trend="v">Wartość</button><button type="button" data-trend="r">Miejsce w Polsce</button><button type="button" data-trend="i">Indeks, pierwszy rok = 100</button></div></header><div id="dashTrendKpi" class="dash-trend-kpi"></div><div id="dashTrend"></div></section>
         <section class="dash-card"><header><h2>Gminy podobne</h2><small class="muted">ten sam rodzaj gminy, najbliższa liczba ludności</small></header><div id="dashSim"></div></section>
       </div>
       <section class="dash-card dash-rank-card"><header><h2>Tabela gmin</h2><div class="stats-seg" id="dashScope" role="group" aria-label="Zakres tabeli"><button type="button" data-scope="polska">Polska</button><button type="button" data-scope="woj">Województwo</button><button type="button" data-scope="pow">Powiat</button></div></header>
@@ -64,8 +72,10 @@
   document.body.append(panel);
   const $ = s => panel.querySelector(s);
 
-  function transition(fn) {
-    if (document.startViewTransition && window.Motion?.on?.() !== false) return document.startViewTransition(fn).finished.catch(() => {});
+  function transition(fn, dir = "in") {
+    const root = document.documentElement;
+    root.style.setProperty("--vt-x", tapX + "px"); root.style.setProperty("--vt-y", tapY + "px"); root.dataset.vt = dir;
+    if (document.startViewTransition && window.Motion?.on?.() !== false) return document.startViewTransition(fn).finished.catch(() => {}).finally(() => { delete root.dataset.vt; });
     fn(); return Promise.resolve();
   }
 
@@ -74,7 +84,7 @@
     const from = P.get("tryb"); if (mode === from && (mode !== "dashboard" || active)) return;
     busy = (async () => {
       if (mode === "dashboard") return open();
-      if (active) await transition(() => hide());
+      if (active) await transition(() => hide(), "out");
       if (mode === "statystyki") window.StatsMap?.open(P.get("wskaznik") || undefined, { year: P.get("rok") });
       else { if (window.StatsMap?.isOpen()) window.StatsMap.close(); P.set({ tryb: "mapa" }, "dashboard"); }
     })().finally(() => { busy = null; syncSwitch(); });
@@ -112,6 +122,8 @@
   function render() {
     if (!active) return;
     const def = defs.find(d => d.key === P.get("wskaznik")) || defs[0], year = P.get("rok"), k = P.get("gmina");
+    // pełna historia wskaźnika z GUS dociągana w tle, jak w panelu Polska
+    const G = window.GusClient; if (G?.needsHistory?.(def.key)) G.history(def.key).then(ok => { if (ok && active && P.get("wskaznik") === def.key) { store.invalidate(def.key); render(); } }).catch(() => {});
     const all = store.values(def, null), e = store.values(def, year), g = k ? store.gmina(k) : null;
     const IC = window.IndicatorIcons?.of(def) || {};
     panel.style.setProperty("--cat", IC.color || "#2f6bff");
@@ -148,7 +160,7 @@
   let drawn = 0;
   function charts(def, k, year, e) {
     const C = window.DashCharts, f = v => fmt(v, def.digits) + (def.unit === "%" ? " %" : ""), id = ++drawn;
-    const box = ["#dashNb", "#dashLadder", "#dashHist", "#dashSim"].map(s => $(s));
+    const box = ["#dashNb", "#dashLadder", "#dashTrend", "#dashSim"].map(s => $(s));
     if (!C || !k || !e.values.has(k)) { box.forEach(b => { b.innerHTML = `<p class="muted small">${k ? "Brak danych dla tej gminy." : "Wybierz gminę."}</p>`; }); return; }
     const L = store.levels(def, k, year), g = store.gmina(k), own = e.values.get(k).value;
     const row = kk => { const o = e.values.get(kk), x = store.gmina(kk); return o && x ? { k: kk, label: x.n, sub: kk === k ? "wybrana gmina" : store.powiat(kk) === x.n ? x.typ : "powiat " + store.powiat(kk), value: o.value, sel: kk === k } : null; };
@@ -160,13 +172,12 @@
       { label: "Polska", sub: `mediana ${L.polska.n.toLocaleString("pl-PL")} gmin`, value: L.polska.value }
     ], { format: f });
     $("#dashSim").innerHTML = C.bars([k, ...store.similar(k)].map(row).filter(Boolean).sort(order), { format: f, ref: { value: L.polska.value, label: "Mediana Polski" } });
-    const hist = nbs => { $("#dashHist").innerHTML = C.histogram(e.sorted, { format: f, mark: { value: own, label: g.n }, marks: (nbs || []).map(x => e.values.get(x)?.value) }) + `<p class="ch-note">Słupek z gminą wyróżniony; kreski pod osią to sąsiedzi. Pominięto 1% skrajnych wartości.</p>`; };
-    hist(null); $("#dashNb").innerHTML = `<p class="muted small">Wczytuję granice gmin…</p>`;
+    trend(def, k);
+    $("#dashNb").innerHTML = `<p class="muted small">Wczytuję granice gmin…</p>`;
     store.neighbours().then(map => {
       if (id !== drawn) return;
       const nbs = [...(map.get(k) || [])];
       $("#dashNb").innerHTML = C.bars([k, ...nbs].map(row).filter(Boolean).sort(order), { format: f, ref: { value: L.polska.value, label: "Mediana Polski" } });
-      hist(nbs);
     }).catch(() => { if (id === drawn) $("#dashNb").innerHTML = `<p class="muted small">Granice gmin są chwilowo niedostępne.</p>`; });
   }
 
@@ -222,6 +233,44 @@
     else if (b.dataset.pick) { P.set({ wskaznik: b.dataset.pick, rok: null }, "dashboard"); openPick(false); }
   });
 
+  /* Zmiany w czasie: gmina na tle mediany powiatu, województwa i Polski w każdym roku z danymi. */
+  let trendMode = "v";
+  function trend(def, k) {
+    const C = window.DashCharts, box = $("#dashTrend"), kpi = $("#dashTrendKpi");
+    $("#dashTrendMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.trend === trendMode));
+    const years = store.values(def, null).years.slice().sort((a, b) => a - b);
+    if (years.length < 2) { kpi.innerHTML = ""; box.innerHTML = `<div class="dash-empty">${icon("clock")}<p><b>Ten wskaźnik ma dane tylko z ${years[0] || "jednego"} roku.</b><br>Wybierz wskaźnik z danymi wieloletnimi, na przykład ludność, dochody, bezrobocie albo gaz, aby zobaczyć zmiany.</p></div>`; return; }
+    const g = store.gmina(k), f = v => fmt(v, def.digits), rows = years.map(y => { const p = store.position(def, k, y), L = store.levels(def, k, y); return { y, v: p?.value, r: p?.rank, n: p?.n, pow: L.powiat, woj: L.wojewodztwo, pl: L.polska.value }; }).filter(x => Number.isFinite(x.v) || Number.isFinite(x.pl));
+    const first = rows.find(x => Number.isFinite(x.v)), last = [...rows].reverse().find(x => Number.isFinite(x.v));
+    if (first && last && first !== last) {
+      const d = last.v - first.v, rel = first.v ? d / Math.abs(first.v) * 100 : null, good = def.lowerBetter ? d < 0 : d > 0, dr = (first.r || 0) - (last.r || 0);
+      kpi.innerHTML = `<div><span>${first.y}</span><b>${esc(f(first.v))}</b></div><div class="arrow">${icon("arrow-right")}</div><div><span>${last.y}</span><b>${esc(f(last.v))}</b></div>
+        <div class="chg ${def.descriptive ? "" : good ? "up" : "down"}"><span>Zmiana</span><b>${d > 0 ? "+" : d < 0 ? "−" : ""}${esc(f(Math.abs(d)))}${def.unit === "%" ? " p.p." : ""}</b>${rel != null && def.unit !== "%" ? `<small>${rel > 0 ? "+" : "−"}${fmt(Math.abs(rel), 1)}%</small>` : ""}</div>
+        <div class="chg ${dr > 0 ? "up" : dr < 0 ? "down" : ""}"><span>Miejsce w Polsce</span><b>${pl(first.r)}. → ${pl(last.r)}.</b><small>${dr > 0 ? "awans o " + pl(dr) : dr < 0 ? "spadek o " + pl(-dr) : "bez zmian"}</small></div>`;
+    } else kpi.innerHTML = "";
+    const COL = { g: getComputedStyle(panel).getPropertyValue("--cat").trim() || "#0a84ff", pow: "#5e5ce6", woj: "#ff9f0a", pl: "#34c759" };
+    const L0 = rows[0], name = { pow: L0?.pow?.n > 1 ? "Powiat" : null, woj: "Województwo", pl: "Polska" };
+    if (trendMode === "r") {
+      box.innerHTML = C.lines([{ label: g?.n || "Gmina", color: COL.g, sel: true, points: rows.map(x => ({ x: x.y, y: x.r })) }], { format: v => pl(Math.round(v)) + ".", invert: true, width: box.clientWidth }) + `<p class="ch-note">Miejsce wśród wszystkich gmin z danymi; wyżej na wykresie znaczy lepiej.</p>`;
+      return;
+    }
+    const idx = trendMode === "i", base = {};
+    const series = [["g", g?.n || "Gmina", x => x.v, true], ["pow", name.pow, x => x.pow?.value], ["woj", name.woj, x => x.woj?.value], ["pl", name.pl, x => x.pl]].filter(s => s[1])
+      .map(([id, label, get, sel]) => ({ id, label, color: COL[id], sel: !!sel, dash: !sel, points: rows.map(x => ({ x: x.y, y: get(x) })) }));
+    if (idx) for (const s of series) { const b = s.points.find(p => Number.isFinite(p.y) && p.y)?.y; s.points = s.points.map(p => ({ x: p.x, y: b && Number.isFinite(p.y) ? p.y / b * 100 : null })); base[s.id] = b; }
+    box.innerHTML = C.lines(series, { format: idx ? v => fmt(v, 0) : f, unit: idx ? "" : def.unit, width: box.clientWidth }) + `<p class="ch-note">Linia ciągła: ${esc(g?.n || "gmina")}. Przerywane: mediana gmin powiatu, województwa i Polski w danym roku.${idx ? " Indeks: wartość z pierwszego roku = 100." : ""}</p>`;
+  }
+
+  /* Szybkie przejścia: gmina na mapie, wskaźnik na mapie Polski, struktura terenu 3D na mapie. */
+  async function jump(where) {
+    const k = P.get("gmina");
+    if (where === "pl") return go("statystyki");
+    if (!k) return app.toast("Najpierw wybierz gminę");
+    await go("mapa");
+    if (where === "map") window.PLOTS_GMINY?.select(k, true);
+    else { await window.PLOTS_GMINY?.setContext(k).catch(() => {}); window.Struktura?.open(); }
+  }
+
   function syncUrl() {
     try {
       const url = new URL(location.href);
@@ -252,6 +301,8 @@
     else if (b.dataset.sort) { const c = b.dataset.sort; tbl.dir = tbl.col === c ? (tbl.dir === "asc" ? "desc" : "asc") : c === "value" || c === "rank" ? "desc" : "asc"; tbl.col = c; renderTable(); }
     else if (b.dataset.tblMore) { tbl.limit = b.dataset.tblMore === "all" ? Infinity : tbl.limit + 100; renderTable(); }
     else if (b.hasAttribute("data-tbl-me")) showMine();
+    else if (b.dataset.jump) jump(b.dataset.jump);
+    else if (b.dataset.trend) { trendMode = b.dataset.trend; const def = defs.find(d => d.key === P.get("wskaznik")) || defs[0]; if (P.get("gmina")) trend(def, P.get("gmina")); }
     else if (b.dataset.dashGmina) pickGmina(b.dataset.dashGmina);
   });
   // Wiersz tabeli: klik lub Enter wybiera gminę.

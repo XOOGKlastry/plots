@@ -1,5 +1,5 @@
 /* Siedziba urzędu gminy: znacznik na mapie (widoczny z daleka), zdjęcie budynku i okolicy, kontakty.
-   Dane: data/urzedy.json (Katalog Podmiotów Publicznych, gov.pl; zdjęcia z Wikimedia Commons na wolnych licencjach).
+   Dane: data/urzedy/<województwo>.json (z data/urzedy.json przez scripts/split_urzedy.py) (Katalog Podmiotów Publicznych, gov.pl; zdjęcia z Wikimedia Commons na wolnych licencjach).
    Gmina „obwarzankowa” (urząd w sąsiednim mieście, np. gmina wiejska Szczecinek) ma pole `poza` z TERYT gminy siedziby:
    wtedy rysujemy przerywaną linię od środka gminy do urzędu i piszemy to w karcie.
    Pole `bip` (w przyszłości, z BIP gmin) jest wyświetlane ogólnie: {etykieta: wartość}. */
@@ -9,11 +9,13 @@
   const ic = n => window.Icons?.svg(n) || "";
   const ORTO = "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}";
   const HIDE = /\b(stats-open|distance-mode|transit-module)\b/;
-  let data = null, centra = null, cur = null, marker = null, viewer = null;
-  const load = () => data || (data = Promise.all([
-    fetch("data/urzedy.json").then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch("data/gminy-centra.json").then(r => r.ok ? r.json() : null).catch(() => null)
-  ]).then(([u, c]) => { centra = c || {}; return u; }));
+  let centra = null, cur = null, marker = null, viewer = null;
+  // Urzędy wczytywane po województwie (data/urzedy/<kod>.json, ok. 400 kB), a nie cały kraj naraz.
+  const parts = new Map(); let cen = null;
+  const load = (k = "") => { const w = String(k).slice(0, 2);
+    if (!cen) cen = fetch("data/gminy-centra.json").then(r => r.ok ? r.json() : null).catch(() => null).then(c => { centra = c || {}; return centra; });
+    if (!parts.has(w)) parts.set(w, w.length === 2 ? fetch(`data/urzedy/${w}.json`).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null));
+    return Promise.all([parts.get(w), cen]).then(([u]) => u); };
 
   async function nameOf(k) {
     const all = (await (window.PLOTS_GMINY?.all?.() || Promise.resolve([]))) || [];
@@ -279,7 +281,7 @@
   document.addEventListener("plots:gmina", async e => {
     const k = e.detail?.id;
     if (!k) { cur = null; hideAll(); closePanel(); return; }
-    const d = await load(); const u = d?.urzedy?.[k];
+    const d = await load(k); const u = d?.urzedy?.[k];
     if (!u) { cur = null; hideAll(); closePanel(); return; }
     src = { name: d.zrodlo || "Katalog Podmiotów Publicznych, gov.pl", url: d.zrodloUrl || "https://www.gov.pl/web/kap" };
     cur = { k, u }; draw();
@@ -292,6 +294,6 @@
     if (!cur) return;
     if (hid && marker) hideAll(); else if (!hid && !marker) draw();
   }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  async function report(k) { const d = await load(); const u = d?.urzedy?.[k]; if (!u) return null; return { u, html: office(u, u.poza ? await nameOf(u.poza) : null) }; }
-  window.Urzedy = { rulers, report, open: openPanel, close: closePanel, photos: openViewer, get: k => load().then(d => d?.urzedy?.[k] || null) };
+  async function report(k) { const d = await load(k); const u = d?.urzedy?.[k]; if (!u) return null; return { u, html: office(u, u.poza ? await nameOf(u.poza) : null) }; }
+  window.Urzedy = { rulers, report, open: openPanel, close: closePanel, photos: openViewer, get: k => load(k).then(d => d?.urzedy?.[k] || null) };
 })();
