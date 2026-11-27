@@ -831,7 +831,7 @@ def extra_frontend_asset(asset_path: str) -> Response:
 
 
 # ---------- Struktura gminy: pokrycie terenu i drogi BDOT10k przycięte do jednej gminy (jeden plik JSON, cache na dysku) ----------
-_STR_DIR = Path(__file__).with_name("cache_struktura3"); _STR_DIR.mkdir(exist_ok=True)
+_STR_DIR = Path(__file__).with_name("cache_struktura4"); _STR_DIR.mkdir(exist_ok=True)
 _STR_PT = """
  select case when rodzaj in ('las','zagajnik') then 'las' else 'krz' end k, geom from bdot_pokrycie.bdot_ptlz
  union all select 'krz', geom from bdot_pokrycie.bdot_ptrk
@@ -840,7 +840,7 @@ _STR_PT = """
  union all select case rodzaj when 'jednorodzinna' then 'zjed' when 'wielorodzinna' then 'zwiel' when 'handlowo-usługowa' then 'zusl'
    when 'przemysłowo-składowa' then 'zprz' else 'zpoz' end, geom from bdot_pokrycie.bdot_ptzb
  union all select 'woda', geom from bdot_pokrycie.bdot_ptwp
- union all select 'zpoz', geom from bdot_pokrycie.bdot_ptkm
+ union all select 'kom', geom from bdot_pokrycie.bdot_ptkm
  union all select 'niez', geom from bdot_pokrycie.bdot_ptpl
  union all select 'niez', geom from bdot_pokrycie.bdot_ptgn
  union all select 'niez', geom from bdot_pokrycie.bdot_ptnz

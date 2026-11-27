@@ -10,9 +10,9 @@
   // klucz, nazwa, kolor, wysokość bryły (m, przed skalowaniem do wielkości gminy), symbol, krótka nazwa na mapę
   const C = [
     ["las", "Lasy", "#5b9a6e", 140, "tree", "Las"], ["krz", "Roślinność krzewiasta i zadrzewienia", "#94c4a3", 60, "plant", "Zadrzewienia"], ["traw", "Roślinność trawiasta", "#c6de9f", 10, "leaf", "Łąki"],
-    ["orne", "Uprawy na gruntach", "#ead8a2", 16, "sun", "Uprawy"], ["dzial", "Ogródki działkowe", "#cdbf82", 22, "shovel", "Działki"], ["cm", "Cmentarze", "#8fa39a", 26, "church", "Cmentarz"],
+    ["orne", "Uprawy na gruntach", "#ead8a2", 16, "pitchfork", "Uprawy"], ["dzial", "Ogródki działkowe", "#cdbf82", 22, "shovel", "Działki"], ["cm", "Cmentarze", "#8fa39a", 26, "church", "Cmentarz"],
     ["zjed", "Zabudowa mieszkaniowa jednorodzinna", "#e3ad90", 90, "house", "Domy"], ["zwiel", "Zabudowa mieszkaniowa wielorodzinna", "#c97c64", 220, "buildings", "Bloki"],
-    ["zusl", "Zabudowa usługowo-handlowa", "#bb8db3", 160, "storefront", "Usługi"], ["zprz", "Zabudowa przemysłowa", "#9b8faa", 180, "factory", "Przemysł"], ["zpoz", "Pozostała zabudowa", "#c2bdb6", 70, "bank", "Zabudowa"],
+    ["zusl", "Zabudowa usługowo-handlowa", "#bb8db3", 160, "storefront", "Usługi"], ["zprz", "Zabudowa przemysłowa", "#9b8faa", 180, "factory", "Przemysł"], ["zpoz", "Pozostała zabudowa (usługi publiczne, sport, gospodarcza)", "#c2bdb6", 70, "bank", "Zabudowa"], ["kom", "Tereny komunikacyjne (drogi, place, tory)", "#a9a9b3", 3, "road-horizon", "Komunikacja"],
     ["niez", "Tereny niezabudowane i nieużytki", "#ddd3c1", 5, "mountains", "Nieużytki"], ["woda", "Wody", "#86b8e0", 2, "waves", "Woda"]];
   // klasy dróg BDOT10k: autostrady i ekspresowe, główne, zbiorcze, lokalne, wewnętrzne
   const R = [[[0, 1, 2], "Autostrady i ekspresowe", "#e5484d", 5.5], [[3], "Drogi główne", "#f08c3a", 4], [[4], "Drogi zbiorcze", "#f2c94c", 3],
@@ -81,7 +81,7 @@ body.struct-open .urz-pin,body.struct-open .urz-panel,body.struct-open .urz-view
     L.push({ id: "st-b", type: "line", source: "st-b", paint: { "line-color": "#ff3b30", "line-width": 2.5, "line-opacity": 0, "line-opacity-transition": { duration: 600 } } });
     // numery dróg: A1, A2… (autostrady), 1–2 cyfry (krajowe), 3 cyfry (wojewódzkie); tylko w granicach gminy, rzadko
     L.push({ id: "st-ref", type: "symbol", source: "st-refl",
-      layout: { "symbol-placement": "line-center", "text-allow-overlap": true, "icon-allow-overlap": true, "text-field": ["get", "ref"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-rotation-alignment": "viewport",
+      layout: { "symbol-placement": "point", "text-allow-overlap": true, "icon-allow-overlap": true, "text-field": ["get", "ref"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-rotation-alignment": "viewport",
         "icon-image": ["get", "sh"], "icon-text-fit": "both", "icon-text-fit-padding": [3, 7, 3, 7], "icon-rotation-alignment": "viewport", "symbol-sort-key": ["get", "o"], "text-padding": 4 },
       paint: { "text-color": ["get", "tc"], "text-opacity": 0, "icon-opacity": 0, "text-opacity-transition": { duration: 500 }, "icon-opacity-transition": { duration: 500 } } });
     // podpisy klas na mapie: nazwa i udział przy największych płatach
@@ -94,7 +94,7 @@ body.struct-open .urz-pin,body.struct-open .urz-panel,body.struct-open .urz-view
     const mk = (id, bg, border) => { if (map.hasImage(id)) return; const c = document.createElement("canvas"), s = 2; c.width = c.height = 24 * s; const g = c.getContext("2d");
       g.fillStyle = border; g.beginPath(); g.roundRect(0, 0, 24 * s, 24 * s, 6 * s); g.fill(); g.fillStyle = bg; g.beginPath(); g.roundRect(1.5 * s, 1.5 * s, 21 * s, 21 * s, 5 * s); g.fill();
       map.addImage(id, g.getImageData(0, 0, 24 * s, 24 * s), { pixelRatio: s, stretchX: [[8 * s, 16 * s]], stretchY: [[8 * s, 16 * s]], content: [5 * s, 5 * s, 19 * s, 19 * s] }); };
-    mk("st-sh-a", "#c62828", "#ffffff"); mk("st-sh-k", "#d84315", "#ffffff"); mk("st-sh-w", "#ffd23f", "#1c1c1e");
+    mk("st-sh-a", "#c62828", "#ffffff"); mk("st-sh-s", "#1e5fbf", "#ffffff"); mk("st-sh-k", "#d84315", "#ffffff"); mk("st-sh-w", "#ffd23f", "#1c1c1e");
   }
   /* Punkty podpisów: środek dwóch największych płatów każdej klasy. */
   function labels() {
@@ -115,19 +115,28 @@ body.struct-open .urz-pin,body.struct-open .urz-panel,body.struct-open .urz-view
     return polys.some(poly => inR(pt, poly[0]) && !poly.slice(1).some(h => inR(pt, h))); }
   function refs() {
     if (!data || !map.getSource("st-refl") || !map.getSource("openmaptiles")) return;
-    const by = new Map();
+    // odcinki zbierane narastająco dla gminy, żeby tabliczki nie znikały przy przesuwaniu i przybliżaniu mapy
+    const by = data._refs || (data._refs = new Map()), seen = data._seen || (data._seen = new Set());
     for (const f of map.querySourceFeatures("openmaptiles", { sourceLayer: "transportation_name" })) {
       const p = f.properties, ref = String(p.ref || "").split(";")[0].trim(), nets = [1, 2, 3, 4].map(i => p["route_" + i + "_network"] || ""), cls = String(p.class || "");
-      const kind = /^A\d{1,2}$/.test(ref) ? "a" : /^\d{1,2}$/.test(ref) && (nets.includes("pl:national") || /^(trunk|primary)/.test(cls)) ? "k" : /^\d{3}$/.test(ref) && (nets.includes("pl:regional") || /^(secondary|primary)/.test(cls)) ? "w" : null;
+      const kind = /^A\d{1,2}$/.test(ref) ? "a" : /^S\d{1,2}$/.test(ref) ? "s" : /^\d{1,2}$/.test(ref) && (nets.includes("pl:national") || /^(trunk|primary)/.test(cls)) ? "k" : /^\d{3}$/.test(ref) && (nets.includes("pl:regional") || /^(secondary|primary)/.test(cls)) ? "w" : null;
       if (!kind) continue;
       const lines = f.geometry.type === "LineString" ? [f.geometry.coordinates] : f.geometry.type === "MultiLineString" ? f.geometry.coordinates : [];
-      for (const ln of lines) { const keep = ln.filter(inside); if (keep.length < 2) continue;
+      for (const ln of lines) { const keep = ln.filter(inside); if (keep.length < 2) continue; const id = ref + keep[0].map(v => v.toFixed(4)) + keep.at(-1).map(v => v.toFixed(4)); if (seen.has(id)) continue; seen.add(id);
         let len = 0; for (let i = 1; i < keep.length; i++) len += Math.hypot(keep[i][0] - keep[i - 1][0], keep[i][1] - keep[i - 1][1]);
         (by.get(ref) || by.set(ref, { kind, parts: [] }).get(ref)).parts.push({ c: keep, len }); }
     }
     const feats = [];
-    for (const [ref, { kind, parts }] of by) parts.sort((a, b) => b.len - a.len).slice(0, 3).forEach(pt => feats.push({ type: "Feature", geometry: { type: "LineString", coordinates: pt.c },
-      properties: { ref, sh: "st-sh-" + kind, tc: kind === "w" ? "#1c1c1e" : "#ffffff", o: kind === "a" ? 0 : kind === "k" ? 1 : 2 } }));
+    // najwyżej 3 tabliczki na numer, rozstawione daleko od siebie (dwie jezdnie i kafle mapy dają wiele odcinków tej samej drogi)
+    const bb = data.bbox || [0, 0, 1, 1], gap = Math.hypot(bb[2] - bb[0], bb[3] - bb[1]) * .22, mid = c => c[c.length >> 1], placed = [];
+    const ORD = { a: 0, s: 1, k: 2, w: 3 }, TC = { a: "#ffffff", s: "#ffffff", k: "#ffffff", w: "#1c1c1e" };
+    for (const [ref, { kind, parts }] of [...by].sort((x, y) => ORD[x[1].kind] - ORD[y[1].kind])) {
+      const mine = [];
+      for (const pt of parts.sort((a, b) => b.len - a.len)) { if (mine.length >= 3 || pt.len < gap * .15) break; const m = mid(pt.c);
+        if (mine.some(q => Math.hypot(q[0] - m[0], q[1] - m[1]) < gap) || placed.some(q => Math.hypot(q[0] - m[0], q[1] - m[1]) < gap * .12)) continue;
+        mine.push(m); placed.push(m);
+        feats.push({ type: "Feature", geometry: { type: "Point", coordinates: m }, properties: { ref, sh: "st-sh-" + kind, tc: TC[kind], o: ORD[kind] } }); }
+    }
     map.getSource("st-refl").setData({ type: "FeatureCollection", features: feats });
   }
   function shade(hex) { const n = parseInt(hex.slice(1), 16), f = .45; return `rgb(${Math.round((n >> 16) * f)},${Math.round(((n >> 8) & 255) * f)},${Math.round((n & 255) * f)})`; }
@@ -227,7 +236,7 @@ body.struct-open .urz-pin,body.struct-open .urz-panel,body.struct-open .urz-view
     document.body.classList.add("struct-open"); window.UIHistory?.open("struktura", () => close(true));
     const g = (await window.PLOTS_GMINY.all?.())?.find(x => x.k === t); shell(g?.n || "Gmina");
     try {
-      const r = await fetch(app.base + "/api/struktura/" + t + "?v=3", { signal: AbortSignal.timeout(130000) }); if (!r.ok) throw Error(r.status);
+      const r = await fetch(app.base + "/api/struktura/" + t + "?v=4", { signal: AbortSignal.timeout(130000) }); if (!r.ok) throw Error(r.status);
       data = await r.json(); if (!document.body.classList.contains("struct-open")) return;
     } catch (e) { if (sheet) sheet.querySelector(".st-body").innerHTML = `<div class="st-load">Serwer nie odpowiada. Spróbuj za chwilę.</div>`; return; }
     on = Object.fromEntries(C.map(c => [c[0], !!data.ha?.[c[0]]])); roadsOn = true; is3d = true;
