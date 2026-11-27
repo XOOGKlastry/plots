@@ -10,7 +10,7 @@
     ["Ludzie i okolica", "users-three", "", ["terr-spis", "terr-gunb", "terr-internet", "x-bud-gmin", "x-bud-mieszk", "x-noc", "surPrices", "poiAll"]],
     ["Zagrożenia", "warning", "", ["terr-powodz", "x-susza", "terr-osuwiska", "terr-egms", "terr-gornicze", "x-halas-ldwn", "x-halas-ln"]],
     ["Woda", "drop", "", ["x-wp-zlewnie", "x-wp-rzeki", "x-wp-podziemne", "x-wp-nadzory", "x-wp-chronione"]],
-    ["Przyroda i grunt", "tree", "", ["terr-lasy", "x-gleby", "x-cieniowanie", "x-wysokosci"]],
+    ["Przyroda i grunt", "tree", "", ["terr-lasy", "x-przyr-gmin", "x-gleby", "x-cieniowanie", "x-wysokosci"]],
     ["Energetyka", "lightning", "", ["en-wn", "en-moce", "en-sn", "en-wiatr", "en-pv", "en-inne", "en-magazyny", "en-ladowanie", "en-odb"]],
     ["OZE i klimat", "wind", "", ["zas-wind", "zas-power", "zas-pvout", "zas-ghi", "zas-temp", "en-miejsca", "en-wdost", "en-pog", "terr-geotermia", "x-cieplo"]],
     ["Powietrze", "cloud", "", ["zas-air", "x-gios", "x-eprtr"]],
