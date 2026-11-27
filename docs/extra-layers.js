@@ -896,6 +896,22 @@
           { t: "Gminy: średnio najdalej", c: "#845ef7", items: [...G].sort((a, b) => b.sr - a.sr).slice(0, 100).map(g => [g.n, g.sr, "km średnio", g.x, "najdalej: " + g.mn + ", " + fmt(g.mx, 1) + " km", 10]) },
           { t: "Gminy: najbliżej kolei", c: "#b197fc", items: [...G].sort((a, b) => a.sr - b.sr).slice(0, 100).map(g => [g.n, g.sr, "km średnio", g.x, "najdalej: " + g.mn + ", " + fmt(g.mx, 1) + " km", 10]) }]; },
       card: p => ({ title: p.n, src: "OSM, GUGiK PRNG, obliczenia własne", body: `<p class="gs-st"><i style="background:#6741d9"></i>Do najbliższej stacji kolejowej: <b>${fmt(p.d, 1)} km</b> w linii prostej</p><p>${p.m ? "Miasto" : "Wieś"}, gm. ${esc(p.g || "")}</p>` }) },
+    { id: "kolej-dawna", box: "transportLayers", label: "Zlikwidowana i wąskotorowa kolej", desc: "Rozebrane i nieczynne linie kolejowe oraz koleje wąskotorowe", kw: "zlikwidowane linie kolejowe nieczynna kolej rozebrane tory dawna linia kolejowa kolej wąskotorowa wąskotorówka ciuchcia historia kolei",
+      icon: ["train", "#868e96"], url: "data/granice/kolej_dawna.geojson", showGmina: true,
+      layers: s => [{ id: "x-kold", type: "line", source: s, layout: { "line-cap": "round" }, paint: { "line-color": ["match", ["get", "k"], "w", "#e8590c", "#868e96"], "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1, 12, 3], "line-dasharray": [2, 1.5] } }],
+      legend: () => legendRow([["#868e96", "linia zlikwidowana lub nieczynna", "line"], ["#e8590c", "kolej wąskotorowa", "line"]]) + note("Linie oznaczone w OpenStreetMap jako rozebrane, porzucone lub nieczynne (bez bocznic i krótkich odcinków poniżej 300 m) oraz koleje wąskotorowe, także turystyczne. Kompletność zależy od mapujących. Źródło: © OpenStreetMap, stan 2026."),
+      rank: d => { const G = d.gminy || [];
+        return [{ t: "Gminy: najwięcej dawnej kolei", c: "#868e96", items: [...G].filter(g => g.d).sort((a, b) => b.d - a.d).slice(0, 100).map(g => [g.n, g.d, "km", g.x, g.w ? fmt(g.w, 1) + " km wąskotorowej" : "", 10]) },
+          { t: "Gminy: najwięcej wąskotorówek", c: "#e8590c", items: [...G].filter(g => g.w).sort((a, b) => b.w - a.w).slice(0, 100).map(g => [g.n, g.w, "km", g.x, fmt(g.d, 1) + " km dawnej kolei", 10]) }]; },
+      card: p => ({ title: p.k === "w" ? "Kolej wąskotorowa" : "Dawna linia kolejowa", src: "© OpenStreetMap", body: `${p.n ? `<p><b>${esc(p.n)}</b></p>` : ""}<p>Odcinek ${fmt(p.l, 1)} km, gm. ${esc(p.g || "")}</p>` }) },
+    { id: "tramwaje", box: "transportLayers", label: "Tramwaje i trolejbusy", desc: "Sieci tramwajowe i trolejbusowe w miastach", kw: "tramwaj tramwaje sieć tramwajowa tory tramwajowe trolejbus trolejbusy komunikacja miejska mpk miasta z tramwajem",
+      icon: ["train", "#c2255c"], url: "data/granice/tramwaje.geojson", showGmina: true,
+      layers: s => [{ id: "x-tram", type: "line", source: s, layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "k"], "tb", "#1c7ed6", "#c2255c"], "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.2, 14, 3.5] } }],
+      legend: () => legendRow([["#c2255c", "tory tramwajowe", "line"], ["#1c7ed6", "sieć trolejbusowa", "line"]]) + note("Długość liczona po torach i przewodach, więc odcinek dwutorowy liczy się podwójnie. Bez zajezdni i bocznic. Źródło: © OpenStreetMap, stan 2026."),
+      rank: d => { const G = d.gminy || [];
+        return [{ t: "Najdłuższe sieci tramwajowe", c: "#c2255c", items: [...G].filter(g => g.tr).sort((a, b) => b.tr - a.tr).slice(0, 60).map(g => [g.n, g.tr, "km torów", g.x, g.tb ? "trolejbusy " + fmt(g.tb, 1) + " km" : "", 10]) },
+          { t: "Trolejbusy", c: "#1c7ed6", items: [...G].filter(g => g.tb).sort((a, b) => b.tb - a.tb).slice(0, 30).map(g => [g.n, g.tb, "km sieci", g.x, g.tr ? "tramwaje " + fmt(g.tr, 1) + " km" : "", 10]) }]; },
+      card: p => ({ title: p.k === "tb" ? "Sieć trolejbusowa" : "Tory tramwajowe", src: "© OpenStreetMap", body: `<p>Odcinek ${fmt(p.l, 2)} km, gm. ${esc(p.g || "")}</p>` }) },
     { id: "susza", box: "terrainLayers", label: "Zagrożenie suszą", desc: "Rolnicza, hydrologiczna, hydrogeologiczna, atmosferyczna (PPSS 2021)", kw: "susza zagrożenie suszą rolnicza hydrologiczna hydrogeologiczna atmosferyczna ppss appss wody polskie retencja niedobór wody",
       icon: ["drop", "#e0441f"], url: "susza-ppss2021", fetch: () => suFile(suT), fillClick: true,
       layers: s => [
