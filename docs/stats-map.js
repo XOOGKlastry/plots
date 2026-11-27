@@ -260,6 +260,7 @@
     const hk = state.key, G = window.GusClient;
     if (G?.needsHistory?.(hk)) G.history(hk).then(ok => { if (ok && active && state.key === hk) { changeCache.clear(); if (time.key === hk) time.key = null; update(); } });
     compute(); render(); paint();
+    window.PlotsState?.set({ wskaznik: state.key, rok: state.year, miara: state.mode }, "statystyki");
     const d = defs.find(x => x.key === state.key), t = `${state.key}|${hl || ""}`;
     if (d && t !== tracked) { tracked = t; window.Track?.("mapa_polski", { wskaznik: d.label, klucz: d.key, grupa: d.group, komitet: hl || undefined }); }
   }
@@ -274,7 +275,7 @@
   function syncUrl() {
     try {
       const url = new URL(location.href);
-      if (active && state.key) { url.searchParams.set("stat", state.key); state.year ? url.searchParams.set("rok", state.year) : url.searchParams.delete("rok"); }
+      if (active && state.key) { url.searchParams.delete("tryb"); url.searchParams.set("stat", state.key); state.year ? url.searchParams.set("rok", state.year) : url.searchParams.delete("rok"); }
       else { url.searchParams.delete("stat"); url.searchParams.delete("rok"); }
       history.replaceState(history.state, "", url);
     } catch { /* URL is a convenience only. */ }
@@ -289,11 +290,13 @@
     if (!defs.length) { app.toast("Brak wskaźników do pokazania"); return; }
     if (!map.style?._loaded) await new Promise(r => { const f = () => { if (map.style?._loaded) { map.off("styledata", f); map.off("idle", f); r(); } }; map.on("styledata", f); map.on("idle", f); f(); });
     ensureLayers();
+    const shared = window.PlotsState?.get();
+    if (!key && shared?.wskaznik && shared.wskaznik !== state.key && defs.some(d => d.key === shared.wskaznik)) { state.key = shared.wskaznik; state.palette = null; state.year = shared.rok; state.mode = shared.miara || "value"; }
     if (key) { state.key = key; state.palette = null; }
     hl = options.hl || null;
     if (!state.key) state.key = (defs.find(d => d.key === "gaz_proc") || defs[0]).key;
     if (options.year) state.year = options.year;
-    const wasActive = active; active = true; setVisible(true);
+    const wasActive = active; active = true; setVisible(true); window.PlotsState?.set({ tryb: "statystyki" }, "statystyki");
     selectedId = window.PLOTS_GMINY.current();
     update();
     const hlKeys = hl ? [...current.values].filter(([, o]) => o.w?.[1] === hl).map(([k]) => k) : [];
@@ -313,6 +316,7 @@
   function close() {
     if (time.on) timeExit();
     active = false; panel.hidden = true; document.body.classList.remove("stats-open", "stats-mini"); setVisible(false); popup?.remove(); togglePicker(false); syncUrl();
+    if (window.PlotsState?.get("tryb") === "statystyki") window.PlotsState.set({ tryb: "mapa" }, "statystyki");
     document.dispatchEvent(new CustomEvent("stats:close"));
     window.UIHistory?.dismiss("stats");
     if (app.isMobile()) app.snap("peek");
@@ -395,6 +399,14 @@
   });
 
   const params = new URLSearchParams(location.search);
-  if (params.get("stat")) { const go = () => open(params.get("stat"), { year: Number(params.get("rok")) || null }); if (map._loaded) go(); else map.once("load", go); }
-  window.StatsMap = { open, close, isOpen: () => active, defs: () => defs, gminy: () => gminy, series: d => series(d, "value").values };
+  if (params.get("stat") && params.get("tryb") !== "dash") { const go = () => open(params.get("stat"), { year: Number(params.get("rok")) || null }); if (map._loaded) go(); else map.once("load", go); }
+  // Wskaźnik, rok lub miara zmienione w innym trybie (Dashboard): Statystyki pokazują to samo po powrocie albo od razu, gdy są otwarte.
+  window.PlotsState?.on(({ changed, source, state: s }) => {
+    if (source === "statystyki" || !changed.some(c => c === "wskaznik" || c === "rok" || c === "miara")) return;
+    if (!defs.some(d => d.key === s.wskaznik)) return;
+    if (s.wskaznik !== state.key) { hl = null; state.palette = null; }
+    state.key = s.wskaznik; state.year = s.rok; state.mode = s.miara || "value";
+    if (active) { if (time.on) timeExit(); update(); }
+  });
+  window.StatsMap = { open, close, ready: load, isOpen: () => active, defs: () => defs, gminy: () => gminy, series: d => series(d, "value").values };
 })();

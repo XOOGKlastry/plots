@@ -6,11 +6,11 @@
   const map = app.map, esc = app.esc, ns = "http://www.w3.org/2000/svg";
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const C = [
-    ["las", "Lasy", "#2fa84f", 170], ["orne", "Uprawy na gruntach ornych", "#f2c12e", 45], ["traw", "Roślinność trawiasta", "#a6d86b", 28],
-    ["sad", "Sady, plantacje, działki", "#ff6fae", 90], ["zab", "Zabudowa", "#ff8a3d", 230], ["krz", "Zarośla", "#6cc49a", 70],
-    ["woda", "Wody", "#3fb6ff", 6], ["kom", "Place i tereny komunikacji", "#a1a1aa", 14], ["inne", "Nieużytki i wyrobiska", "#cdb998", 20]];
-  const R = [[[0, 1, 2], "Autostrady i ekspresowe", "#ff2d55", 5], [[3], "Drogi główne", "#ff9500", 3.6], [[4], "Drogi zbiorcze", "#ffcc00", 2.6],
-    [[5, 6], "Drogi lokalne i dojazdowe", "#636366", 1.6], [[7], "Drogi wewnętrzne", "#aeaeb2", .8]];
+    ["las", "Lasy", "#5b9a6e", 1], ["orne", "Uprawy na gruntach ornych", "#e9d7a0", 1], ["traw", "Roślinność trawiasta", "#b9d69a", 1],
+    ["sad", "Sady, plantacje, działki", "#d9a9bd", 1], ["zab", "Zabudowa", "#c98a72", 1], ["krz", "Zarośla", "#8fbf9f", 1],
+    ["woda", "Wody", "#86b8e0", 1], ["kom", "Place i tereny komunikacji", "#c4c4c9", 1], ["inne", "Nieużytki i wyrobiska", "#d6c8b0", 1]];
+  const R = [[[0, 1, 2], "Autostrady i ekspresowe", "#d9485f", 5], [[3], "Drogi główne", "#e0864a", 3.6], [[4], "Drogi zbiorcze", "#d9b44a", 2.6],
+    [[5, 6], "Drogi lokalne i dojazdowe", "#6e6e73", 1.6], [[7], "Drogi wewnętrzne", "#a8a8ad", .8]];
   let data = null, on = {}, saved = [], sheet = null, roadsOn = false, flat = false, view = 0;
   const fmt = (v, d = 1) => Number(v).toLocaleString("pl-PL", { minimumFractionDigits: d, maximumFractionDigits: d });
   const H = k => C.find(c => c[0] === k)[3] * (flat ? .08 : 1);
@@ -46,9 +46,9 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
 
   function layersFor() {
     const L = [{ id: "st-mask", type: "fill", source: "st-mask", paint: { "fill-color": "#f2f2f7", "fill-opacity": 0, "fill-opacity-transition": { duration: 700 } } }];
-    for (const [k, , col] of C) L.push({ id: "st-" + k, type: "fill-extrusion", source: "st-pt", filter: ["==", ["get", "k"], k],
-      paint: { "fill-extrusion-color": col, "fill-extrusion-height": 0, "fill-extrusion-base": 0, "fill-extrusion-opacity": .93,
-        "fill-extrusion-height-transition": { duration: calm ? 0 : 900, delay: 0 }, "fill-extrusion-vertical-gradient": true } });
+    for (const [k, , col] of C) L.push({ id: "st-" + k, type: "fill", source: "st-pt", filter: ["==", ["get", "k"], k],
+      paint: { "fill-color": col, "fill-opacity": 0, "fill-outline-color": "rgba(255,255,255,.35)", "fill-translate": [0, -14],
+        "fill-opacity-transition": { duration: calm ? 0 : 550 }, "fill-translate-transition": { duration: calm ? 0 : 650 } } });
     R.forEach(([rs, , col, w], i) => L.push({ id: "st-r" + i, type: "line", source: "st-dr", filter: ["in", ["get", "r"], ["literal", rs]], layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": col, "line-width": 0, "line-opacity": 0, "line-width-transition": { duration: calm ? 0 : 700 }, "line-opacity-transition": { duration: calm ? 0 : 500 } } }));
     L.push({ id: "st-b", type: "line", source: "st-b", paint: { "line-color": "#ff3b30", "line-width": 2.5, "line-opacity": 0, "line-opacity-transition": { duration: 600 } } });
@@ -64,22 +64,21 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
     for (const l of layersFor()) if (map.getLayer(l.id)) map.removeLayer(l.id);
     for (const id of ["st-pt", "st-dr", "st-b", "st-mask"]) if (map.getSource(id)) map.removeSource(id);
   }
-  function rise(k, delay = 0) { setTimeout(() => { if (!map.getLayer("st-" + k)) return; map.setPaintProperty("st-" + k, "fill-extrusion-height", on[k] && !calm ? H(k) : 0);
-    if (on[k] && !calm) setTimeout(() => map.getLayer("st-" + k) && map.setPaintProperty("st-" + k, "fill-extrusion-height", 0), 950); }, calm ? 0 : delay); }
+  function rise(k, delay = 0) { setTimeout(() => { if (!map.getLayer("st-" + k)) return;
+    map.setPaintProperty("st-" + k, "fill-opacity", on[k] ? (flat ? .55 : .92) : 0); map.setPaintProperty("st-" + k, "fill-translate", on[k] ? [0, 0] : [0, -14]); }, calm ? 0 : delay); }
   function puff(k) {
     if (calm || !data) return;
-    const f = data.pt.features.filter(x => x.properties.k === k), step = Math.max(1, Math.floor(f.length / 70)), W = innerWidth, Hh = innerHeight;
+    const f = data.pt.features.filter(x => x.properties.k === k), step = Math.max(1, Math.floor(f.length / 24)), W = innerWidth, Hh = innerHeight;
     for (let i = 0; i < f.length; i += step) {
       const g = f[i].geometry, c = (g.type === "Polygon" ? g.coordinates[0][0] : g.coordinates[0][0][0]), p = map.project(c);
       if (p.x < 0 || p.y < 0 || p.x > W || p.y > Hh) continue;
-      for (let j = 0; j < 3; j++) { const d = document.createElement("i"); d.className = "st-dust";
+      for (let j = 0; j < 2; j++) { const d = document.createElement("i"); d.className = "st-dust";
         d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.setProperty("--dx", (Math.random() - .5) * 46 + "px"); d.style.setProperty("--dy", -14 - Math.random() * 34 + "px");
         d.style.animationDelay = Math.random() * 120 + "ms"; document.body.append(d); setTimeout(() => d.remove(), 1000); }
     }
   }
   function setK(k, v) {
     on[k] = v; if (!v) puff(k);
-    if (map.getLayer("st-" + k)) { map.setPaintProperty("st-" + k, "fill-extrusion-height-transition", { duration: calm ? 0 : v ? 900 : 450 }); map.setPaintProperty("st-" + k, "fill-extrusion-opacity", v ? .93 : 0); }
     rise(k); navigator.vibrate?.(8); render();
   }
   function roads(show) {
@@ -164,7 +163,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
     const cam = map.cameraForBounds([[w, s], [e, n]], { padding: app.isMobile() ? { top: 90, bottom: innerHeight * .5, left: 20, right: 20 } : { top: 50, bottom: 50, left: 50, right: 440 } });
     if (cam) map.easeTo({ ...cam, zoom: cam.zoom + (calm ? 0 : .25), pitch: 0, bearing: 0, duration: calm ? 0 : 1200 });
     map.setPaintProperty("st-mask", "fill-opacity", .86); map.setPaintProperty("st-b", "line-opacity", 1);
-    C.forEach(([k], i) => rise(k, 900 + i * 120));
+    C.forEach(([k], i) => rise(k, 500 + i * 140));
     body();
   }
   function close(silent) {
