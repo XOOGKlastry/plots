@@ -287,6 +287,7 @@
     $("#statsCurrent").innerHTML = `<strong>Wczytuję dane gmin…</strong>`;
     try { await load(); } catch (e) { $("#statsCurrent").innerHTML = `<strong>Dane są chwilowo niedostępne</strong>`; app.toast(e.message); return; }
     if (!defs.length) { app.toast("Brak wskaźników do pokazania"); return; }
+    if (!map.style?._loaded) await new Promise(r => { const f = () => { if (map.style?._loaded) { map.off("styledata", f); map.off("idle", f); r(); } }; map.on("styledata", f); map.on("idle", f); f(); });
     ensureLayers();
     if (key) { state.key = key; state.palette = null; }
     hl = options.hl || null;
