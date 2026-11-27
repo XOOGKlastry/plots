@@ -162,6 +162,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
     if (map.isMoving()) await new Promise(r => { map.once("moveend", r); setTimeout(r, 2500); });
     const cam = map.cameraForBounds([[w, s], [e, n]], { padding: app.isMobile() ? { top: 90, bottom: innerHeight * .5, left: 20, right: 20 } : { top: 50, bottom: 50, left: 50, right: 440 } });
     if (cam) map.easeTo({ ...cam, zoom: cam.zoom + (calm ? 0 : .25), pitch: calm ? 0 : 52, bearing: calm ? 0 : -12, duration: calm ? 0 : 1600 });
+    if (!calm) setTimeout(() => { if (document.body.classList.contains("struct-open") && map.getPitch() < 20) map.easeTo({ pitch: 52, bearing: -12, duration: 900 }); }, 1900);
     map.setPaintProperty("st-mask", "fill-opacity", .86); map.setPaintProperty("st-b", "line-opacity", 1);
     C.forEach(([k], i) => rise(k, 900 + i * 120));
     body();
