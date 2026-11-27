@@ -11,7 +11,7 @@
     ["Zagrożenia", "warning", "", ["terr-powodz", "x-susza", "terr-osuwiska", "terr-egms", "terr-gornicze", "x-halas-ldwn", "x-halas-ln"]],
     ["Woda", "drop", "", ["x-wp-zlewnie", "x-wp-rzeki", "x-wp-podziemne", "x-wp-nadzory", "x-wp-chronione"]],
     ["Przyroda i grunt", "tree", "", ["terr-lasy", "x-przyr-gmin", "x-gleby", "x-cieniowanie", "x-wysokosci"]],
-    ["Energetyka", "lightning", "", ["en-wn", "en-moce", "en-sn", "en-wiatr", "en-pv", "en-inne", "en-magazyny", "en-ladowanie", "en-odb"]],
+    ["Energetyka", "lightning", "", ["en-wn", "en-moce", "en-sn", "en-wiatr", "x-wiatr-domy", "en-pv", "en-inne", "en-magazyny", "en-ladowanie", "en-odb"]],
     ["OZE i klimat", "wind", "", ["zas-wind", "zas-power", "zas-pvout", "zas-ghi", "zas-temp", "x-klimat-st", "en-miejsca", "en-wdost", "en-pog", "terr-geotermia", "x-cieplo"]],
     ["Powietrze", "cloud", "", ["zas-air", "x-gios", "x-eprtr"]],
     ["Drogi i kolej", "road-horizon", "", ["x-canard", "x-msbd", "x-mapa-drogowa", "x-drogi", "x-zrid", "terr-ruch", "x-kolej", "x-kdp"]],
