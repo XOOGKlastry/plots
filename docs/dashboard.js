@@ -1,14 +1,11 @@
 /* Dashboard gminy (etap 1, test): kafle z wartością i miejscem w rankingu oraz tabela rankingowa dla wybranego wskaźnika.
-   Włączanie: ?dash=1 w adresie (zapamiętane w przeglądarce), wyłączanie: ?dash=0. Link do widoku: ?tryb=dash&gmina=…&stat=…&rok=…
+   Włączony dla wszystkich; ?dash=0 w adresie wyłącza. Link do widoku: ?tryb=dash&gmina=…&stat=…&rok=…
    Przełącznik trybów Mapa | Statystyki | Dashboard korzysta ze wspólnego stanu PlotsState, więc gmina, wskaźnik i rok
    przechodzą między trybami bez utraty. */
 (function () {
   "use strict";
   const KEY = "plots.dash", params = new URLSearchParams(location.search);
-  let enabled = false; try { enabled = localStorage.getItem(KEY) === "1"; } catch { /* optional */ }
-  if (params.get("dash") === "1" || params.get("tryb") === "dash") enabled = true;
-  if (params.get("dash") === "0") enabled = false;
-  try { localStorage.setItem(KEY, enabled ? "1" : "0"); } catch { /* optional */ }
+  const enabled = params.get("dash") !== "0"; // dla wszystkich; ?dash=0 wyłącza na jedno wejście
   const app = window.PLOTS, P = window.PlotsState, store = window.IndicatorStore, S = window.StatsModel;
   if (!enabled || !app || !P || !store) return;
 

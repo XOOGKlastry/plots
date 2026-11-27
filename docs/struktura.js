@@ -47,7 +47,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
   function layersFor() {
     const L = [{ id: "st-mask", type: "fill", source: "st-mask", paint: { "fill-color": "#f2f2f7", "fill-opacity": 0, "fill-opacity-transition": { duration: 700 } } }];
     for (const [k, , col] of C) L.push({ id: "st-" + k, type: "fill", source: "st-pt", filter: ["==", ["get", "k"], k],
-      paint: { "fill-color": col, "fill-opacity": 0, "fill-outline-color": "rgba(255,255,255,.35)", "fill-translate": [0, -14],
+      paint: { "fill-color": col, "fill-opacity": 0, "fill-translate": [0, -14],
         "fill-opacity-transition": { duration: calm ? 0 : 550 }, "fill-translate-transition": { duration: calm ? 0 : 650 } } });
     R.forEach(([rs, , col, w], i) => L.push({ id: "st-r" + i, type: "line", source: "st-dr", filter: ["in", ["get", "r"], ["literal", rs]], layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": col, "line-width": 0, "line-opacity": 0, "line-width-transition": { duration: calm ? 0 : 700 }, "line-opacity-transition": { duration: calm ? 0 : 500 } } }));
@@ -57,7 +57,7 @@ body.struct-open #panel,body.struct-open .side-mods,body.struct-open #layerPanel
   function addMap() {
     const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], b = data.b, rings = b.type === "Polygon" ? [b.coordinates[0]] : b.coordinates.map(p => p[0]);
     const src = { "st-pt": data.pt, "st-dr": data.dr, "st-b": { type: "Feature", geometry: b, properties: {} }, "st-mask": { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [world, ...rings] } } };
-    for (const [id, d] of Object.entries(src)) { if (map.getSource(id)) map.getSource(id).setData(d); else { map.addSource(id, { type: "geojson", data: d, tolerance: .25 }); app.registerOverlaySource?.(id); } }
+    for (const [id, d] of Object.entries(src)) { if (map.getSource(id)) map.getSource(id).setData(d); else { map.addSource(id, { type: "geojson", data: d, tolerance: .8, maxzoom: 13, buffer: 32 }); app.registerOverlaySource?.(id); } }
     for (const l of layersFor()) if (!map.getLayer(l.id)) map.addLayer(l);
   }
   function removeMap() {

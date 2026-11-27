@@ -831,7 +831,7 @@ def extra_frontend_asset(asset_path: str) -> Response:
 
 
 # ---------- Struktura gminy: pokrycie terenu i drogi BDOT10k przycięte do jednej gminy (jeden plik JSON, cache na dysku) ----------
-_STR_DIR = Path(__file__).with_name("cache_struktura"); _STR_DIR.mkdir(exist_ok=True)
+_STR_DIR = Path(__file__).with_name("cache_struktura2"); _STR_DIR.mkdir(exist_ok=True)
 _STR_PT = """
  select 'las' k, geom from bdot_pokrycie.bdot_ptlz
  union all select case when rodzaj='uprawa na gruntach ornych' then 'orne' else 'traw' end, geom from bdot_pokrycie.bdot_pttr
@@ -859,9 +859,9 @@ select json_build_object(
  'ha', (select json_object_agg(k, ha) from (select k, round(sum(st_area(geom))::numeric / 1e4, 1) ha from p group by k) x),
  'km', (select json_object_agg(r, km) from (select r, round(sum(st_length(geom))::numeric / 1e3, 1) km from d group by r) x),
  'pt', (select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(json_build_object('type', 'Feature', 'properties', json_build_object('k', k),
-        'geometry', st_asgeojson(st_transform(st_simplifypreservetopology(geom, 3), 4326), 5)::json)), '[]')) from p where not st_isempty(geom)),
+        'geometry', st_asgeojson(st_transform(st_simplifypreservetopology(geom, 8), 4326), 5)::json)), '[]')) from p where not st_isempty(geom) and st_area(geom) > 150),
  'dr', (select json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(json_build_object('type', 'Feature', 'properties', json_build_object('r', r),
-        'geometry', st_asgeojson(st_transform(st_simplify(geom, 2), 4326), 5)::json) order by r), '[]')) from d where not st_isempty(geom)))"""
+        'geometry', st_asgeojson(st_transform(st_simplify(geom, 6), 4326), 5)::json) order by r), '[]')) from d where not st_isempty(geom)))"""
 _STR_LOCK = threading.Lock()
 
 @app.route("/api/struktura/<t>", methods=["GET", "OPTIONS"])
