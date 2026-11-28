@@ -12,13 +12,13 @@
   const esc = app.esc, icon = (n, x = "") => window.Icons?.svg(n, x) || "";
   const fmt = (v, d) => v == null || !Number.isFinite(v) ? "brak" : S.format(v, d);
   const pl = n => Number(n).toLocaleString("pl-PL");
-  let active = false, defs = [], scope = "polska", busy = null;
+  let active = false, defs = [], scope = "polska", busy = null, funTab = "ind";
 
   /* --- przełącznik trybów --- */
   const sw = document.createElement("nav");
   sw.className = "mode-switch"; sw.setAttribute("aria-label", "Tryb aplikacji");
-  const NAMES = { mapa: "Mapa", statystyki: "Polska", dashboard: "Wykresy" };
-  sw.innerHTML = [["mapa", "map-trifold"], ["statystyki", "poland"], ["dashboard", "chart-bar"]].map(([m, i]) => [m, i, NAMES[m]])
+  const NAMES = { mapa: "Mapa", statystyki: "Polska", dashboard: "Wykresy", ciekawostki: "Ciekawostki" };
+  sw.innerHTML = [["mapa", "map-trifold"], ["statystyki", "poland"], ["dashboard", "chart-bar"], ["ciekawostki", "sparkle"]].map(([m, i]) => [m, i, NAMES[m]])
     .map(([m, i, t]) => `<button type="button" data-mode-go="${m}" aria-pressed="false">${icon(i)}<span>${t}</span></button>`).join("");
   document.body.append(sw);
   function syncSwitch() { const t = P.get("tryb"); sw.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.modeGo === t)); }
@@ -48,6 +48,8 @@
     </header>
     <div class="dash-body">
       <div id="dashTitle" class="dash-title"></div>
+      <div class="dash-tabs" role="tablist" aria-label="Widok"><button type="button" data-dtab="ind" aria-pressed="true">${icon("chart-bar")}<span>Wskaźnik</span></button><button type="button" data-dtab="fun" aria-pressed="false">${icon("sparkle")}<span>Ciekawostki</span></button></div>
+      <div id="dashFun" class="dfun"></div>
       <div class="dash-jump"><button type="button" data-jump="map">${icon("map-trifold")}<span>Pokaż na mapie</span></button><button type="button" data-jump="pl">${icon("poland")}<span>Ten wskaźnik na mapie Polski</span></button></div>
       <div id="dashKpi" class="dash-kpi" aria-live="polite"></div>
       <div class="dash-grid">
@@ -81,9 +83,9 @@
 
   async function go(mode) {
     if (busy) await busy;
-    const from = P.get("tryb"); if (mode === from && (mode !== "dashboard" || active)) return;
+    const from = P.get("tryb"); if (mode === from && (!VIEWS[mode] || active)) return;
     busy = (async () => {
-      if (mode === "dashboard") return open();
+      if (VIEWS[mode]) return open(VIEWS[mode]);
       if (active) await transition(() => hide(), "out");
       if (mode === "statystyki") window.StatsMap?.open(P.get("wskaznik") || undefined, { year: P.get("rok") });
       else { if (window.StatsMap?.isOpen()) window.StatsMap.close(); P.set({ tryb: "mapa" }, "dashboard"); }
@@ -91,7 +93,8 @@
     return busy;
   }
 
-  async function open() {
+  const VIEWS = { dashboard: "ind", ciekawostki: "fun" };
+  async function open(view = "ind") {
     if (window.DistanceModule?.isOpen()) window.DistanceModule.close();
     try { await Promise.all([window.StatsMap.ready(), store.load()]); } catch (e) { app.toast("Dane gmin są chwilowo niedostępne"); return; }
     defs = window.StatsMap.defs().filter(d => !d.cat);
@@ -103,11 +106,11 @@
       if (window.StatsMap.isOpen()) window.StatsMap.close();
       app.closeLayers?.();
       panel.hidden = false; document.body.classList.add("dash-open"); active = true;
-      P.set({ tryb: "dashboard" }, "dashboard");
-      render();
+      P.set({ tryb: view === "fun" ? "ciekawostki" : "dashboard" }, "dashboard");
+      setTab(view); render();
     });
     window.UIHistory?.open("dash", () => { if (active) { hide(); P.set({ tryb: "mapa" }, "dashboard"); syncSwitch(); } });
-    window.Track?.("dashboard", { wskaznik: P.get("wskaznik") });
+    window.Track?.(view === "fun" ? "ciekawostki" : "dashboard", { wskaznik: P.get("wskaznik") });
     if (!P.get("gmina")) $("#dashGmina").focus();
   }
   function hide() {
@@ -274,8 +277,8 @@
   function syncUrl() {
     try {
       const url = new URL(location.href);
-      if (active) { url.searchParams.set("tryb", "dash"); for (const [p, v] of [["gmina", P.get("gmina")], ["stat", P.get("wskaznik")], ["rok", P.get("rok")]]) v ? url.searchParams.set(p, v) : url.searchParams.delete(p); }
-      else if (url.searchParams.get("tryb") === "dash") { url.searchParams.delete("tryb"); if (!window.StatsMap?.isOpen()) { url.searchParams.delete("stat"); url.searchParams.delete("rok"); } }
+      if (active) { url.searchParams.set("tryb", funTab === "fun" ? "ciekawostki" : "dash"); for (const [p, v] of [["gmina", P.get("gmina")], ["stat", P.get("wskaznik")], ["rok", P.get("rok")]]) v ? url.searchParams.set(p, v) : url.searchParams.delete(p); }
+      else if (/^(dash|ciekawostki)$/.test(url.searchParams.get("tryb") || "")) { url.searchParams.delete("tryb"); if (!window.StatsMap?.isOpen()) { url.searchParams.delete("stat"); url.searchParams.delete("rok"); } }
       history.replaceState(history.state, "", url);
     } catch { /* adres to tylko wygoda */ }
   }
@@ -319,6 +322,86 @@
   // Cofnięcie historii przywraca stary adres; poza dashboardem usuwamy z niego tryb=dash.
   addEventListener("popstate", () => setTimeout(() => { if (!active) syncUrl(); }, 0));
   syncSwitch();
-  if (params.get("tryb") === "dash") { const start = () => go("dashboard"); if (app.map?._loaded) start(); else app.map?.once("load", start); }
-  window.Dashboard = { open: () => go("dashboard"), close: () => go("mapa"), isOpen: () => active, go };
+  if (/^(dash|ciekawostki)$/.test(params.get("tryb") || "")) { const start = () => go(params.get("tryb") === "ciekawostki" ? "ciekawostki" : "dashboard"); if (app.map?._loaded) start(); else app.map?.once("load", start); }
+  // przycisk „Na wykresie” w kartach wskaźników gminy
+  document.addEventListener("click", e => { const b = e.target.closest("[data-stat-chart]"); if (!b) return;
+    const dlg = document.getElementById("gminaDialog"); if (dlg?.open) dlg.close();
+    P.set({ wskaznik: b.dataset.statChart, rok: null, ...(b.dataset.k ? { gmina: b.dataset.k } : {}) }, "gmina"); go("dashboard"); });
+  /* Ciekawostki: kolorowe karty z rekordami wybranej gminy (wysokości, budynki, lasy, przyroda). Dane: data/ciekawostki.json. */
+  let funData = null;
+  const SP = { SO: "sosna", DB: "dąb", BK: "buk", JD: "jodła", "ŚW": "świerk", OL: "olsza", BRZ: "brzoza", JS: "jesion", GB: "grab", MD: "modrzew", JW: "jawor", LP: "lipa", AK: "akacja", JKL: "klon" };
+  const nf = (v, d = 0) => Number(v).toLocaleString("pl-PL", { minimumFractionDigits: d, maximumFractionDigits: d });
+  function place(key, k, desc = true) {
+    const all = Object.entries(funData.g).map(([kk, o]) => [kk, o[key]]).filter(x => Number.isFinite(x[1]));
+    all.sort((a, b) => desc ? b[1] - a[1] : a[1] - b[1]); const i = all.findIndex(x => x[0] === k);
+    return i < 0 ? "" : `${nf(i + 1)}. z ${nf(all.length)} w Polsce`;
+  }
+  function bar(parts) {
+    const ps = parts.filter(p => p[1] >= .5), t = ps.reduce((a, p) => a + p[1], 0) || 1;
+    return `<div class="dfun-bar">${ps.map(p => `<i style="flex:${p[1]};background:${p[2]}" title="${esc(p[0])}: ${nf(p[1] / t * 100, 1)}%"></i>`).join("")}</div>
+      <div class="dfun-leg">${ps.map(p => `<span><i style="background:${p[2]}"></i>${esc(p[0])} <b>${nf(p[1] / t * 100)}%</b></span>`).join("")}</div>`;
+  }
+  function ring(pct) {
+    const r = 34, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct || 0));
+    return `<svg class="dfun-ring" viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="10"/><circle cx="42" cy="42" r="${r}" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(c * v / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 42 42)"/><text x="42" y="48" text-anchor="middle">${nf(v)}%</text></svg>`;
+  }
+  const card = (cls, ic, title, body, pin = "") => `<article class="dfun-card ${cls}"><header><span class="dfun-ic">${icon(ic)}</span><h3>${title}</h3>${pin ? `<button type="button" class="dfun-pin" data-fun-pin="${pin}" title="Pokaż na mapie">${icon("map-pin")}</button>` : ""}</header>${body}</article>`;
+  /* Rekordy Polski: listy z warstw ciekawostek (data/rekordy-polski.json), kolorowe sekcje, klik w pozycję prowadzi na mapę. */
+  let funSub = "pl", recData = null;
+  const MEDAL = ["#ffd60a", "#d1d1d6", "#ff9f0a"];
+  async function fun(k) {
+    const box = $("#dashFun"); if (!box) return;
+    const sw = `<div class="dfun-sub" role="group" aria-label="Rodzaj ciekawostek"><button type="button" data-fsub="pl" aria-pressed="${funSub === "pl"}">${icon("poland")}Rekordy Polski</button><button type="button" data-fsub="g" aria-pressed="${funSub === "g"}">${icon("map-pin")}Twoja gmina</button></div>`;
+    if (funSub === "g") { box.innerHTML = sw + `<div id="dashFunG"></div>`; return funGmina(k, box.querySelector("#dashFunG")); }
+    if (!recData) {
+      box.innerHTML = sw + `<p class="muted">Wczytuję rekordy…</p>`;
+      recData = await fetch("data/rekordy-polski.json").then(r => r.json()).catch(() => null);
+      if (!recData) { box.innerHTML = sw + `<p class="muted">Rekordy są chwilowo niedostępne.</p>`; return; }
+    }
+    const nav = `<nav class="drec-nav">${recData.sections.map(x => `<a href="#drec-${x.id}" style="--a:${x.color[0]};--b:${x.color[1]}">${icon(x.icon)}${esc(x.title)}</a>`).join("")}</nav>`;
+    const list = (l, c) => {
+      const nums = l.rows.map(r => parseFloat(String(r[1]).replace(/\s/g, "").replace(",", "."))), max = Math.max(...nums.filter(Number.isFinite).map(Math.abs), 0) || 1, barred = nums.every(Number.isFinite) && !/: 1|kondygnacji|^-/.test(l.rows[0]?.[1] || "") && !/Najkrót|Najmniej|Najniż|poszarpane/.test(l.title);
+      return `<section class="drec-list"><h4>${esc(l.title)}</h4>${l.note ? `<p class="drec-note">${esc(l.note)}</p>` : ""}<ol>${l.rows.map((r, i) => `<li${r[3] ? ` data-rec-pin="${r[3].join(",")}" tabindex="0" title="Pokaż na mapie"` : ""}>
+        <span class="drec-n" style="background:${MEDAL[i] || c[0] + "22"};color:${i < 3 ? "#1c1c1e" : c[0]}">${i + 1}</span>
+        <span class="drec-t"><b>${esc(r[0])}</b><small>${esc(r[2] || "")}</small>${barred ? `<i class="drec-bar"><i style="width:${(Math.abs(nums[i]) / max * 100).toFixed(1)}%;background:linear-gradient(90deg,${c[0]},${c[1]})"></i></i>` : ""}</span>
+        ${r[1] ? `<span class="drec-v" style="color:${c[0]}">${esc(r[1])}</span>` : ""}${r[3] ? `<span class="drec-pin">${icon("map-pin")}</span>` : ""}</li>`).join("")}</ol></section>`;
+    };
+    box.innerHTML = sw + nav + recData.sections.map(x => `<article class="drec-sec" id="drec-${x.id}"><header style="background:linear-gradient(135deg,${x.color[0]},${x.color[1]})"><span class="dfun-ic">${icon(x.icon)}</span><h3>${esc(x.title)}</h3></header>
+      <div class="drec-lists">${x.lists.map(l => list(l, x.color)).join("")}</div></article>`).join("") + `<p class="muted source-note">Źródła: ${esc(recData.zrodla)}.</p>`;
+  }
+  async function funGmina(k, box) {
+    if (!box) return;
+    if (!k) { box.innerHTML = `<p class="muted">Wybierz gminę u góry.</p>`; return; }
+    if (!funData) {
+      box.innerHTML = `<p class="muted">Wczytuję ciekawostki…</p>`;
+      funData = await fetch("data/ciekawostki.json").then(r => r.json()).catch(() => null);
+      if (!funData) { box.innerHTML = `<p class="muted">Ciekawostki są chwilowo niedostępne.</p>`; return; }
+    }
+    const o = funData.g[k]; if (!o) { box.innerHTML = `<p class="muted">Brak ciekawostek dla tej gminy.</p>`; return; }
+    const out = [];
+    if (Number.isFinite(o.hmax)) out.push(card("dfun-peak", "mountains", "Najwyżej i najniżej", `<div class="dfun-big">${nf(o.hmax, 1)}<small> m n.p.m.</small></div><p>najwyższy punkt gminy, ${place("hmax", k)}</p>
+      <div class="dfun-pair"><span>${icon("caret-down")}najniżej <b>${nf(o.hmin, 1)} m</b></span><span>różnica <b>${nf(o.hmax - o.hmin)} m</b></span></div>`, (o.cmax || []).join(",")));
+    if (o.mx) out.push(card("dfun-bigb", "buildings", "Największy budynek", `<div class="dfun-big">${nf(o.mx)}<small> m²</small></div><p>${esc(o.mxf || "budynek")}, ${place("mx", k)}</p>
+      <div class="dfun-pair"><span>${icon("soccer-ball")}to około <b>${nf(o.mx / 7140, 1)}</b> boiska piłkarskiego</span></div>`));
+    if (o.b) out.push(card("dfun-homes", "house", "Domy i bloki", `<div class="dfun-big">${nf(o.b)}<small> budynków</small></div><p>${place("b", k)}, w tym mieszkalnych ${nf(o.m)}</p>
+      ${bar([["domy jednorodzinne", o.jd, "#ffd60a"], ["budynki wielorodzinne", o.wr, "#64d2ff"], ["pozostałe mieszkalne", Math.max(0, (o.m || 0) - (o.jd || 0) - (o.wr || 0)), "#ffffff"]])}
+      ${o.sk ? `<p class="dfun-note">Średnio ${nf(o.sk, 2)} kondygnacji na budynek, ${place("sk", k)}</p>` : ""}`));
+    if (Number.isFinite(o.la)) out.push(card("dfun-forest", "tree", "Lasy państwowe", `<div class="dfun-big">${nf(o.la)}<small> lat</small></div><p>średni wiek drzewostanów, ${place("la", k)}</p>
+      ${bar([["sosna", o.lso, "#ffd60a"], ["dąb", o.ldb, "#a2845e"], ["buk", o.lbk, "#ff9f0a"], ["inne", Math.max(0, 100 - (o.lso || 0) - (o.ldb || 0) - (o.lbk || 0)), "#64d2ff"]])}
+      <p class="dfun-note">Najczęściej rośnie <b>${esc(SP[o.ls] || o.ls || "brak danych")}</b>. Drzewostany ponad 100 lat: <b>${nf(o.l100 || 0, 1)}%</b>. Lasy państwowe: ${nf(o.lh || 0)} ha.</p>`));
+    if (Number.isFinite(o.o)) out.push(card("dfun-nature", "shield-check", "Przyroda pod ochroną", `<div class="dfun-row">${ring(o.o)}<p>powierzchni gminy w formach ochrony przyrody, ${place("o", k)}</p></div>
+      ${[["Natura 2000", o.n2, "#64d2ff"], ["Park krajobrazowy", o.pk, "#30d158"], ["Obszar chronionego krajobrazu", o.ok, "#ffd60a"]].map(([n, v, c]) => `<div class="dfun-meter"><span>${n}</span><i><i style="width:${Math.min(100, v || 0)}%;background:${c}"></i></i><b>${nf(v || 0, 1)}%</b></div>`).join("")}`));
+    box.innerHTML = `<div class="dfun-grid">${out.join("")}</div><p class="muted source-note">Źródła: ${esc(funData.zrodla)}. Miejsca liczone wśród wszystkich gmin z danymi.</p>`;
+  }
+  function setTab(t) { funTab = t; panel.classList.toggle("fun", t === "fun"); panel.querySelectorAll("[data-dtab]").forEach(b => b.setAttribute("aria-pressed", b.dataset.dtab === t)); if (t === "fun") fun(P.get("gmina")); }
+  panel.addEventListener("click", e => {
+    const t = e.target.closest("[data-dtab]"); if (t) return setTab(t.dataset.dtab);
+    const fs = e.target.closest("[data-fsub]"); if (fs) { funSub = fs.dataset.fsub; return fun(P.get("gmina")); }
+    const rp = e.target.closest("[data-rec-pin]"); if (rp) { const [x, y] = rp.dataset.recPin.split(",").map(Number); Promise.resolve(go("mapa")).then(() => window.PLOTS?.map?.flyTo({ center: [x, y], zoom: 15 })); return; }
+    const nv = e.target.closest(".drec-nav a"); if (nv) { e.preventDefault(); panel.querySelector(nv.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    const pin = e.target.closest("[data-fun-pin]");
+    if (pin) { const [x, y] = pin.dataset.funPin.split(",").map(Number); Promise.resolve(go("mapa")).then(() => window.PLOTS?.map?.flyTo({ center: [x, y], zoom: 14 })); }
+  });
+  P.on(({ changed }) => { if (active && funTab === "fun" && funSub === "g" && changed.includes("gmina")) fun(P.get("gmina")); });
+  window.Dashboard = { fun: () => go("ciekawostki"), open: () => go("dashboard"), close: () => go("mapa"), isOpen: () => active, go };
 })();

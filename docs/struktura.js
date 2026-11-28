@@ -23,7 +23,7 @@
 
   const css = document.createElement("style");
   css.textContent = `
-.st-sheet{position:fixed;z-index:60;left:50%;bottom:0;width:min(420px,100vw);transform:translate(-50%,110%);background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(22px);backdrop-filter:saturate(180%) blur(22px);border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.14);padding:8px 16px calc(14px + env(safe-area-inset-bottom));font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;color:#1c1c1e;transition:transform .6s cubic-bezier(.2,1.15,.3,1);max-height:78vh;overflow:auto;overscroll-behavior:contain}
+.st-sheet{position:fixed;z-index:60;left:50%;bottom:0;width:min(420px,100vw);transform:translate(-50%,110%);background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(22px);backdrop-filter:saturate(180%) blur(22px);border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.14);padding:8px 16px calc(14px + env(safe-area-inset-bottom));font-family:var(--ui,-apple-system,system-ui,sans-serif);color:#1c1c1e;transition:transform .6s cubic-bezier(.2,1.15,.3,1);max-height:78vh;overflow:auto;overscroll-behavior:contain}
 @media(min-width:900px){.st-sheet{left:auto;right:16px;bottom:16px;top:16px;max-height:none;border-radius:28px;transform:translateX(120%)}}
 .st-sheet.in{transform:translate(-50%,0)}@media(min-width:900px){.st-sheet.in{transform:none}}
 .st-grab{width:38px;height:5px;border-radius:3px;background:#c7c7cc;margin:0 auto 8px}
@@ -43,7 +43,7 @@
 .st-tg.off{background:#e9e9ea}.st-tg.off:after{left:2px}
 .st-sl{transition:transform .5s cubic-bezier(.2,1.4,.3,1);cursor:pointer}
 .st-pie{display:block;width:100%;height:auto;touch-action:none;cursor:grab}.st-pie:active{cursor:grabbing}.pie3d-sl{cursor:pointer}
-.st-pie text{font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;pointer-events:none}
+.st-pie text{font-family:var(--ui,-apple-system,system-ui,sans-serif);pointer-events:none}
 .st-leg{display:grid;grid-template-columns:1fr;gap:6px 10px;margin:6px 0 2px}
 .st-leg span{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;line-height:1.15;cursor:pointer}
 .st-leg span.off{opacity:.4}

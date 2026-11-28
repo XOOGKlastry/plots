@@ -1,6 +1,6 @@
 /* Dashboard gminy i przełącznik trybów. Styl w duchu iOS: tło #f2f2f7, białe karty z dużym zaokrągleniem,
    kolor kategorii wskaźnika (--cat) jako akcent, kolorowe kafle. Tylko jasny motyw. */
-.dash,.mode-switch,.dpick{--ios-bg:#f2f2f7;--ios-card:#fff;--ios-sep:rgba(60,60,67,.12);--ios-mut:#545458;--ios-r:22px;--ios-font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Manrope",system-ui,"Segoe UI",sans-serif;--spring:cubic-bezier(.32,.72,0,1)}
+.dash,.mode-switch,.dpick{--ios-bg:#f2f2f7;--ios-card:#fff;--ios-sep:rgba(60,60,67,.12);--ios-mut:#545458;--ios-r:22px;--ios-font:var(--ui,-apple-system,BlinkMacSystemFont,"Segoe UI Variable","Segoe UI",sans-serif);--spring:cubic-bezier(.32,.72,0,1)}
 
 /* --- przełącznik trybów --- */
 .mode-switch{position:fixed;z-index:8;top:calc(14px + var(--st,0px));left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(242,242,247,.82);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border:1px solid rgba(255,255,255,.7);box-shadow:0 6px 24px rgba(0,0,0,.10),0 0 0 .5px rgba(0,0,0,.06);view-transition-name:mode-switch;font-family:var(--ios-font)}
@@ -289,3 +289,87 @@ html[data-vt]::view-transition-group(dash){animation:none}
 .dash-struct .dtbl-me{background:#30a14e}
 .pie3d text{font-family:var(--ios-font,-apple-system,system-ui,sans-serif);pointer-events:none}
 .pie3d-sl{transition:transform .25s cubic-bezier(.32,.72,0,1)}
+
+/* Zakładki Wskaźnik | Ciekawostki */
+.dash-tabs{display:flex;gap:6px;margin:4px 0 14px;padding:4px;background:#eef0f5;border-radius:14px;width:max-content}
+.dash-tabs button{display:flex;align-items:center;gap:6px;border:0;background:transparent;padding:8px 16px;border-radius:10px;font:600 14px/1 inherit;color:#3a3a3c;cursor:pointer}
+.dash-tabs button .ic{width:16px;height:16px}
+.dash-tabs button[aria-pressed="true"]{background:#fff;color:#0a84ff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.dash-tabs button[data-dtab="fun"][aria-pressed="true"]{color:#bf5af2}
+.dash:not(.fun) #dashFun{display:none}
+.dash.fun .dash-body>:not(.dash-title):not(.dash-tabs):not(#dashFun){display:none}
+/* Kolorowe karty ciekawostek */
+.dfun-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.dfun-card{position:relative;overflow:hidden;border-radius:24px;padding:18px 20px 20px;color:#fff;box-shadow:0 10px 30px -12px rgba(0,0,0,.35);animation:dfunIn .5s cubic-bezier(.2,.8,.2,1) both}
+.dfun-card:nth-child(2){animation-delay:.06s}.dfun-card:nth-child(3){animation-delay:.12s}.dfun-card:nth-child(4){animation-delay:.18s}.dfun-card:nth-child(5){animation-delay:.24s}
+.dfun-card::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.14);pointer-events:none}
+@keyframes dfunIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.dfun-card{animation:none}}
+.dfun-peak{background:linear-gradient(135deg,#0a84ff,#30d158)}
+.dfun-bigb{background:linear-gradient(135deg,#ff9f0a,#ff375f)}
+.dfun-homes{background:linear-gradient(135deg,#bf5af2,#ff375f)}
+.dfun-forest{background:linear-gradient(135deg,#248a3d,#8bc34a)}
+.dfun-nature{background:linear-gradient(135deg,#0097a7,#5e5ce6)}
+.dfun-card header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dfun-card h3{margin:0;font-size:17px;font-weight:700;flex:1;color:#fff}
+.dfun-ic{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.25)}
+.dfun-ic .ic{width:22px;height:22px;color:#fff}
+.dfun-pin{border:0;background:rgba(255,255,255,.25);color:#fff;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;cursor:pointer;position:relative;z-index:1}
+.dfun-pin .ic{width:18px;height:18px}
+.dfun-big{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.dfun-big small{font-size:16px;font-weight:600;opacity:.9}
+.dfun-card p{margin:6px 0 0;font-size:14px;line-height:1.4;color:#fff}
+.dfun-card .dfun-note{font-size:13px}
+.dfun-pair{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.dfun-pair span{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);padding:6px 10px;border-radius:999px;font-size:13px}
+.dfun-pair .ic{width:14px;height:14px}
+.dfun-bar{display:flex;height:14px;border-radius:999px;overflow:hidden;margin-top:12px;background:rgba(255,255,255,.25);gap:2px}
+.dfun-leg{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:12.5px}
+.dfun-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid rgba(255,255,255,.7)}
+.dfun-row{display:flex;align-items:center;gap:14px}
+.dfun-ring{width:96px;height:96px;flex:none}
+.dfun-ring text{fill:#fff;font:800 18px/1 system-ui,sans-serif}
+.dfun-meter{display:grid;grid-template-columns:1fr 90px 52px;align-items:center;gap:8px;margin-top:8px;font-size:13px}
+.dfun-meter>i{height:10px;border-radius:999px;background:rgba(255,255,255,.25);overflow:hidden}
+.dfun-meter>i>i{display:block;height:100%;border-radius:999px}
+.dfun-meter b{text-align:right}
+.dash.fun .dash-ind,.dash.fun .dash-year,.dash.fun .dash-title>small,.dash.fun .dash-title>p{display:none}
+
+/* Rekordy Polski */
+.dfun-sub{display:flex;gap:8px;margin:0 0 14px}
+.dfun-sub button{display:flex;align-items:center;gap:6px;border:0;padding:9px 16px;border-radius:999px;font:600 14px/1 inherit;cursor:pointer;background:#eef0f5;color:#3a3a3c}
+.dfun-sub button .ic{width:16px;height:16px}
+.dfun-sub button[aria-pressed="true"]{background:linear-gradient(135deg,#bf5af2,#ff375f);color:#fff;box-shadow:0 6px 16px -8px #bf5af2}
+.drec-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.drec-nav a{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;color:#fff;text-decoration:none;font:600 13px/1 inherit;background:linear-gradient(135deg,var(--a),var(--b));box-shadow:0 4px 12px -6px var(--a);transition:transform .15s}
+.drec-nav a:hover{transform:translateY(-2px)}
+.drec-nav a .ic{width:15px;height:15px;color:#fff}
+.drec-sec{margin:0 0 22px;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 10px 30px -16px rgba(0,0,0,.3);scroll-margin-top:12px;animation:dfunIn .5s cubic-bezier(.2,.8,.2,1) both}
+.drec-sec>header{display:flex;align-items:center;gap:12px;padding:16px 20px;color:#fff}
+.drec-sec>header h3{margin:0;font-size:20px;font-weight:800;color:#fff}
+.drec-lists{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;padding:16px}
+.drec-list{background:#f7f7fa;border-radius:18px;padding:12px 12px 6px}
+.drec-list h4{margin:2px 4px 4px;font-size:15px;font-weight:700;color:#1c1c1e}
+.drec-note{margin:0 4px 6px;font-size:12px;color:#6e6e73}
+.drec-list ol{list-style:none;margin:0;padding:0}
+.drec-list li{display:flex;align-items:center;gap:10px;padding:7px 6px;border-radius:12px}
+.drec-list li[data-rec-pin]{cursor:pointer}
+.drec-list li[data-rec-pin]:hover,.drec-list li[data-rec-pin]:focus-visible{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);outline:none}
+.drec-n{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font:800 12px/1 inherit}
+.drec-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.drec-t b{font-size:13.5px;color:#1c1c1e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drec-t small{font-size:11.5px;color:#6e6e73;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drec-bar{display:block;height:5px;border-radius:999px;background:#e5e5ea;overflow:hidden;margin-top:3px}
+.drec-bar>i{display:block;height:100%;border-radius:999px}
+.drec-v{flex:none;font:800 13px/1.2 inherit;text-align:right;max-width:40%}
+.drec-pin{flex:none;opacity:0;transition:opacity .15s;color:#8e8e93}
+.drec-pin .ic{width:14px;height:14px}
+.drec-list li:hover .drec-pin{opacity:1}
+.drec-t b::first-letter{text-transform:uppercase}
+
+/* Ciekawostki jako osobny tryb: bez zakładek, bez nazwy gminy w nagłówku przy rekordach Polski */
+.dash-tabs{display:none!important}
+.dash.fun .dash-title h1{font-size:0}
+.dash.fun .dash-title h1::before{content:"Ciekawostki";font-size:34px}
+.dfun-ring text{font-family:var(--ios-font,-apple-system,system-ui,sans-serif)}
+@media (max-width:480px){.mode-switch{max-width:calc(100vw - 16px)}.mode-switch button{padding:9px 9px;gap:4px;font-size:12px}.mode-switch button .ic{width:15px;height:15px}.dash.fun .dash-title h1::before{font-size:28px}.drec-lists{grid-template-columns:1fr;padding:10px}.drec-list li{gap:8px}.dfun-grid{grid-template-columns:1fr}}
